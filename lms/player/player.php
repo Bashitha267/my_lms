@@ -557,6 +557,7 @@ if ($role === 'student' && $current_recording) {
             flex-direction: column;
             position: relative;
             background: #000;
+            min-height: 600px;
         }
 
         .player-wrapper {
@@ -567,7 +568,7 @@ if ($role === 'student' && $current_recording) {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 0;
+            min-height: 500px;
         }
 
         /* Ensure mobile videos section is hidden on desktop */
@@ -843,6 +844,235 @@ if ($role === 'student' && $current_recording) {
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #dc2626;
+        }
+
+        /* Downloads Section */
+        .downloads-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #333;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            margin: 0;
+        }
+
+        .upload-toggle-btn {
+            padding: 0.5rem 1rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .upload-toggle-btn:hover {
+            background: #b91c1c;
+        }
+
+        .section-title i {
+            color: #dc2626;
+        }
+
+        .files-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: #252525;
+            border-color: #dc2626;
+        }
+
+        .file-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #252525;
+            border-radius: 0.5rem;
+            font-size: 1.5rem;
+            color: #dc2626;
+            flex-shrink: 0;
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: white;
+            margin-bottom: 0.25rem;
+            word-break: break-word;
+        }
+
+        .file-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .file-download-btn {
+            padding: 0.5rem 1rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .file-download-btn:hover {
+            background: #b91c1c;
+        }
+
+        .files-loading, .files-empty {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .upload-area {
+            background: #1a1a1a;
+            border: 2px dashed #333;
+            border-radius: 0.5rem;
+            padding: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-input-wrapper {
+            margin-bottom: 1rem;
+        }
+
+        .upload-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .upload-label:hover {
+            color: #dc2626;
+        }
+
+        .upload-label i {
+            font-size: 3rem;
+            color: #dc2626;
+            margin-bottom: 1rem;
+        }
+
+        .upload-label span {
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-label small {
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .upload-progress {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #252525;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #dc2626;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: #9ca3af;
+            font-size: 0.875rem;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .upload-btn:hover {
+            background: #b91c1c;
+        }
+
+        .upload-btn:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
         }
 
         /* Back Button */
@@ -1684,6 +1914,50 @@ if ($role === 'student' && $current_recording) {
                     <?php if ($current_recording['description']): ?>
                         <p class="text-gray-300 mt-3 text-sm"><?php echo htmlspecialchars($current_recording['description']); ?></p>
                     <?php endif; ?>
+
+                    <!-- Downloads Section -->
+                    <div class="downloads-section mt-4">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-download mr-2"></i>
+                                Downloads
+                            </h3>
+                            <?php if ($role === 'student' || $role === 'teacher'): ?>
+                            <button class="upload-toggle-btn" id="upload-toggle-btn" onclick="toggleUploadArea()">
+                                <i class="fas fa-upload"></i>
+                                Upload File
+                            </button>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($role === 'student' || $role === 'teacher'): ?>
+                        <div class="upload-area" id="upload-area" style="display: none;">
+                            <form id="upload-form" enctype="multipart/form-data">
+                                <input type="hidden" name="recording_id" value="<?php echo $recording_id; ?>">
+                                <div class="upload-input-wrapper">
+                                    <input type="file" id="file-input" name="file" accept="*/*" style="display: none;">
+                                    <label for="file-input" class="upload-label">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <span>Click to select file or drag and drop</span>
+                                        <small>Maximum file size: 50MB</small>
+                                    </label>
+                                </div>
+                                <div class="upload-progress" id="upload-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="progress-fill"></div>
+                                    </div>
+                                    <span class="progress-text" id="progress-text">0%</span>
+                                </div>
+                                <button type="submit" class="upload-btn" id="upload-btn" style="display: none;">
+                                    <i class="fas fa-upload"></i>
+                                    Upload File
+                                </button>
+                            </form>
+                        </div>
+                        <?php endif; ?>
+                        <div class="files-list" id="files-list">
+                            <div class="files-loading">Loading files...</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Mobile Videos Section (shown only on mobile) -->
@@ -2583,10 +2857,266 @@ if ($role === 'student' && $current_recording) {
                 document.addEventListener('DOMContentLoaded', function() {
                     initializeChat();
                     setupMobileChatModalClose();
+                    initializeFileUpload();
+                    loadFiles();
                 });
             } else {
                 initializeChat();
                 setupMobileChatModalClose();
+                initializeFileUpload();
+                loadFiles();
+            }
+
+            // File Upload and Download functionality
+            function toggleUploadArea() {
+                const uploadArea = document.getElementById('upload-area');
+                if (uploadArea) {
+                    uploadArea.style.display = uploadArea.style.display === 'none' ? 'block' : 'none';
+                }
+            }
+
+            function initializeFileUpload() {
+                const fileInput = document.getElementById('file-input');
+                const uploadForm = document.getElementById('upload-form');
+                const uploadBtn = document.getElementById('upload-btn');
+                const uploadArea = document.getElementById('upload-area');
+                
+                if (!fileInput || !uploadForm || !uploadArea) return;
+
+                const uploadLabel = uploadArea.querySelector('.upload-label');
+
+                // Show upload button when file is selected
+                fileInput.addEventListener('change', function() {
+                    if (this.files.length > 0) {
+                        uploadBtn.style.display = 'flex';
+                        uploadLabel.querySelector('span').textContent = this.files[0].name;
+                    } else {
+                        uploadBtn.style.display = 'none';
+                        uploadLabel.querySelector('span').textContent = 'Click to select file or drag and drop';
+                    }
+                });
+
+                // Drag and drop
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#dc2626';
+                });
+
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#333';
+                });
+
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#333';
+                    
+                    if (e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                        fileInput.dispatchEvent(new Event('change'));
+                    }
+                });
+
+                // Handle form submission
+                uploadForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    uploadFile();
+                });
+            }
+
+            function uploadFile() {
+                const fileInput = document.getElementById('file-input');
+                const uploadForm = document.getElementById('upload-form');
+                const uploadBtn = document.getElementById('upload-btn');
+                const progressContainer = document.getElementById('upload-progress');
+                const progressFill = document.getElementById('progress-fill');
+                const progressText = document.getElementById('progress-text');
+
+                if (!fileInput.files.length) {
+                    alert('Please select a file to upload');
+                    return;
+                }
+
+                const file = fileInput.files[0];
+                const maxSize = 50 * 1024 * 1024; // 50MB
+
+                if (file.size > maxSize) {
+                    alert('File size exceeds 50MB limit');
+                    return;
+                }
+
+                const formData = new FormData(uploadForm);
+                formData.append('file', file);
+
+                uploadBtn.disabled = true;
+                progressContainer.style.display = 'block';
+                progressFill.style.width = '0%';
+                progressText.textContent = '0%';
+
+                const xhr = new XMLHttpRequest();
+
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = Math.round(percentComplete) + '%';
+                    }
+                });
+
+                xhr.addEventListener('load', function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                progressFill.style.width = '100%';
+                                progressText.textContent = '100%';
+                                setTimeout(() => {
+                                    progressContainer.style.display = 'none';
+                                    uploadForm.reset();
+                                    uploadBtn.style.display = 'none';
+                                    const uploadArea = document.getElementById('upload-area');
+                                    const uploadLabel = uploadArea ? uploadArea.querySelector('.upload-label') : null;
+                                    if (uploadLabel) {
+                                        uploadLabel.querySelector('span').textContent = 'Click to select file or drag and drop';
+                                    }
+                                    // Close upload area after successful upload
+                                    if (uploadArea) {
+                                        uploadArea.style.display = 'none';
+                                    }
+                                    loadFiles();
+                                    alert('File uploaded successfully!');
+                                }, 500);
+                            } else {
+                                alert('Error: ' + (response.message || 'Upload failed'));
+                                progressContainer.style.display = 'none';
+                            }
+                        } catch (e) {
+                            alert('Error parsing server response');
+                            progressContainer.style.display = 'none';
+                        }
+                    } else {
+                        alert('Upload failed. Please try again.');
+                        progressContainer.style.display = 'none';
+                    }
+                    uploadBtn.disabled = false;
+                });
+
+                xhr.addEventListener('error', function() {
+                    alert('Upload failed. Please check your connection.');
+                    progressContainer.style.display = 'none';
+                    uploadBtn.disabled = false;
+                });
+
+                xhr.open('POST', 'upload_file.php');
+                xhr.send(formData);
+            }
+
+            function loadFiles() {
+                const filesList = document.getElementById('files-list');
+                if (!filesList) return;
+
+                filesList.innerHTML = '<div class="files-loading">Loading files...</div>';
+
+                fetch(`get_files.php?recording_id=<?php echo $recording_id; ?>`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.files) {
+                            renderFiles(data.files);
+                        } else {
+                            filesList.innerHTML = '<div class="files-empty">No files uploaded yet</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading files:', error);
+                        filesList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                    });
+            }
+
+            function renderFiles(files) {
+                const filesList = document.getElementById('files-list');
+                if (!filesList) return;
+
+                if (files.length === 0) {
+                    filesList.innerHTML = '<div class="files-empty">No files uploaded yet</div>';
+                    return;
+                }
+
+                filesList.innerHTML = files.map(file => {
+                    const fileSize = formatFileSize(file.file_size);
+                    const fileIcon = getFileIcon(file.file_extension);
+                    const uploadDate = formatFileDate(file.upload_date);
+                    const uploaderInfo = file.is_own_file 
+                        ? 'You' 
+                        : `${file.uploader_name} (${file.uploader_role === 'teacher' ? 'Teacher' : 'Student'})`;
+
+                    return `
+                        <div class="file-item">
+                            <div class="file-icon">
+                                <i class="${fileIcon}"></i>
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name">${escapeHtml(file.file_name)}</div>
+                                <div class="file-meta">
+                                    <span><i class="fas fa-user"></i> ${escapeHtml(uploaderInfo)}</span>
+                                    <span><i class="fas fa-calendar"></i> ${uploadDate}</span>
+                                    <span><i class="fas fa-weight"></i> ${fileSize}</span>
+                                </div>
+                            </div>
+                            <div class="file-actions">
+                                <a href="../${escapeHtml(file.file_path)}" download="${escapeHtml(file.file_name)}" class="file-download-btn">
+                                    <i class="fas fa-download"></i>
+                                    Download
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            }
+
+            function formatFileDate(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                if (diffDays < 7) return `${diffDays}d ago`;
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+            }
+
+            function getFileIcon(extension) {
+                const ext = extension ? extension.toLowerCase() : '';
+                const iconMap = {
+                    'pdf': 'fas fa-file-pdf',
+                    'doc': 'fas fa-file-word',
+                    'docx': 'fas fa-file-word',
+                    'xls': 'fas fa-file-excel',
+                    'xlsx': 'fas fa-file-excel',
+                    'ppt': 'fas fa-file-powerpoint',
+                    'pptx': 'fas fa-file-powerpoint',
+                    'zip': 'fas fa-file-archive',
+                    'rar': 'fas fa-file-archive',
+                    'jpg': 'fas fa-file-image',
+                    'jpeg': 'fas fa-file-image',
+                    'png': 'fas fa-file-image',
+                    'gif': 'fas fa-file-image',
+                    'txt': 'fas fa-file-alt',
+                    'mp4': 'fas fa-file-video',
+                    'mp3': 'fas fa-file-audio'
+                };
+                return iconMap[ext] || 'fas fa-file';
             }
             <?php endif; ?>
         </script>
