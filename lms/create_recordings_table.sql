@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `recordings` (
   `duration` VARCHAR(20) DEFAULT NULL COMMENT 'Video duration (e.g., "10:30")',
   `thumbnail_url` VARCHAR(500) DEFAULT NULL COMMENT 'YouTube thumbnail URL',
   `view_count` INT(11) DEFAULT 0 COMMENT 'View count',
+  `free_video` TINYINT(1) DEFAULT 0 COMMENT 'Whether this video is free to watch (1 = free, 0 = requires payment)',
   `status` ENUM('active', 'inactive', 'pending') NOT NULL DEFAULT 'active' COMMENT 'Recording status',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'Record creation timestamp',
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update timestamp',

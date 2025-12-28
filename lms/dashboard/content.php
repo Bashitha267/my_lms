@@ -51,6 +51,43 @@ if ($stream_subject_id > 0) {
     }
 }
 
+// Handle toggle free video status (AJAX)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_free_video']) && $role === 'teacher') {
+    header('Content-Type: application/json');
+    $recording_id = intval($_POST['recording_id'] ?? 0);
+    $free_status = intval($_POST['free_status'] ?? 0);
+    
+    if ($recording_id > 0) {
+        // Verify teacher owns this recording
+        $verify_query = "SELECT r.id FROM recordings r
+                        INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                        WHERE r.id = ? AND ta.teacher_id = ?";
+        $verify_stmt = $conn->prepare($verify_query);
+        $verify_stmt->bind_param("is", $recording_id, $user_id);
+        $verify_stmt->execute();
+        $verify_result = $verify_stmt->get_result();
+        
+        if ($verify_result->num_rows > 0) {
+            $update_query = "UPDATE recordings SET free_video = ? WHERE id = ?";
+            $update_stmt = $conn->prepare($update_query);
+            $update_stmt->bind_param("ii", $free_status, $recording_id);
+            
+            if ($update_stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Video status updated successfully']);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Error updating video status']);
+            }
+            $update_stmt->close();
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+        }
+        $verify_stmt->close();
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Invalid recording ID']);
+    }
+    exit;
+}
+
 // Handle form submission for adding new recording
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $role === 'teacher') {
     // Verify session is still valid
@@ -60,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
         $title = trim($_POST['title'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $youtube_url = trim($_POST['youtube_url'] ?? '');
+        $recording_date = trim($_POST['recording_date'] ?? date('Y-m-d'));
         
         // Get teacher_assignment_id from session user_id (not from POST for security)
         // Use the stream_subject_id and academic_year from GET parameters
@@ -103,9 +141,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                 // Generate thumbnail URL
                 $thumbnail_url = "https://img.youtube.com/vi/{$youtube_video_id}/maxresdefault.jpg";
                 
+                // Get free_video value (default to 0 if not set)
+                $free_video = isset($_POST['free_video']) ? 1 : 0;
+                
+                // Validate and format recording date
+                $recording_datetime = date('Y-m-d H:i:s', strtotime($recording_date));
+                if ($recording_datetime === false || $recording_datetime === '1970-01-01 00:00:00') {
+                    $recording_datetime = date('Y-m-d H:i:s'); // Use current date if invalid
+                }
+                
                 // Insert recording using teacher_assignment_id from session user_id
-                $stmt = $conn->prepare("INSERT INTO recordings (teacher_assignment_id, title, description, youtube_video_id, youtube_url, thumbnail_url, status) VALUES (?, ?, ?, ?, ?, ?, 'active')");
-                $stmt->bind_param("isssss", $teacher_assignment_id_for_recording, $title, $description, $youtube_video_id, $youtube_url, $thumbnail_url);
+                $stmt = $conn->prepare("INSERT INTO recordings (teacher_assignment_id, title, description, youtube_video_id, youtube_url, thumbnail_url, free_video, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)");
+                $stmt->bind_param("isssssis", $teacher_assignment_id_for_recording, $title, $description, $youtube_video_id, $youtube_url, $thumbnail_url, $free_video, $recording_datetime);
                 
                 if ($stmt->execute()) {
                     $success_message = 'Recording added successfully!';
@@ -156,11 +203,13 @@ if ($stream_subject_id > 0) {
 
 // Get recordings for this teacher assignment(s)
 $recordings = [];
+$paid_months = []; // Months student has paid for (for students)
+
 if (!empty($teacher_assignment_ids)) {
     // Create placeholders for IN clause
     $placeholders = str_repeat('?,', count($teacher_assignment_ids) - 1) . '?';
     $query = "SELECT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
-                     r.view_count, r.status, r.created_at,
+                     r.view_count, r.status, r.created_at, r.free_video,
                      u.first_name, u.second_name
               FROM recordings r
               INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
@@ -177,7 +226,60 @@ if (!empty($teacher_assignment_ids)) {
         $recordings[] = $row;
     }
     $stmt->close();
+    
+    // For students: Check which months they have paid for
+    if ($role === 'student' && $stream_subject_id > 0) {
+        // Get student enrollment ID
+        $enroll_query = "SELECT id FROM student_enrollment 
+                        WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active'
+                        LIMIT 1";
+        $enroll_stmt = $conn->prepare($enroll_query);
+        $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+        $enroll_stmt->execute();
+        $enroll_result = $enroll_stmt->get_result();
+        
+        if ($enroll_result->num_rows > 0) {
+            $enroll_row = $enroll_result->fetch_assoc();
+            $enrollment_id = $enroll_row['id'];
+            
+            // Get paid months
+            $paid_query = "SELECT month, year FROM monthly_payments 
+                          WHERE student_enrollment_id = ? AND payment_status = 'paid'
+                          UNION
+                          SELECT MONTH(payment_date) as month, YEAR(payment_date) as year 
+                          FROM enrollment_payments 
+                          WHERE student_enrollment_id = ? AND payment_status = 'paid'";
+            $paid_stmt = $conn->prepare($paid_query);
+            $paid_stmt->bind_param("ii", $enrollment_id, $enrollment_id);
+            $paid_stmt->execute();
+            $paid_result = $paid_stmt->get_result();
+            
+            while ($paid_row = $paid_result->fetch_assoc()) {
+                $paid_months[] = $paid_row['year'] . '-' . str_pad($paid_row['month'], 2, '0', STR_PAD_LEFT);
+            }
+            $paid_stmt->close();
+        }
+        $enroll_stmt->close();
+    }
 }
+
+// Group recordings by month
+$recordings_by_month = [];
+foreach ($recordings as $recording) {
+    $month_key = date('Y-m', strtotime($recording['created_at']));
+    $month_name = date('F Y', strtotime($recording['created_at']));
+    
+    if (!isset($recordings_by_month[$month_key])) {
+        $recordings_by_month[$month_key] = [
+            'month_name' => $month_name,
+            'recordings' => []
+        ];
+    }
+    $recordings_by_month[$month_key]['recordings'][] = $recording;
+}
+
+// Sort months in descending order (newest first)
+krsort($recordings_by_month);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -272,48 +374,116 @@ if (!empty($teacher_assignment_ids)) {
                     <?php endif; ?>
                 </div>
             <?php else: ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <?php foreach ($recordings as $recording): ?>
-                        <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden cursor-pointer" onclick="playVideo('<?php echo htmlspecialchars($recording['youtube_video_id']); ?>')">
-                            <!-- Thumbnail -->
-                            <div class="relative aspect-video bg-gray-200">
-                                <img src="<?php echo htmlspecialchars($recording['thumbnail_url']); ?>" 
-                                     alt="<?php echo htmlspecialchars($recording['title']); ?>"
-                                     class="w-full h-full object-cover"
-                                     onerror="this.src='https://img.youtube.com/vi/<?php echo htmlspecialchars($recording['youtube_video_id']); ?>/hqdefault.jpg'">
-                                <!-- Play Button Overlay -->
-                                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 transition-opacity">
-                                    <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M8 5v14l11-7z"/>
-                                    </svg>
+                <!-- Group recordings by month -->
+                <?php foreach ($recordings_by_month as $month_key => $month_data): ?>
+                    <div class="mb-8">
+                        <!-- Month Heading -->
+                        <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <?php echo htmlspecialchars($month_data['month_name']); ?>
+                        </h2>
+                        
+                        <!-- Recordings Grid for this month -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <?php foreach ($month_data['recordings'] as $recording): ?>
+                                <?php
+                                // Check if student can watch this video
+                                $can_watch = false;
+                                $is_locked = false;
+                                
+                                if ($role === 'teacher') {
+                                    // Teachers can watch all videos
+                                    $can_watch = true;
+                                } elseif ($role === 'student') {
+                                    // Check if video is free
+                                    if ($recording['free_video'] == 1) {
+                                        $can_watch = true;
+                                    } else {
+                                        // Check if student has paid for this month
+                                        $recording_month = date('Y-m', strtotime($recording['created_at']));
+                                        if (in_array($recording_month, $paid_months)) {
+                                            $can_watch = true;
+                                        } else {
+                                            $is_locked = true;
+                                        }
+                                    }
+                                } else {
+                                    $can_watch = true;
+                                }
+                                ?>
+                                <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden <?php echo $is_locked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'; ?>" 
+                                     <?php if ($can_watch): ?>
+                                         onclick="playVideo('<?php echo htmlspecialchars($recording['youtube_video_id']); ?>')"
+                                     <?php else: ?>
+                                         onclick="showPaymentRequired('<?php echo htmlspecialchars($month_data['month_name']); ?>')"
+                                     <?php endif; ?>>
+                                    <!-- Thumbnail -->
+                                    <div class="relative aspect-video bg-gray-200">
+                                        <img src="<?php echo htmlspecialchars($recording['thumbnail_url']); ?>" 
+                                             alt="<?php echo htmlspecialchars($recording['title']); ?>"
+                                             class="w-full h-full object-cover"
+                                             onerror="this.src='https://img.youtube.com/vi/<?php echo htmlspecialchars($recording['youtube_video_id']); ?>/hqdefault.jpg'">
+                                        <!-- Play Button Overlay or Lock Icon -->
+                                        <div class="absolute inset-0 flex items-center justify-center bg-black <?php echo $is_locked ? 'bg-opacity-50' : 'bg-opacity-30 hover:bg-opacity-40'; ?> transition-opacity">
+                                            <?php if ($is_locked): ?>
+                                                <div class="text-center">
+                                                    <svg class="w-16 h-16 text-white mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                                    </svg>
+                                                    <p class="text-white text-xs font-semibold">Payment Required</p>
+                                                </div>
+                                            <?php else: ?>
+                                                <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M8 5v14l11-7z"/>
+                                                </svg>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if ($recording['free_video'] == 1): ?>
+                                            <div class="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                                                FREE
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <!-- Video Info -->
+                                    <div class="p-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <h3 class="font-semibold text-gray-900 line-clamp-2 flex-1" title="<?php echo htmlspecialchars($recording['title']); ?>">
+                                                <?php echo htmlspecialchars($recording['title']); ?>
+                                            </h3>
+                                            <?php if ($role === 'teacher'): ?>
+                                                <!-- Free Video Toggle Button -->
+                                                <button onclick="toggleFreeVideo(event, <?php echo $recording['id']; ?>, <?php echo $recording['free_video'] == 1 ? 0 : 1; ?>)" 
+                                                        class="ml-2 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 <?php echo $recording['free_video'] == 1 ? 'bg-red-600' : 'bg-gray-300'; ?>"
+                                                        title="<?php echo $recording['free_video'] == 1 ? 'Make Paid' : 'Make Free'; ?>">
+                                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform <?php echo $recording['free_video'] == 1 ? 'translate-x-6' : 'translate-x-1'; ?>"></span>
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if ($recording['description']): ?>
+                                            <p class="text-sm text-gray-600 mb-2 line-clamp-2">
+                                                <?php echo htmlspecialchars(substr($recording['description'], 0, 100)); ?>
+                                                <?php echo strlen($recording['description']) > 100 ? '...' : ''; ?>
+                                            </p>
+                                        <?php endif; ?>
+                                        <div class="flex items-center justify-between text-xs text-gray-500">
+                                            <span><?php echo date('M d, Y', strtotime($recording['created_at'])); ?></span>
+                                            <?php if ($recording['view_count'] > 0): ?>
+                                                <span><?php echo number_format($recording['view_count']); ?> views</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if ($recording['first_name'] || $recording['second_name']): ?>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                By: <?php echo htmlspecialchars(trim(($recording['first_name'] ?? '') . ' ' . ($recording['second_name'] ?? ''))); ?>
+                                            </p>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                            </div>
-                            <!-- Video Info -->
-                            <div class="p-4">
-                                <h3 class="font-semibold text-gray-900 mb-2 line-clamp-2" title="<?php echo htmlspecialchars($recording['title']); ?>">
-                                    <?php echo htmlspecialchars($recording['title']); ?>
-                                </h3>
-                                <?php if ($recording['description']): ?>
-                                    <p class="text-sm text-gray-600 mb-2 line-clamp-2">
-                                        <?php echo htmlspecialchars(substr($recording['description'], 0, 100)); ?>
-                                        <?php echo strlen($recording['description']) > 100 ? '...' : ''; ?>
-                                    </p>
-                                <?php endif; ?>
-                                <div class="flex items-center justify-between text-xs text-gray-500">
-                                    <span><?php echo date('M d, Y', strtotime($recording['created_at'])); ?></span>
-                                    <?php if ($recording['view_count'] > 0): ?>
-                                        <span><?php echo number_format($recording['view_count']); ?> views</span>
-                                    <?php endif; ?>
-                                </div>
-                                <?php if ($recording['first_name'] || $recording['second_name']): ?>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        By: <?php echo htmlspecialchars(trim(($recording['first_name'] ?? '') . ' ' . ($recording['second_name'] ?? ''))); ?>
-                                    </p>
-                                <?php endif; ?>
-                            </div>
+                            <?php endforeach; ?>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                    </div>
+                <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
@@ -351,9 +521,26 @@ if (!empty($teacher_assignment_ids)) {
                     </div>
                     
                     <div>
+                        <label for="recording_date" class="block text-sm font-medium text-gray-700 mb-1">Recording Date *</label>
+                        <input type="date" id="recording_date" name="recording_date" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                               value="<?php echo htmlspecialchars($_POST['recording_date'] ?? date('Y-m-d')); ?>">
+                        <p class="text-xs text-gray-500 mt-1">Date when this recording was created</p>
+                    </div>
+                    
+                    <div>
                         <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                         <textarea id="description" name="description" rows="4"
                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"><?php echo htmlspecialchars($_POST['description'] ?? ''); ?></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="free_video" value="1" 
+                                   class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                   <?php echo (isset($_POST['free_video']) && $_POST['free_video'] == 1) ? 'checked' : ''; ?>>
+                            <span class="ml-2 text-sm text-gray-700">Mark as Free Video (students can watch without payment)</span>
+                        </label>
                     </div>
                     
                     <div class="flex justify-end space-x-3 pt-4 border-t">
@@ -367,6 +554,39 @@ if (!empty($teacher_assignment_ids)) {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Payment Required Modal -->
+    <?php if ($role === 'student'): ?>
+        <div id="paymentRequiredModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Payment Required</h3>
+                    <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="text-center mb-6">
+                    <svg class="w-16 h-16 text-red-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                    <p class="text-gray-700 mb-2">This video requires payment to watch.</p>
+                    <p class="text-sm text-gray-600 mb-4" id="paymentMonthText"></p>
+                </div>
+                
+                <div class="flex flex-col space-y-3">
+                    <a href="payments.php" class="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-center font-medium">
+                        Go to Payments
+                    </a>
+                    <button onclick="closePaymentModal()" class="w-full px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     <?php endif; ?>
@@ -418,6 +638,55 @@ if (!empty($teacher_assignment_ids)) {
             modal.classList.add('hidden');
         }
 
+        function showPaymentRequired(monthName) {
+            const modal = document.getElementById('paymentRequiredModal');
+            const monthText = document.getElementById('paymentMonthText');
+            if (monthText) {
+                monthText.textContent = `Please make payment for ${monthName} to access these videos.`;
+            }
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closePaymentModal() {
+            const modal = document.getElementById('paymentRequiredModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function toggleFreeVideo(event, recordingId, newStatus) {
+            event.stopPropagation(); // Prevent triggering the video play
+            
+            if (!confirm(newStatus === 1 ? 'Make this video free for all students?' : 'Make this video require payment?')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('toggle_free_video', '1');
+            formData.append('recording_id', recordingId);
+            formData.append('free_status', newStatus);
+            
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload page to show updated status
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error updating video status');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating video status. Please try again.');
+            });
+        }
+
         // Close modals on outside click
         document.getElementById('addModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
@@ -436,6 +705,14 @@ if (!empty($teacher_assignment_ids)) {
             if (e.key === 'Escape') {
                 closeAddModal();
                 closeVideoModal();
+                closePaymentModal();
+            }
+        });
+
+        // Close payment modal on outside click
+        document.getElementById('paymentRequiredModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePaymentModal();
             }
         });
     </script>

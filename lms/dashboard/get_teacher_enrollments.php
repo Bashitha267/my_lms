@@ -40,9 +40,9 @@ while ($row = $result->fetch_assoc()) {
     $is_enrolled = $check_result->num_rows > 0;
     $check_stmt->close();
     
-    if (!$is_enrolled) {
-        $enrollments[] = $row;
-    }
+    // Add enrollment flag to row
+    $row['is_enrolled'] = $is_enrolled;
+    $enrollments[] = $row;
 }
 
 $stmt->close();

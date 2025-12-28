@@ -6,6 +6,142 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $current_year = date('Y');
 
+$success_message = '';
+$error_message = '';
+
+// Handle new teacher assignment creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']) && $role === 'teacher') {
+    $stream_id_input = $_POST['stream_id'] ?? '';
+    $subject_id_input = $_POST['subject_id'] ?? '';
+    $stream_id = ($stream_id_input === 'new' || empty($stream_id_input)) ? 0 : intval($stream_id_input);
+    $subject_id = ($subject_id_input === 'new' || empty($subject_id_input)) ? 0 : intval($subject_id_input);
+    $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+    $new_subject_name = trim($_POST['new_subject_name'] ?? '');
+    $new_subject_code = trim($_POST['new_subject_code'] ?? '');
+    $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+    $batch_name = trim($_POST['batch_name'] ?? '');
+    
+    // Validate
+    if ($stream_id_input === 'new' && empty($new_stream_name)) {
+        $error_message = 'Please enter a stream name.';
+    } elseif ($stream_id_input !== 'new' && $stream_id <= 0) {
+        $error_message = 'Please select a stream or create a new one.';
+    } elseif ($subject_id_input === 'new' && empty($new_subject_name)) {
+        $error_message = 'Please enter a subject name.';
+    } elseif ($subject_id_input !== 'new' && $subject_id <= 0) {
+        $error_message = 'Please select a subject or create a new one.';
+    } else {
+        // Create new stream if needed
+        if ($stream_id_input === 'new' && !empty($new_stream_name)) {
+            $check_stream = $conn->prepare("SELECT id FROM streams WHERE name = ?");
+            $check_stream->bind_param("s", $new_stream_name);
+            $check_stream->execute();
+            $stream_result = $check_stream->get_result();
+            
+            if ($stream_result->num_rows > 0) {
+                $stream_row = $stream_result->fetch_assoc();
+                $stream_id = $stream_row['id'];
+            } else {
+                $create_stream = $conn->prepare("INSERT INTO streams (name, status) VALUES (?, 1)");
+                $create_stream->bind_param("s", $new_stream_name);
+                if ($create_stream->execute()) {
+                    $stream_id = $conn->insert_id;
+                } else {
+                    $error_message = 'Error creating stream: ' . $conn->error;
+                }
+                $create_stream->close();
+            }
+            $check_stream->close();
+        }
+        
+        // Create new subject if needed
+        if (empty($error_message) && $subject_id_input === 'new' && !empty($new_subject_name)) {
+            $check_subject = $conn->prepare("SELECT id FROM subjects WHERE name = ?");
+            $check_subject->bind_param("s", $new_subject_name);
+            $check_subject->execute();
+            $subject_result = $check_subject->get_result();
+            
+            if ($subject_result->num_rows > 0) {
+                $subject_row = $subject_result->fetch_assoc();
+                $subject_id = $subject_row['id'];
+            } else {
+                $create_subject = $conn->prepare("INSERT INTO subjects (name, code, status) VALUES (?, ?, 1)");
+                $create_subject->bind_param("ss", $new_subject_name, $new_subject_code);
+                if ($create_subject->execute()) {
+                    $subject_id = $conn->insert_id;
+                } else {
+                    $error_message = 'Error creating subject: ' . $conn->error;
+                }
+                $create_subject->close();
+            }
+            $check_subject->close();
+        }
+        
+        // Create stream_subject if it doesn't exist
+        if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
+            $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+            $check_ss->bind_param("ii", $stream_id, $subject_id);
+            $check_ss->execute();
+            $ss_result = $check_ss->get_result();
+            
+            $stream_subject_id = null;
+            if ($ss_result->num_rows > 0) {
+                $ss_row = $ss_result->fetch_assoc();
+                $stream_subject_id = $ss_row['id'];
+            } else {
+                $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+                $create_ss->bind_param("ii", $stream_id, $subject_id);
+                if ($create_ss->execute()) {
+                    $stream_subject_id = $conn->insert_id;
+                } else {
+                    $error_message = 'Error creating stream-subject combination: ' . $conn->error;
+                }
+                $create_ss->close();
+            }
+            $check_ss->close();
+            
+            // Create teacher assignment
+            if (empty($error_message) && $stream_subject_id) {
+                // Check if assignment already exists
+                $check_assign = $conn->prepare("SELECT id FROM teacher_assignments WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ?");
+                $check_assign->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+                $check_assign->execute();
+                $assign_result = $check_assign->get_result();
+                
+                if ($assign_result->num_rows > 0) {
+                    $error_message = 'You are already assigned to this subject and academic year.';
+                } else {
+                    $batch_name_value = !empty($batch_name) ? $batch_name : null;
+                    $create_assign = $conn->prepare("INSERT INTO teacher_assignments (teacher_id, stream_subject_id, academic_year, batch_name, status, assigned_date) VALUES (?, ?, ?, ?, 'active', CURDATE())");
+                    $create_assign->bind_param("siis", $user_id, $stream_subject_id, $academic_year, $batch_name_value);
+                    if ($create_assign->execute()) {
+                        // Redirect to prevent form resubmission
+                        header('Location: recordings.php?success=' . urlencode('Assignment created successfully!'));
+                        exit;
+                    } else {
+                        $error_message = 'Error creating assignment: ' . $conn->error;
+                    }
+                    $create_assign->close();
+                }
+                $check_assign->close();
+            }
+        }
+    }
+}
+
+// Get all streams and subjects for dropdowns (for teachers)
+$all_streams = [];
+$all_subjects = [];
+if ($role === 'teacher') {
+    $streams_query = "SELECT id, name FROM streams WHERE status = 1 ORDER BY name";
+    $streams_result = $conn->query($streams_query);
+    $all_streams = $streams_result->fetch_all(MYSQLI_ASSOC);
+    
+    $subjects_query = "SELECT id, name, code FROM subjects WHERE status = 1 ORDER BY name";
+    $subjects_result = $conn->query($subjects_query);
+    $all_subjects = $subjects_result->fetch_all(MYSQLI_ASSOC);
+}
+
 // Initialize arrays
 $teacher_assignments = [];
 $student_enrollments = [];
@@ -52,10 +188,9 @@ if ($role === 'teacher') {
     $stmt->close();
     
 } elseif ($role === 'student') {
-    // Get student enrollments with teacher information
+    // Get student enrollments with teacher information and payment status
     $query = "SELECT se.id, se.stream_subject_id, se.academic_year, se.batch_name, se.enrolled_date,
-                     se.status, se.payment_status, se.payment_method, se.payment_date, 
-                     se.payment_amount, se.notes,
+                     se.status, se.notes,
                      s.name as stream_name, sub.name as subject_name, sub.code as subject_code,
                      t.user_id as teacher_id, t.first_name as teacher_first_name, 
                      t.second_name as teacher_second_name, t.profile_picture as teacher_profile_picture,
@@ -78,8 +213,78 @@ if ($role === 'teacher') {
     
     $unique_subjects = [];
     $unique_years = [];
+    $current_month = date('n'); // 1-12
+    $current_year = date('Y');
     
     while ($row = $result->fetch_assoc()) {
+        $enrollment_id = $row['id'];
+        
+        // Get enrollment payment status
+        $enroll_payment_query = "SELECT payment_status, amount, payment_date, payment_method 
+                                 FROM enrollment_payments 
+                                 WHERE student_enrollment_id = ? 
+                                 ORDER BY created_at DESC 
+                                 LIMIT 1";
+        $enroll_payment_stmt = $conn->prepare($enroll_payment_query);
+        $enroll_payment_stmt->bind_param("i", $enrollment_id);
+        $enroll_payment_stmt->execute();
+        $enroll_payment_result = $enroll_payment_stmt->get_result();
+        $enroll_payment = $enroll_payment_result->fetch_assoc();
+        $enroll_payment_stmt->close();
+        
+        // Determine enrollment payment status
+        if ($enroll_payment) {
+            if ($enroll_payment['payment_status'] === 'pending') {
+                $row['enrollment_payment_status'] = 'pending_approval';
+            } elseif ($enroll_payment['payment_status'] === 'paid') {
+                $row['enrollment_payment_status'] = 'approved';
+            } else {
+                $row['enrollment_payment_status'] = 'not_paid';
+            }
+            $row['enrollment_payment_amount'] = $enroll_payment['amount'];
+            $row['enrollment_payment_date'] = $enroll_payment['payment_date'];
+            $row['enrollment_payment_method'] = $enroll_payment['payment_method'];
+        } else {
+            $row['enrollment_payment_status'] = 'not_paid';
+            $row['enrollment_payment_amount'] = null;
+            $row['enrollment_payment_date'] = null;
+            $row['enrollment_payment_method'] = null;
+        }
+        
+        // Get current month payment status
+        $monthly_payment_query = "SELECT payment_status, amount, payment_date, payment_method 
+                                 FROM monthly_payments 
+                                 WHERE student_enrollment_id = ? 
+                                   AND month = ? 
+                                   AND year = ?
+                                 ORDER BY created_at DESC 
+                                 LIMIT 1";
+        $monthly_payment_stmt = $conn->prepare($monthly_payment_query);
+        $monthly_payment_stmt->bind_param("iii", $enrollment_id, $current_month, $current_year);
+        $monthly_payment_stmt->execute();
+        $monthly_payment_result = $monthly_payment_stmt->get_result();
+        $monthly_payment = $monthly_payment_result->fetch_assoc();
+        $monthly_payment_stmt->close();
+        
+        // Determine current month payment status
+        if ($monthly_payment) {
+            if ($monthly_payment['payment_status'] === 'pending') {
+                $row['monthly_payment_status'] = 'pending_approval';
+            } elseif ($monthly_payment['payment_status'] === 'paid') {
+                $row['monthly_payment_status'] = 'approved';
+            } else {
+                $row['monthly_payment_status'] = 'not_paid';
+            }
+            $row['monthly_payment_amount'] = $monthly_payment['amount'];
+            $row['monthly_payment_date'] = $monthly_payment['payment_date'];
+            $row['monthly_payment_method'] = $monthly_payment['payment_method'];
+        } else {
+            $row['monthly_payment_status'] = 'not_paid';
+            $row['monthly_payment_amount'] = null;
+            $row['monthly_payment_date'] = null;
+            $row['monthly_payment_method'] = null;
+        }
+        
         $student_enrollments[] = $row;
         // Collect unique subjects
         if (!in_array($row['subject_name'], $unique_subjects)) {
@@ -149,6 +354,28 @@ if ($role === 'teacher') {
                                             <option value="<?php echo htmlspecialchars($year); ?>"><?php echo htmlspecialchars($year); ?></option>
                                         <?php endforeach; ?>
                                     </select>
+                                </div>
+                                <!-- Create New Enroll Button -->
+                                <div class="flex-1 sm:flex-initial">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
+                                    <button onclick="openAssignmentModal()" class="w-full sm:w-48 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center text-sm">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                        Create New Enroll
+                                    </button>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <div class="flex-1 sm:flex-initial">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">&nbsp;</label>
+                                    <button onclick="openAssignmentModal()" class="w-full sm:w-48 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center justify-center text-sm">
+                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                        Create New Enroll
+                                    </button>
                                 </div>
                             </div>
                         <?php endif; ?>
@@ -379,34 +606,99 @@ if ($role === 'teacher') {
                                             <?php endif; ?>
                                             
                                             <!-- Payment Information -->
-                                            <div class="mt-4 pt-4 border-t border-gray-200">
-                                                <div class="flex items-center justify-between mb-2">
-                                                    <span class="text-sm font-medium text-gray-700">Payment Status:</span>
-                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php 
-                                                        echo $enrollment['payment_status'] === 'paid' ? 'bg-green-100 text-green-800' : 
-                                                            ($enrollment['payment_status'] === 'partial' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
-                                                    ?>">
-                                                        <?php echo ucfirst($enrollment['payment_status']); ?>
-                                                    </span>
+                                            <div class="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                                                <!-- Enrollment Payment Status -->
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-sm font-medium text-gray-700">Enrollment Payment:</span>
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php 
+                                                            $enroll_status = $enrollment['enrollment_payment_status'] ?? 'not_paid';
+                                                            if ($enroll_status === 'approved') {
+                                                                echo 'bg-green-100 text-green-800';
+                                                            } elseif ($enroll_status === 'pending_approval') {
+                                                                echo 'bg-yellow-100 text-yellow-800';
+                                                            } else {
+                                                                echo 'bg-red-100 text-red-800';
+                                                            }
+                                                        ?>">
+                                                            <?php 
+                                                            if ($enroll_status === 'approved') {
+                                                                echo 'Approved';
+                                                            } elseif ($enroll_status === 'pending_approval') {
+                                                                echo 'Pending Approval';
+                                                            } else {
+                                                                echo 'Not Paid';
+                                                            }
+                                                            ?>
+                                                        </span>
+                                                    </div>
+                                                    <?php if ($enrollment['enrollment_payment_amount']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Amount:</span> 
+                                                            <?php echo number_format($enrollment['enrollment_payment_amount'], 2); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+                                                    <?php if ($enrollment['enrollment_payment_date']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Date:</span> 
+                                                            <?php echo date('M d, Y', strtotime($enrollment['enrollment_payment_date'])); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+                                                    <?php if ($enrollment['enrollment_payment_method']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Method:</span> 
+                                                            <?php echo ucfirst(str_replace('_', ' ', $enrollment['enrollment_payment_method'])); ?>
+                                                        </p>
+                                                    <?php endif; ?>
                                                 </div>
-                                                <?php if ($enrollment['payment_amount']): ?>
-                                                    <p class="text-sm text-gray-600">
-                                                        <span class="font-medium">Amount:</span> 
-                                                        <?php echo number_format($enrollment['payment_amount'], 2); ?>
+                                                
+                                                <!-- Current Month Payment Status -->
+                                                <div>
+                                                    <div class="flex items-center justify-between mb-2">
+                                                        <span class="text-sm font-medium text-gray-700">Current Month Payment:</span>
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php 
+                                                            $monthly_status = $enrollment['monthly_payment_status'] ?? 'not_paid';
+                                                            if ($monthly_status === 'approved') {
+                                                                echo 'bg-green-100 text-green-800';
+                                                            } elseif ($monthly_status === 'pending_approval') {
+                                                                echo 'bg-yellow-100 text-yellow-800';
+                                                            } else {
+                                                                echo 'bg-red-100 text-red-800';
+                                                            }
+                                                        ?>">
+                                                            <?php 
+                                                            if ($monthly_status === 'approved') {
+                                                                echo 'Approved';
+                                                            } elseif ($monthly_status === 'pending_approval') {
+                                                                echo 'Pending Approval';
+                                                            } else {
+                                                                echo 'Not Paid';
+                                                            }
+                                                            ?>
+                                                        </span>
+                                                    </div>
+                                                    <?php if ($enrollment['monthly_payment_amount']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Amount:</span> 
+                                                            <?php echo number_format($enrollment['monthly_payment_amount'], 2); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+                                                    <?php if ($enrollment['monthly_payment_date']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Date:</span> 
+                                                            <?php echo date('M d, Y', strtotime($enrollment['monthly_payment_date'])); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+                                                    <?php if ($enrollment['monthly_payment_method']): ?>
+                                                        <p class="text-xs text-gray-600">
+                                                            <span class="font-medium">Method:</span> 
+                                                            <?php echo ucfirst(str_replace('_', ' ', $enrollment['monthly_payment_method'])); ?>
+                                                        </p>
+                                                    <?php endif; ?>
+                                                    <p class="text-xs text-gray-500 mt-1">
+                                                        <?php echo date('F Y'); ?>
                                                     </p>
-                                                <?php endif; ?>
-                                                <?php if ($enrollment['payment_date']): ?>
-                                                    <p class="text-sm text-gray-600">
-                                                        <span class="font-medium">Paid on:</span> 
-                                                        <?php echo date('M d, Y', strtotime($enrollment['payment_date'])); ?>
-                                                    </p>
-                                                <?php endif; ?>
-                                                <?php if ($enrollment['payment_method']): ?>
-                                                    <p class="text-sm text-gray-600">
-                                                        <span class="font-medium">Method:</span> 
-                                                        <?php echo ucfirst(str_replace('_', ' ', $enrollment['payment_method'])); ?>
-                                                    </p>
-                                                <?php endif; ?>
+                                                </div>
                                             </div>
                                         </div>
                                         
@@ -428,7 +720,189 @@ if ($role === 'teacher') {
         </div>
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- New Assignment Modal (Teachers Only) -->
+    <?php if ($role === 'teacher'): ?>
+        <div id="assignmentModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Create New Enroll</h3>
+                    <button onclick="closeAssignmentModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form method="POST" action="" id="assignmentForm" class="space-y-4">
+                    <input type="hidden" name="create_assignment" value="1">
+                    
+                    <!-- Stream Selection -->
+                    <div>
+                        <label for="stream_id" class="block text-sm font-medium text-gray-700 mb-1">Stream *</label>
+                        <select id="stream_id" name="stream_id" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                onchange="toggleStreamInput()">
+                            <option value="">Select Stream</option>
+                            <option value="new">+ Create New Stream</option>
+                            <?php foreach ($all_streams as $stream): ?>
+                                <option value="<?php echo $stream['id']; ?>"><?php echo htmlspecialchars($stream['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <input type="text" id="new_stream_name" name="new_stream_name" 
+                               placeholder="Enter new stream name"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 mt-2 hidden">
+                    </div>
+                    
+                    <!-- Subject Selection -->
+                    <div>
+                        <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+                        <select id="subject_id" name="subject_id" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                onchange="toggleSubjectInput()">
+                            <option value="">Select Subject</option>
+                            <option value="new">+ Create New Subject</option>
+                            <?php foreach ($all_subjects as $subject): ?>
+                                <option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?><?php echo $subject['code'] ? ' (' . htmlspecialchars($subject['code']) . ')' : ''; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div id="new_subject_fields" class="hidden mt-2 space-y-2">
+                            <input type="text" id="new_subject_name" name="new_subject_name" 
+                                   placeholder="Enter new subject name"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <input type="text" id="new_subject_code" name="new_subject_code" 
+                                   placeholder="Enter subject code (optional)"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        </div>
+                    </div>
+                    
+                    <!-- Academic Year -->
+                    <div>
+                        <label for="academic_year" class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                        <input type="number" id="academic_year" name="academic_year" 
+                               value="<?php echo date('Y'); ?>" min="2000" max="2100" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    
+                    <!-- Batch Name (Optional) -->
+                    <div>
+                        <label for="batch_name" class="block text-sm font-medium text-gray-700 mb-1">Batch Name (Optional)</label>
+                        <input type="text" id="batch_name" name="batch_name" 
+                               placeholder="e.g., Batch A, Morning Batch"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="closeAssignmentModal()" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            Create Assignment
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <script>
+        // Toast notification functions
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+            const icon = type === 'success' ? 
+                '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' :
+                '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>';
+            
+            toast.className = `${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px] max-w-md transform transition-all duration-300 ease-in-out translate-x-full opacity-0`;
+            toast.innerHTML = `
+                ${icon}
+                <span class="flex-1">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 10);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Assignment modal functions
+        function openAssignmentModal() {
+            document.getElementById('assignmentModal').classList.remove('hidden');
+        }
+
+        function closeAssignmentModal() {
+            document.getElementById('assignmentModal').classList.add('hidden');
+            // Reset form
+            document.getElementById('assignmentForm').reset();
+            document.getElementById('new_stream_name').classList.add('hidden');
+            document.getElementById('new_subject_fields').classList.add('hidden');
+        }
+
+        function toggleStreamInput() {
+            const streamSelect = document.getElementById('stream_id');
+            const newStreamInput = document.getElementById('new_stream_name');
+            if (streamSelect.value === 'new') {
+                newStreamInput.classList.remove('hidden');
+                newStreamInput.required = true;
+            } else {
+                newStreamInput.classList.add('hidden');
+                newStreamInput.required = false;
+                newStreamInput.value = '';
+            }
+        }
+
+        function toggleSubjectInput() {
+            const subjectSelect = document.getElementById('subject_id');
+            const newSubjectFields = document.getElementById('new_subject_fields');
+            if (subjectSelect.value === 'new') {
+                newSubjectFields.classList.remove('hidden');
+                document.getElementById('new_subject_name').required = true;
+            } else {
+                newSubjectFields.classList.add('hidden');
+                document.getElementById('new_subject_name').required = false;
+                document.getElementById('new_subject_name').value = '';
+                document.getElementById('new_subject_code').value = '';
+            }
+        }
+
+        // Show toasts on page load if messages exist
+        <?php 
+        $url_success = $_GET['success'] ?? '';
+        $url_error = $_GET['error'] ?? '';
+        if (!empty($success_message) || !empty($url_success)): 
+            $msg = !empty($success_message) ? $success_message : $url_success;
+        ?>
+            showToast('<?php echo htmlspecialchars($msg); ?>', 'success');
+        <?php endif; ?>
+        <?php if (!empty($error_message) || !empty($url_error)): 
+            $msg = !empty($error_message) ? $error_message : $url_error;
+        ?>
+            showToast('<?php echo htmlspecialchars($msg); ?>', 'error');
+        <?php endif; ?>
+
+        // Close modal on outside click
+        document.getElementById('assignmentModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAssignmentModal();
+            }
+        });
+
         // Filter function for teacher cards
         function filterTeacherCards() {
             const subjectFilter = document.getElementById('filterSubject')?.value || '';
