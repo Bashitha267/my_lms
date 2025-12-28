@@ -13,7 +13,7 @@ $session_token = $_SESSION['session_token'] ?? '';
 $stream_subject_id = isset($_GET['stream_subject_id']) ? intval($_GET['stream_subject_id']) : 0;
 $academic_year = isset($_GET['academic_year']) ? intval($_GET['academic_year']) : date('Y');
 
-$success_message = '';
+$success_message = $_GET['success'] ?? '';
 $error_message = '';
 
 // Get teacher assignment ID for current user (if teacher) or find assignments for this stream-subject-year
@@ -88,6 +88,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_free_video']) 
     exit;
 }
 
+// Handle delete recording
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_recording']) && $role === 'teacher') {
+    $recording_id = intval($_POST['recording_id'] ?? 0);
+    
+    if ($recording_id > 0) {
+        // Verify teacher owns this recording
+        $verify_query = "SELECT r.id FROM recordings r
+                        INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                        WHERE r.id = ? AND ta.teacher_id = ?";
+        $verify_stmt = $conn->prepare($verify_query);
+        $verify_stmt->bind_param("is", $recording_id, $user_id);
+        $verify_stmt->execute();
+        $verify_result = $verify_stmt->get_result();
+        
+        if ($verify_result->num_rows > 0) {
+            // Soft delete by setting status to inactive
+            $delete_query = "UPDATE recordings SET status = 'inactive' WHERE id = ?";
+            $delete_stmt = $conn->prepare($delete_query);
+            $delete_stmt->bind_param("i", $recording_id);
+            
+            if ($delete_stmt->execute()) {
+                header('Location: content.php?stream_subject_id=' . $stream_subject_id . '&academic_year=' . $academic_year . '&success=' . urlencode('Recording deleted successfully!'));
+                exit;
+            } else {
+                $error_message = 'Error deleting recording: ' . $conn->error;
+            }
+            $delete_stmt->close();
+        } else {
+            $error_message = 'Unauthorized: You do not own this recording.';
+        }
+        $verify_stmt->close();
+    }
+}
+
+// Handle edit recording
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_recording']) && $role === 'teacher') {
+    $recording_id = intval($_POST['recording_id'] ?? 0);
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $youtube_url = trim($_POST['youtube_url'] ?? '');
+    $recording_date = trim($_POST['recording_date'] ?? date('Y-m-d'));
+    $free_video = isset($_POST['free_video']) ? 1 : 0;
+    $watch_limit = isset($_POST['watch_limit']) ? intval($_POST['watch_limit']) : 3;
+    if ($watch_limit < 0) {
+        $watch_limit = 3; // Default to 3 if negative
+    }
+    
+    if ($recording_id > 0 && !empty($title)) {
+        // Verify teacher owns this recording
+        $verify_query = "SELECT r.id, r.youtube_video_id FROM recordings r
+                        INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                        WHERE r.id = ? AND ta.teacher_id = ?";
+        $verify_stmt = $conn->prepare($verify_query);
+        $verify_stmt->bind_param("is", $recording_id, $user_id);
+        $verify_stmt->execute();
+        $verify_result = $verify_stmt->get_result();
+        
+        if ($verify_result->num_rows > 0) {
+            $recording_data = $verify_result->fetch_assoc();
+            $youtube_video_id = $recording_data['youtube_video_id'];
+            $thumbnail_url = "https://img.youtube.com/vi/{$youtube_video_id}/maxresdefault.jpg";
+            
+            // If YouTube URL changed, extract new video ID
+            if (!empty($youtube_url) && $youtube_url !== $recording_data['youtube_url']) {
+                if (preg_match('/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/', $youtube_url, $matches)) {
+                    $youtube_video_id = $matches[1];
+                    $thumbnail_url = "https://img.youtube.com/vi/{$youtube_video_id}/maxresdefault.jpg";
+                } else {
+                    $error_message = 'Invalid YouTube URL.';
+                    $verify_stmt->close();
+                    // Continue to show error
+                }
+            }
+            
+            if (empty($error_message)) {
+                // Validate and format recording date
+                $recording_datetime = date('Y-m-d H:i:s', strtotime($recording_date));
+                if ($recording_datetime === false || $recording_datetime === '1970-01-01 00:00:00') {
+                    $recording_datetime = date('Y-m-d H:i:s');
+                }
+                
+                $update_query = "UPDATE recordings SET title = ?, description = ?, youtube_url = ?, youtube_video_id = ?, thumbnail_url = ?, free_video = ?, watch_limit = ?, created_at = ? WHERE id = ?";
+                $update_stmt = $conn->prepare($update_query);
+                $update_stmt->bind_param("sssssiisi", $title, $description, $youtube_url, $youtube_video_id, $thumbnail_url, $free_video, $watch_limit, $recording_datetime, $recording_id);
+                
+                if ($update_stmt->execute()) {
+                    header('Location: content.php?stream_subject_id=' . $stream_subject_id . '&academic_year=' . $academic_year . '&success=' . urlencode('Recording updated successfully!'));
+                    exit;
+                } else {
+                    $error_message = 'Error updating recording: ' . $conn->error;
+                }
+                $update_stmt->close();
+            }
+        } else {
+            $error_message = 'Unauthorized: You do not own this recording.';
+        }
+        $verify_stmt->close();
+    } else {
+        $error_message = 'Title is required.';
+    }
+}
+
 // Handle form submission for adding new recording
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $role === 'teacher') {
     // Verify session is still valid
@@ -144,6 +246,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                 // Get free_video value (default to 0 if not set)
                 $free_video = isset($_POST['free_video']) ? 1 : 0;
                 
+                // Get watch_limit (default to 3 if not set or invalid)
+                $watch_limit = isset($_POST['watch_limit']) ? intval($_POST['watch_limit']) : 3;
+                if ($watch_limit < 0) {
+                    $watch_limit = 3; // Default to 3 if negative
+                }
+                
                 // Validate and format recording date
                 $recording_datetime = date('Y-m-d H:i:s', strtotime($recording_date));
                 if ($recording_datetime === false || $recording_datetime === '1970-01-01 00:00:00') {
@@ -151,29 +259,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                 }
                 
                 // Insert recording using teacher_assignment_id from session user_id
-                $stmt = $conn->prepare("INSERT INTO recordings (teacher_assignment_id, title, description, youtube_video_id, youtube_url, thumbnail_url, free_video, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)");
-                $stmt->bind_param("isssssis", $teacher_assignment_id_for_recording, $title, $description, $youtube_video_id, $youtube_url, $thumbnail_url, $free_video, $recording_datetime);
+                $stmt = $conn->prepare("INSERT INTO recordings (teacher_assignment_id, title, description, youtube_video_id, youtube_url, thumbnail_url, free_video, watch_limit, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)");
+                $stmt->bind_param("isssssiis", $teacher_assignment_id_for_recording, $title, $description, $youtube_video_id, $youtube_url, $thumbnail_url, $free_video, $watch_limit, $recording_datetime);
                 
                 if ($stmt->execute()) {
-                    $success_message = 'Recording added successfully!';
-                    // Clear form
-                    $_POST = array();
-                    // Refresh teacher assignment ID
-                    if ($stream_subject_id > 0) {
-                        $query = "SELECT id FROM teacher_assignments 
-                                  WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active' 
-                                  LIMIT 1";
-                        $stmt2 = $conn->prepare($query);
-                        $stmt2->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
-                        $stmt2->execute();
-                        $result2 = $stmt2->get_result();
-                        if ($result2->num_rows > 0) {
-                            $row2 = $result2->fetch_assoc();
-                            $teacher_assignment_id = $row2['id'];
-                            $teacher_assignment_ids = [$teacher_assignment_id];
-                        }
-                        $stmt2->close();
-                    }
+                    // Redirect to prevent form resubmission
+                    header('Location: content.php?stream_subject_id=' . $stream_subject_id . '&academic_year=' . $academic_year . '&success=' . urlencode('Recording added successfully!'));
+                    exit;
                 } else {
                     $error_message = 'Error adding recording: ' . $conn->error;
                 }
@@ -208,8 +300,8 @@ $paid_months = []; // Months student has paid for (for students)
 if (!empty($teacher_assignment_ids)) {
     // Create placeholders for IN clause
     $placeholders = str_repeat('?,', count($teacher_assignment_ids) - 1) . '?';
-    $query = "SELECT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
-                     r.view_count, r.status, r.created_at, r.free_video,
+    $query = "SELECT DISTINCT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
+                     r.view_count, r.status, r.created_at, r.free_video, r.watch_limit,
                      u.first_name, u.second_name
               FROM recordings r
               INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
@@ -392,6 +484,9 @@ krsort($recordings_by_month);
                                 // Check if student can watch this video
                                 $can_watch = false;
                                 $is_locked = false;
+                                $watch_limit_exceeded = false;
+                                $watch_count = 0;
+                                $watch_limit = intval($recording['watch_limit'] ?? 3);
                                 
                                 if ($role === 'teacher') {
                                     // Teachers can watch all videos
@@ -409,13 +504,34 @@ krsort($recordings_by_month);
                                             $is_locked = true;
                                         }
                                     }
+                                    
+                                    // Check watch limit (only if can_watch is true and watch_limit > 0)
+                                    if ($can_watch && $watch_limit > 0) {
+                                        // Get current watch count for this student and video
+                                        $watch_query = "SELECT COUNT(*) as watch_count FROM video_watch_log 
+                                                      WHERE recording_id = ? AND student_id = ?";
+                                        $watch_stmt = $conn->prepare($watch_query);
+                                        $watch_stmt->bind_param("is", $recording['id'], $user_id);
+                                        $watch_stmt->execute();
+                                        $watch_result = $watch_stmt->get_result();
+                                        $watch_row = $watch_result->fetch_assoc();
+                                        $watch_count = intval($watch_row['watch_count']);
+                                        $watch_stmt->close();
+                                        
+                                        // If watch limit exceeded, disable video
+                                        if ($watch_count >= $watch_limit) {
+                                            $can_watch = false;
+                                            $is_locked = true;
+                                            $watch_limit_exceeded = true;
+                                        }
+                                    }
                                 } else {
                                     $can_watch = true;
                                 }
                                 ?>
                                 <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden <?php echo $is_locked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'; ?>" 
                                      <?php if ($can_watch): ?>
-                                         onclick="playVideo('<?php echo htmlspecialchars($recording['youtube_video_id']); ?>')"
+                                         onclick="playVideo(<?php echo $recording['id']; ?>)"
                                      <?php else: ?>
                                          onclick="showPaymentRequired('<?php echo htmlspecialchars($month_data['month_name']); ?>')"
                                      <?php endif; ?>>
@@ -432,7 +548,9 @@ krsort($recordings_by_month);
                                                     <svg class="w-16 h-16 text-white mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                                     </svg>
-                                                    <p class="text-white text-xs font-semibold">Payment Required</p>
+                                                    <p class="text-white text-xs font-semibold">
+                                                        <?php echo $watch_limit_exceeded ? 'Watch Limit Reached' : 'Payment Required'; ?>
+                                                    </p>
                                                 </div>
                                             <?php else: ?>
                                                 <svg class="w-16 h-16 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -453,12 +571,30 @@ krsort($recordings_by_month);
                                                 <?php echo htmlspecialchars($recording['title']); ?>
                                             </h3>
                                             <?php if ($role === 'teacher'): ?>
-                                                <!-- Free Video Toggle Button -->
-                                                <button onclick="toggleFreeVideo(event, <?php echo $recording['id']; ?>, <?php echo $recording['free_video'] == 1 ? 0 : 1; ?>)" 
-                                                        class="ml-2 flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 <?php echo $recording['free_video'] == 1 ? 'bg-red-600' : 'bg-gray-300'; ?>"
-                                                        title="<?php echo $recording['free_video'] == 1 ? 'Make Paid' : 'Make Free'; ?>">
-                                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform <?php echo $recording['free_video'] == 1 ? 'translate-x-6' : 'translate-x-1'; ?>"></span>
-                                                </button>
+                                                <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+                                                    <!-- Free Video Toggle Button -->
+                                                    <button onclick="toggleFreeVideo(event, <?php echo $recording['id']; ?>, <?php echo $recording['free_video'] == 1 ? 0 : 1; ?>)" 
+                                                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 <?php echo $recording['free_video'] == 1 ? 'bg-red-600' : 'bg-gray-300'; ?>"
+                                                            title="<?php echo $recording['free_video'] == 1 ? 'Make Paid' : 'Make Free'; ?>">
+                                                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform <?php echo $recording['free_video'] == 1 ? 'translate-x-6' : 'translate-x-1'; ?>"></span>
+                                                    </button>
+                                                    <!-- Edit Button -->
+                                                    <button onclick="event.stopPropagation(); openEditModal(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>', '<?php echo htmlspecialchars(addslashes($recording['description'] ?? '')); ?>', '<?php echo htmlspecialchars($recording['youtube_url']); ?>', '<?php echo date('Y-m-d', strtotime($recording['created_at'])); ?>', <?php echo $recording['free_video']; ?>, <?php echo intval($recording['watch_limit'] ?? 3); ?>)" 
+                                                            class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                                            title="Edit Recording">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <!-- Delete Button -->
+                                                    <button onclick="event.stopPropagation(); confirmDelete(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>')" 
+                                                            class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                            title="Delete Recording">
+                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
                                             <?php endif; ?>
                                         </div>
                                         <?php if ($recording['description']): ?>
@@ -488,8 +624,117 @@ krsort($recordings_by_month);
         </div>
     </div>
 
-    <!-- Add Recording Modal (Teachers Only) -->
+    <!-- Edit Recording Modal (Teachers Only) -->
     <?php if ($role === 'teacher' && $teacher_assignment_id): ?>
+        <div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Edit Recording</h3>
+                    <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form method="POST" action="" id="editForm" class="space-y-4">
+                    <input type="hidden" name="edit_recording" value="1">
+                    <input type="hidden" name="recording_id" id="edit_recording_id">
+                    
+                    <div>
+                        <label for="edit_title" class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                        <input type="text" id="edit_title" name="title" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    
+                    <div>
+                        <label for="edit_youtube_url" class="block text-sm font-medium text-gray-700 mb-1">YouTube URL *</label>
+                        <input type="url" id="edit_youtube_url" name="youtube_url" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                               placeholder="https://www.youtube.com/watch?v=...">
+                        <p class="text-xs text-gray-500 mt-1">Supports: youtube.com/watch?v=, youtu.be/, youtube.com/embed/</p>
+                    </div>
+                    
+                    <div>
+                        <label for="edit_recording_date" class="block text-sm font-medium text-gray-700 mb-1">Recording Date *</label>
+                        <input type="date" id="edit_recording_date" name="recording_date" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    </div>
+                    
+                    <div>
+                        <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="edit_description" name="description" rows="4"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="flex items-center">
+                            <input type="checkbox" name="free_video" id="edit_free_video" value="1" 
+                                   class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                            <span class="ml-2 text-sm text-gray-700">Mark as Free Video (students can watch without payment)</span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="edit_watch_limit" class="block text-sm font-medium text-gray-700 mb-1">Watch Limit per Student *</label>
+                        <input type="number" id="edit_watch_limit" name="watch_limit" min="0" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <p class="text-xs text-gray-500 mt-1">Maximum number of times a student can watch this video (0 = unlimited, default: 3)</p>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="closeEditModal()" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            Update Recording
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Delete Recording</h3>
+                    <button onclick="closeDeleteModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <div class="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+                        <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-700 text-center mb-2">Are you sure you want to delete this recording?</p>
+                    <p class="text-sm text-gray-600 text-center font-semibold" id="delete_recording_title"></p>
+                    <p class="text-xs text-gray-500 text-center mt-2">This action cannot be undone.</p>
+                </div>
+                
+                <form method="POST" action="" id="deleteForm" class="flex justify-end space-x-3">
+                    <input type="hidden" name="delete_recording" value="1">
+                    <input type="hidden" name="recording_id" id="delete_recording_id">
+                    <button type="button" onclick="closeDeleteModal()" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    <!-- Add Recording Modal (Teachers Only) -->
         <div id="addModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
                 <div class="flex items-center justify-between mb-4">
@@ -541,6 +786,13 @@ krsort($recordings_by_month);
                                    <?php echo (isset($_POST['free_video']) && $_POST['free_video'] == 1) ? 'checked' : ''; ?>>
                             <span class="ml-2 text-sm text-gray-700">Mark as Free Video (students can watch without payment)</span>
                         </label>
+                    </div>
+                    
+                    <div>
+                        <label for="watch_limit" class="block text-sm font-medium text-gray-700 mb-1">Watch Limit per Student *</label>
+                        <input type="number" id="watch_limit" name="watch_limit" min="0" value="<?php echo htmlspecialchars($_POST['watch_limit'] ?? '3'); ?>" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <p class="text-xs text-gray-500 mt-1">Maximum number of times a student can watch this video (0 = unlimited, default: 3)</p>
                     </div>
                     
                     <div class="flex justify-end space-x-3 pt-4 border-t">
@@ -622,13 +874,36 @@ krsort($recordings_by_month);
             document.getElementById('addModal').classList.add('hidden');
         }
 
-        function playVideo(videoId) {
-            const modal = document.getElementById('videoModal');
-            const player = document.getElementById('videoPlayer');
-            player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-            modal.classList.remove('hidden');
-            
-            // Update view count (optional - you can add an AJAX call here)
+        function openEditModal(recordingId, title, description, youtubeUrl, recordingDate, freeVideo, watchLimit) {
+            document.getElementById('edit_recording_id').value = recordingId;
+            document.getElementById('edit_title').value = title;
+            document.getElementById('edit_description').value = description;
+            document.getElementById('edit_youtube_url').value = youtubeUrl;
+            document.getElementById('edit_recording_date').value = recordingDate;
+            document.getElementById('edit_free_video').checked = freeVideo == 1;
+            document.getElementById('edit_watch_limit').value = watchLimit || 3;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editForm').reset();
+        }
+
+        function confirmDelete(recordingId, title) {
+            document.getElementById('delete_recording_id').value = recordingId;
+            document.getElementById('delete_recording_title').textContent = title;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        function playVideo(recordingId) {
+            // Redirect to custom player
+            window.location.href = '../player/player.php?id=' + recordingId + 
+                '&stream_subject_id=<?php echo $stream_subject_id; ?>&academic_year=<?php echo $academic_year; ?>';
         }
 
         function closeVideoModal() {
@@ -694,6 +969,18 @@ krsort($recordings_by_month);
             }
         });
 
+        document.getElementById('editModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        document.getElementById('deleteModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
+
         document.getElementById('videoModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeVideoModal();
@@ -704,6 +991,8 @@ krsort($recordings_by_month);
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeAddModal();
+                closeEditModal();
+                closeDeleteModal();
                 closeVideoModal();
                 closePaymentModal();
             }
