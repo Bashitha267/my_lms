@@ -120,8 +120,8 @@ if (isset($_POST['login'])) {
         exit();
     }
 
-    // 1. Fetch User (including whatsapp_number and first_name for welcome message)
-    $stmt = $conn->prepare("SELECT user_id, username, password, role, approved, status, whatsapp_number, first_name FROM users WHERE username = ? LIMIT 1");
+    // 1. Fetch User (including whatsapp_number and first_name, second_name for welcome message)
+    $stmt = $conn->prepare("SELECT user_id, username, password, role, approved, status, whatsapp_number, first_name, second_name FROM users WHERE username = ? LIMIT 1");
     $stmt->bind_param("s", $username);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -175,6 +175,8 @@ if (isset($_POST['login'])) {
                 $_SESSION['user_id'] = $user_id;
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
+                $_SESSION['first_name'] = $user['first_name'] ?? '';
+                $_SESSION['second_name'] = $user['second_name'] ?? '';
                 // Store the SAME token in the browser session
                 $_SESSION['session_token'] = $new_session_token;
 

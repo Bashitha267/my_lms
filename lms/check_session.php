@@ -20,7 +20,7 @@ $user_id = $_SESSION['user_id'];
 $session_token = $_SESSION['session_token'];
 
 // Verify session token matches database
-$stmt = $conn->prepare("SELECT user_id, username, role, session_token FROM users WHERE user_id = ? AND session_token = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT user_id, username, role, session_token, first_name, second_name FROM users WHERE user_id = ? AND session_token = ? LIMIT 1");
 $stmt->bind_param("ss", $user_id, $session_token);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -36,6 +36,10 @@ $user = $result->fetch_assoc();
 $stmt->close();
 
 // Update session with current user data
+$_SESSION['user_id'] = $user['user_id'];
 $_SESSION['username'] = $user['username'];
 $_SESSION['role'] = $user['role'];
+$_SESSION['session_token'] = $user['session_token'];
+$_SESSION['first_name'] = $user['first_name'] ?? '';
+$_SESSION['second_name'] = $user['second_name'] ?? '';
 ?>
