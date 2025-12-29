@@ -30,12 +30,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     } else {
         // Additional validation for students
         if ($role === 'student') {
-            $stream_id = isset($_POST['stream_id']) ? intval($_POST['stream_id']) : 0;
-            $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
+            $stream_id_input = $_POST['stream_id'] ?? '';
+            $subject_id_input = $_POST['subject_id'] ?? '';
             $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
+            $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+            $new_subject_name = trim($_POST['new_subject_name'] ?? '');
             
-            if ($stream_id <= 0 || $subject_id <= 0 || empty($selected_teacher_id)) {
-                $error_message = 'For students, please select Stream, Subject, and Teacher.';
+            if ($stream_id_input === 'new' && empty($new_stream_name)) {
+                $error_message = 'Please enter a stream name.';
+            } elseif ($stream_id_input !== 'new' && intval($stream_id_input) <= 0) {
+                $error_message = 'Please select a stream or create a new one.';
+            } elseif ($subject_id_input === 'new' && empty($new_subject_name)) {
+                $error_message = 'Please enter a subject name.';
+            } elseif ($subject_id_input !== 'new' && intval($subject_id_input) <= 0) {
+                $error_message = 'Please select a subject or create a new one.';
+            } elseif (empty($selected_teacher_id)) {
+                $error_message = 'Please select a teacher.';
             }
         }
         
@@ -128,21 +138,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 if ($stmt->execute()) {
                     // Handle student-specific data
                     if ($role === 'student') {
-                        $stream_id = isset($_POST['stream_id']) ? intval($_POST['stream_id']) : 0;
-                        $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
+                        $stream_id_input = $_POST['stream_id'] ?? '';
+                        $subject_id_input = $_POST['subject_id'] ?? '';
                         $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+                        $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+                        $new_subject_name = trim($_POST['new_subject_name'] ?? '');
+                        $new_subject_code = trim($_POST['new_subject_code'] ?? '');
                         
-                        // Get stream_subject_id from stream_id and subject_id
-                        $ss_stmt = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ? AND status = 1 LIMIT 1");
-                        $ss_stmt->bind_param("ii", $stream_id, $subject_id);
-                        $ss_stmt->execute();
-                        $ss_result = $ss_stmt->get_result();
+                        $stream_id = 0;
+                        $subject_id = 0;
                         
+                        // Create new stream if needed
+                        if ($stream_id_input === 'new' && !empty($new_stream_name)) {
+                            $check_stream = $conn->prepare("SELECT id FROM streams WHERE name = ?");
+                            $check_stream->bind_param("s", $new_stream_name);
+                            $check_stream->execute();
+                            $stream_result = $check_stream->get_result();
+                            
+                            if ($stream_result->num_rows > 0) {
+                                $stream_row = $stream_result->fetch_assoc();
+                                $stream_id = $stream_row['id'];
+                            } else {
+                                $create_stream = $conn->prepare("INSERT INTO streams (name, status) VALUES (?, 1)");
+                                $create_stream->bind_param("s", $new_stream_name);
+                                if ($create_stream->execute()) {
+                                    $stream_id = $conn->insert_id;
+                                } else {
+                                    $error_message = 'Error creating stream: ' . $conn->error;
+                                }
+                                $create_stream->close();
+                            }
+                            $check_stream->close();
+                        } else {
+                            $stream_id = intval($stream_id_input);
+                        }
+                        
+                        // Create new subject if needed
+                        if (empty($error_message) && $subject_id_input === 'new' && !empty($new_subject_name)) {
+                            $check_subject = $conn->prepare("SELECT id FROM subjects WHERE name = ?");
+                            $check_subject->bind_param("s", $new_subject_name);
+                            $check_subject->execute();
+                            $subject_result = $check_subject->get_result();
+                            
+                            if ($subject_result->num_rows > 0) {
+                                $subject_row = $subject_result->fetch_assoc();
+                                $subject_id = $subject_row['id'];
+                            } else {
+                                $create_subject = $conn->prepare("INSERT INTO subjects (name, code, status) VALUES (?, ?, 1)");
+                                $create_subject->bind_param("ss", $new_subject_name, $new_subject_code);
+                                if ($create_subject->execute()) {
+                                    $subject_id = $conn->insert_id;
+                                } else {
+                                    $error_message = 'Error creating subject: ' . $conn->error;
+                                }
+                                $create_subject->close();
+                            }
+                            $check_subject->close();
+                        } else if ($subject_id_input !== 'new') {
+                            $subject_id = intval($subject_id_input);
+                        }
+                        
+                        // Create stream_subject if it doesn't exist
+                        if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
+                            $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+                            $check_ss->bind_param("ii", $stream_id, $subject_id);
+                            $check_ss->execute();
+                            $ss_result = $check_ss->get_result();
+                        
+                            $stream_subject_id = null;
                         if ($ss_result->num_rows > 0) {
                             $ss_row = $ss_result->fetch_assoc();
                             $stream_subject_id = $ss_row['id'];
+                            } else {
+                                $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+                                $create_ss->bind_param("ii", $stream_id, $subject_id);
+                                if ($create_ss->execute()) {
+                                    $stream_subject_id = $conn->insert_id;
+                                } else {
+                                    $error_message = 'Error creating stream-subject combination: ' . $conn->error;
+                                }
+                                $create_ss->close();
+                            }
+                            $check_ss->close();
                             
                             // Insert student enrollment
+                            if (empty($error_message) && $stream_subject_id) {
                             $enroll_stmt = $conn->prepare("INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, enrolled_date, status, payment_status) VALUES (?, ?, ?, CURDATE(), 'active', 'pending')");
                             $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
                             
@@ -150,10 +230,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                 $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
                             }
                             $enroll_stmt->close();
-                        } else {
-                            $error_message = 'User created but stream-subject combination not found.';
                         }
-                        $ss_stmt->close();
+                        }
                     }
                     
                     // Handle teacher-specific data
@@ -373,12 +451,18 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                             <label for="stream_id" class="block text-sm font-medium text-gray-700 mb-1">Select Stream (Grade) *</label>
                             <select id="stream_id" name="stream_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                    onchange="loadSubjects()">
+                                    onchange="handleStreamChange()">
                                 <option value="">-- Select Stream --</option>
+                                <option value="new">+ Create New Stream</option>
                                 <?php foreach ($streams as $stream): ?>
                                     <option value="<?php echo $stream['id']; ?>"><?php echo htmlspecialchars($stream['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <div id="newStreamContainer" class="hidden mt-2">
+                                <input type="text" id="new_stream_name" name="new_stream_name" 
+                                       placeholder="Enter new stream name"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
                         </div>
 
                         <!-- Subject Dropdown -->
@@ -386,9 +470,18 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                             <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-1">Select Subject *</label>
                             <select id="subject_id" name="subject_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                    onchange="loadTeachers()">
+                                    onchange="handleSubjectChange()">
                                 <option value="">-- Select Subject --</option>
+                                <option value="new">+ Create New Subject</option>
                             </select>
+                            <div id="newSubjectContainer" class="hidden mt-2 space-y-2">
+                                <input type="text" id="new_subject_name" name="new_subject_name" 
+                                       placeholder="Enter new subject name"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <input type="text" id="new_subject_code" name="new_subject_code" 
+                                       placeholder="Enter subject code (optional)"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
                         </div>
 
                         <!-- Teachers Grid -->
@@ -433,7 +526,16 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Stream Selection (Multi-select) -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Stream(s) *</label>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Stream(s) *</label>
+                                <button type="button" onclick="openCreateStreamModal()" 
+                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Create New Stream</span>
+                                </button>
+                            </div>
                             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <?php foreach ($streams as $stream): ?>
                                     <label class="flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer">
@@ -448,7 +550,16 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Subject Selection (Based on selected streams) -->
                         <div id="teacherSubjectContainer" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Subject(s) *</label>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Subject(s) *</label>
+                                <button type="button" onclick="openCreateSubjectModal()" 
+                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Create New Subject</span>
+                                </button>
+                            </div>
                             <div id="teacherSubjectsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- Subjects will be loaded here based on selected streams -->
                             </div>
@@ -496,18 +607,28 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 // Clear student fields
                 document.getElementById('subjectContainer').classList.add('hidden');
                 document.getElementById('teachersContainer').classList.add('hidden');
+                document.getElementById('newStreamContainer').classList.add('hidden');
+                document.getElementById('newSubjectContainer').classList.add('hidden');
                 document.getElementById('stream_id').value = '';
                 document.getElementById('subject_id').value = '';
                 document.getElementById('selected_teacher_id').value = '';
+                document.getElementById('new_stream_name').value = '';
+                document.getElementById('new_subject_name').value = '';
+                document.getElementById('new_subject_code').value = '';
             } else {
                 studentFields.classList.add('hidden');
                 teacherFields.classList.add('hidden');
                 // Clear all fields
                 document.getElementById('subjectContainer').classList.add('hidden');
                 document.getElementById('teachersContainer').classList.add('hidden');
+                document.getElementById('newStreamContainer').classList.add('hidden');
+                document.getElementById('newSubjectContainer').classList.add('hidden');
                 document.getElementById('stream_id').value = '';
                 document.getElementById('subject_id').value = '';
                 document.getElementById('selected_teacher_id').value = '';
+                document.getElementById('new_stream_name').value = '';
+                document.getElementById('new_subject_name').value = '';
+                document.getElementById('new_subject_code').value = '';
                 // Clear teacher fields
                 document.querySelectorAll('.teacher-stream-checkbox').forEach(cb => cb.checked = false);
                 document.getElementById('teacherSubjectContainer').classList.add('hidden');
@@ -663,14 +784,40 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             }
         }
 
+        // Handle stream change
+        function handleStreamChange() {
+            const streamId = document.getElementById('stream_id').value;
+            const newStreamContainer = document.getElementById('newStreamContainer');
+            const subjectContainer = document.getElementById('subjectContainer');
+            const newSubjectContainer = document.getElementById('newSubjectContainer');
+            const teachersContainer = document.getElementById('teachersContainer');
+            
+            // Hide new stream input if not "new"
+            if (streamId === 'new') {
+                newStreamContainer.classList.remove('hidden');
+                subjectContainer.classList.add('hidden');
+                teachersContainer.classList.add('hidden');
+            } else if (streamId) {
+                newStreamContainer.classList.add('hidden');
+                document.getElementById('new_stream_name').value = '';
+                loadSubjects();
+            } else {
+                newStreamContainer.classList.add('hidden');
+                subjectContainer.classList.add('hidden');
+                teachersContainer.classList.add('hidden');
+                newSubjectContainer.classList.add('hidden');
+            }
+        }
+
         // Load subjects based on selected stream
         function loadSubjects() {
             const streamId = document.getElementById('stream_id').value;
             const subjectContainer = document.getElementById('subjectContainer');
             const subjectSelect = document.getElementById('subject_id');
             const teachersContainer = document.getElementById('teachersContainer');
+            const newSubjectContainer = document.getElementById('newSubjectContainer');
             
-            if (!streamId) {
+            if (!streamId || streamId === 'new') {
                 subjectContainer.classList.add('hidden');
                 teachersContainer.classList.add('hidden');
                 return;
@@ -680,7 +827,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             fetch(`get_subjects.php?stream_id=${streamId}`)
                 .then(response => response.json())
                 .then(data => {
-                    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                    subjectSelect.innerHTML = '<option value="">-- Select Subject --</option><option value="new">+ Create New Subject</option>';
                     
                     if (data.success && data.subjects.length > 0) {
                         data.subjects.forEach(subject => {
@@ -691,10 +838,10 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                         });
                         subjectContainer.classList.remove('hidden');
                     } else {
-                        subjectContainer.classList.add('hidden');
-                        alert('No subjects available for this stream.');
+                        subjectContainer.classList.remove('hidden');
                     }
                     
+                    newSubjectContainer.classList.add('hidden');
                     teachersContainer.classList.add('hidden');
                     document.getElementById('selected_teacher_id').value = '';
                 })
@@ -704,6 +851,26 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 });
         }
 
+        // Handle subject change
+        function handleSubjectChange() {
+            const subjectId = document.getElementById('subject_id').value;
+            const newSubjectContainer = document.getElementById('newSubjectContainer');
+            const teachersContainer = document.getElementById('teachersContainer');
+            
+            if (subjectId === 'new') {
+                newSubjectContainer.classList.remove('hidden');
+                teachersContainer.classList.add('hidden');
+            } else if (subjectId) {
+                newSubjectContainer.classList.add('hidden');
+                document.getElementById('new_subject_name').value = '';
+                document.getElementById('new_subject_code').value = '';
+                loadTeachers();
+            } else {
+                newSubjectContainer.classList.add('hidden');
+                teachersContainer.classList.add('hidden');
+            }
+        }
+
         // Load teachers based on selected subject
         function loadTeachers() {
             const streamId = document.getElementById('stream_id').value;
@@ -711,7 +878,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             const teachersContainer = document.getElementById('teachersContainer');
             const teachersGrid = document.getElementById('teachersGrid');
             
-            if (!streamId || !subjectId) {
+            if (!streamId || !subjectId || streamId === 'new' || subjectId === 'new') {
                 teachersContainer.classList.add('hidden');
                 return;
             }
@@ -928,6 +1095,79 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             }
         }
 
+        // Create New Stream Modal (for teachers)
+        function openCreateStreamModal() {
+            const name = prompt('Enter new stream name:');
+            if (!name || !name.trim()) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            
+            fetch('../create_stream.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload page to refresh stream list
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create stream'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating stream.');
+            });
+        }
+
+        // Create New Subject Modal (for teachers)
+        function openCreateSubjectModal() {
+            const selectedStreams = Array.from(document.querySelectorAll('.teacher-stream-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedStreams.length === 0) {
+                alert('Please select at least one stream first.');
+                return;
+            }
+            
+            // Use first selected stream for creation
+            const streamId = selectedStreams[0];
+            
+            const name = prompt('Enter new subject name:');
+            if (!name || !name.trim()) {
+                return;
+            }
+            
+            const code = prompt('Enter subject code (optional):') || '';
+            
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            formData.append('code', code.trim());
+            formData.append('stream_id', streamId);
+            
+            fetch('../create_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload subjects for all selected streams
+                    loadTeacherSubjects();
+                    alert('Subject created successfully!');
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create subject'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating subject.');
+            });
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             toggleRoleBasedFields();
@@ -936,6 +1176,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             // Update photo requirement when role changes
             document.getElementById('role').addEventListener('change', function() {
                 updatePhotoRequirement();
+                toggleRoleBasedFields();
             });
         });
     </script>

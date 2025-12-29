@@ -4,6 +4,29 @@
 
 // Get current page for active state
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// Get user profile picture and full name
+$profile_picture = null;
+$full_name = '';
+if (isset($_SESSION['user_id'])) {
+    require_once __DIR__ . '/../config.php';
+    $user_id = $_SESSION['user_id'];
+    $stmt = $conn->prepare("SELECT profile_picture, first_name, second_name FROM users WHERE user_id = ? LIMIT 1");
+    $stmt->bind_param("s", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->num_rows > 0) {
+        $user_data = $result->fetch_assoc();
+        $profile_picture = $user_data['profile_picture'];
+        $first_name = $user_data['first_name'] ?? '';
+        $second_name = $user_data['second_name'] ?? '';
+        $full_name = trim($first_name . ' ' . $second_name);
+        if (empty($full_name)) {
+            $full_name = $_SESSION['username'] ?? '';
+        }
+    }
+    $stmt->close();
+}
 ?>
 
 <nav class="bg-red-600 shadow-lg sticky top-0 z-50">
@@ -51,25 +74,60 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <!-- Desktop User Menu / Logout -->
             <div class="hidden lg:flex lg:items-center lg:space-x-3">
                 <?php if (isset($_SESSION['username'])): ?>
-                    <span class="text-white text-xs xl:text-sm truncate max-w-[120px] xl:max-w-none">
-                        Welcome, <span class="font-semibold"><?php echo htmlspecialchars($_SESSION['username']); ?></span>
-                    </span>
-                    <a href="../auth.php?logout=1" 
-                       class="bg-red-700 hover:bg-red-800 active:bg-red-900 text-white px-3 xl:px-4 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out flex items-center space-x-2 shadow-md hover:shadow-lg touch-manipulation">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                        <span class="hidden xl:inline">LOGOUT</span>
-                        <span class="xl:hidden">OUT</span>
-                    </a>
+                    <div class="flex items-center space-x-3">
+                        <!-- Profile Picture -->
+                        <div class="flex-shrink-0">
+                            <?php if (!empty($profile_picture)): ?>
+                                <img src="../<?php echo htmlspecialchars($profile_picture); ?>" 
+                                     alt="Profile" 
+                                     class="w-8 h-8 xl:w-10 xl:h-10 rounded-full object-cover border-2 border-white shadow-md">
+                            <?php else: ?>
+                                <div class="w-8 h-8 xl:w-10 xl:h-10 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md">
+                                    <svg class="w-5 h-5 xl:w-6 xl:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Full Name -->
+                        <span class="text-white text-xs xl:text-sm font-medium truncate max-w-[150px] xl:max-w-[200px]">
+                            <?php echo htmlspecialchars($full_name); ?>
+                        </span>
+                        
+                        <!-- Logout Icon -->
+                        <a href="../auth.php?logout=1" 
+                           class="bg-red-700 hover:bg-red-800 active:bg-red-900 text-white p-2 rounded-md transition duration-150 ease-in-out flex items-center justify-center shadow-md hover:shadow-lg touch-manipulation"
+                           title="Logout">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                        </a>
+                    </div>
                 <?php endif; ?>
             </div>
             
             <!-- Mobile menu button -->
             <div class="lg:hidden flex items-center space-x-2">
                 <?php if (isset($_SESSION['username'])): ?>
-                    <span class="text-white text-xs sm:text-sm truncate max-w-[80px] sm:max-w-[120px]">
-                        <?php echo htmlspecialchars($_SESSION['username']); ?>
+                    <!-- Profile Picture (Mobile) -->
+                    <div class="flex-shrink-0">
+                        <?php if (!empty($profile_picture)): ?>
+                            <img src="../<?php echo htmlspecialchars($profile_picture); ?>" 
+                                 alt="Profile" 
+                                 class="w-8 h-8 rounded-full object-cover border-2 border-white shadow-md">
+                        <?php else: ?>
+                            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- Full Name (Mobile) -->
+                    <span class="text-white text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-[150px]">
+                        <?php echo htmlspecialchars($full_name); ?>
                     </span>
                 <?php endif; ?>
                 <button type="button" 
@@ -121,17 +179,33 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </a>
             <?php if (isset($_SESSION['username'])): ?>
                 <div class="border-t border-red-800 mt-2 pt-3">
-                    <div class="px-4 py-2 mb-2">
-                        <span class="text-white text-sm">
-                            Welcome, <span class="font-semibold"><?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                    <div class="px-4 py-3 mb-2 flex items-center space-x-3">
+                        <!-- Profile Picture (Mobile Menu) -->
+                        <div class="flex-shrink-0">
+                            <?php if (!empty($profile_picture)): ?>
+                                <img src="../<?php echo htmlspecialchars($profile_picture); ?>" 
+                                     alt="Profile" 
+                                     class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-md">
+                            <?php else: ?>
+                                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md">
+                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                    </svg>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Full Name (Mobile Menu) -->
+                        <span class="text-white text-sm font-medium flex-1">
+                            <?php echo htmlspecialchars($full_name); ?>
                         </span>
                     </div>
                     <a href="../auth.php?logout=1" 
-                       class="bg-red-800 hover:bg-red-900 active:bg-red-950 text-white block px-4 py-3 rounded-md text-sm font-medium uppercase flex items-center justify-center space-x-2 transition duration-150 ease-in-out touch-manipulation">
+                       class="bg-red-800 hover:bg-red-900 active:bg-red-950 text-white block px-4 py-3 rounded-md text-sm font-medium uppercase flex items-center justify-center transition duration-150 ease-in-out touch-manipulation"
+                       title="Logout">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                         </svg>
-                        <span>LOGOUT</span>
                     </a>
                 </div>
             <?php endif; ?>

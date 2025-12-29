@@ -3123,4 +3123,3 @@ if ($role === 'student' && $current_recording) {
     <?php endif; ?>
 </body>
 </html>
-

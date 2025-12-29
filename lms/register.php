@@ -18,20 +18,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $second_name = trim($_POST['second_name'] ?? '');
     $mobile_number = trim($_POST['mobile_number'] ?? '');
     $whatsapp_number = trim($_POST['whatsapp_number'] ?? '');
-    $approved = isset($_POST['approved']) ? 1 : 0;
+    $verification_method = trim($_POST['verification_method'] ?? 'none');
+    $nic_number = trim($_POST['nic_number'] ?? '');
+    $nic_verified = isset($_POST['nic_verified']) ? intval($_POST['nic_verified']) : 0;
+    $otp_verified = isset($_POST['otp_verified']) ? intval($_POST['otp_verified']) : 0;
+    
+    // Student-specific fields
+    $dob = !empty($_POST['dob']) ? trim($_POST['dob']) : null;
+    $school_name = !empty($_POST['school_name']) ? trim($_POST['school_name']) : null;
+    $exam_year = !empty($_POST['exam_year']) ? intval($_POST['exam_year']) : null;
+    $closest_town = !empty($_POST['closest_town']) ? trim($_POST['closest_town']) : null;
+    $district = !empty($_POST['district']) ? trim($_POST['district']) : null;
+    $address = !empty($_POST['address']) ? trim($_POST['address']) : null;
+    $gender = !empty($_POST['gender']) ? trim($_POST['gender']) : null;
+    
+    // Determine approval status based on verification
+    // Teachers always require admin approval (no verification needed)
+    // Students need verification for auto-approval
+    $approved = 0;
+    $verification_status = 'pending';
+    
+    if ($role === 'teacher') {
+        // Teachers always require admin approval - no verification needed
+        $approved = 0;
+        $verification_status = 'pending';
+    } else {
+        // For students: verification determines approval
+        if ($verification_method === 'nic' && $nic_verified === 1) {
+            $approved = 1;
+            $verification_status = 'verified_nic';
+        } elseif ($verification_method === 'mobile' && $otp_verified === 1) {
+            $approved = 1;
+            $verification_status = 'verified_mobile';
+        } else {
+            // Verification failed or not completed - require admin approval
+            $approved = 0;
+            $verification_status = 'pending';
+        }
+    }
     
     // Validation
     if (empty($username) || empty($email) || empty($password)) {
         $error_message = 'Username, email, and password are required.';
+    } elseif ($role !== 'teacher' && (empty($verification_method) || $verification_method === 'none')) {
+        // Only students need verification
+        $error_message = 'Please select a verification method and complete the verification.';
+    } elseif ($role !== 'teacher' && $verification_method === 'nic' && $nic_verified !== 1) {
+        $error_message = 'Please verify your NIC number before submitting.';
+    } elseif ($role !== 'teacher' && $verification_method === 'mobile' && $otp_verified !== 1) {
+        $error_message = 'Please verify your mobile number with OTP before submitting.';
     } else {
         // Additional validation for students
         if ($role === 'student') {
-            $stream_id = isset($_POST['stream_id']) ? intval($_POST['stream_id']) : 0;
-            $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
+            $stream_id_input = $_POST['stream_id'] ?? '';
+            $subject_id_input = $_POST['subject_id'] ?? '';
             $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
+            $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+            $new_subject_name = trim($_POST['new_subject_name'] ?? '');
             
-            if ($stream_id <= 0 || $subject_id <= 0 || empty($selected_teacher_id)) {
-                $error_message = 'For students, please select Stream, Subject, and Teacher.';
+            if (intval($stream_id_input) <= 0) {
+                $error_message = 'Please select a stream.';
+            } elseif (intval($subject_id_input) <= 0) {
+                $error_message = 'Please select a subject.';
+            } elseif (empty($selected_teacher_id)) {
+                $error_message = 'Please select a teacher.';
             }
         }
         
@@ -118,38 +168,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             // If no upload errors, proceed with user creation
             if (empty($error_message)) {
                 // Insert user (profile_picture can be null)
-                $stmt = $conn->prepare("INSERT INTO users (user_id, username, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1)");
-                $stmt->bind_param("ssssssssssi", $user_id, $username, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved);
+                // Include NIC and verification method if provided
+                // Include student-specific fields if role is student
+                $nic_no_value = ($verification_method === 'nic' && !empty($nic_number)) ? $nic_number : null;
+                $verification_method_value = ($verification_method !== 'none') ? $verification_method : 'none';
+                
+                // Set student-specific fields (only for students, null for others)
+                $dob_value = ($role === 'student') ? ($dob ?: null) : null;
+                $school_name_value = ($role === 'student') ? $school_name : null;
+                $exam_year_value = ($role === 'student') ? $exam_year : null;
+                $closest_town_value = ($role === 'student') ? $closest_town : null;
+                $district_value = ($role === 'student') ? $district : null;
+                $address_value = ($role === 'student') ? $address : null;
+                $gender_value = ($role === 'student') ? $gender : null;
+                
+                $stmt = $conn->prepare("INSERT INTO users (user_id, username, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, closest_town, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                // Types: s=string, i=integer. Parameters: 11 strings, 1 int (approved), 1 string (nic_no), 1 string (verification_method), 7 strings (dob, school_name, closest_town, district, address, gender), 1 int (exam_year)
+                // Total: 19 strings (s) + 2 integers (i) = 21 parameters
+                $stmt->bind_param("ssssssssssissssissss", $user_id, $username, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob_value, $school_name_value, $exam_year_value, $closest_town_value, $district_value, $address_value, $gender_value);
                 
                 if ($stmt->execute()) {
                     // Handle student-specific data
                     if ($role === 'student') {
-                        $stream_id = isset($_POST['stream_id']) ? intval($_POST['stream_id']) : 0;
-                        $subject_id = isset($_POST['subject_id']) ? intval($_POST['subject_id']) : 0;
+                        $stream_id_input = $_POST['stream_id'] ?? '';
+                        $subject_id_input = $_POST['subject_id'] ?? '';
                         $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+                        $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+                        $new_subject_name = trim($_POST['new_subject_name'] ?? '');
+                        $new_subject_code = trim($_POST['new_subject_code'] ?? '');
                         
-                        // Get stream_subject_id from stream_id and subject_id
-                        $ss_stmt = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ? AND status = 1 LIMIT 1");
-                        $ss_stmt->bind_param("ii", $stream_id, $subject_id);
-                        $ss_stmt->execute();
-                        $ss_result = $ss_stmt->get_result();
+                        $stream_id = 0;
+                        $subject_id = 0;
                         
-                        if ($ss_result->num_rows > 0) {
-                            $ss_row = $ss_result->fetch_assoc();
-                            $stream_subject_id = $ss_row['id'];
+                        // Students cannot create new streams - must select existing
+                        if (false) { // Removed stream creation for students
+                            $check_stream = $conn->prepare("SELECT id FROM streams WHERE name = ?");
+                            $check_stream->bind_param("s", $new_stream_name);
+                            $check_stream->execute();
+                            $stream_result = $check_stream->get_result();
+                            
+                            if ($stream_result->num_rows > 0) {
+                                $stream_row = $stream_result->fetch_assoc();
+                                $stream_id = $stream_row['id'];
+                            } else {
+                                $create_stream = $conn->prepare("INSERT INTO streams (name, status) VALUES (?, 1)");
+                                $create_stream->bind_param("s", $new_stream_name);
+                                if ($create_stream->execute()) {
+                                    $stream_id = $conn->insert_id;
+                                } else {
+                                    $error_message = 'Error creating stream: ' . $conn->error;
+                                }
+                                $create_stream->close();
+                            }
+                            $check_stream->close();
+                        } else {
+                            $stream_id = intval($stream_id_input);
+                        }
+                        
+                        // Students cannot create new subjects - must select existing
+                        if (false) { // Removed subject creation for students
+                            // Code removed - students cannot create subjects
+                        } else {
+                            $subject_id = intval($subject_id_input);
+                        }
+                        
+                        // Create stream_subject if it doesn't exist
+                        if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
+                            $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+                            $check_ss->bind_param("ii", $stream_id, $subject_id);
+                            $check_ss->execute();
+                            $ss_result = $check_ss->get_result();
+                            
+                            $stream_subject_id = null;
+                            if ($ss_result->num_rows > 0) {
+                                $ss_row = $ss_result->fetch_assoc();
+                                $stream_subject_id = $ss_row['id'];
+                            } else {
+                                $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+                                $create_ss->bind_param("ii", $stream_id, $subject_id);
+                                if ($create_ss->execute()) {
+                                    $stream_subject_id = $conn->insert_id;
+                                } else {
+                                    $error_message = 'Error creating stream-subject combination: ' . $conn->error;
+                                }
+                                $create_ss->close();
+                            }
+                            $check_ss->close();
                             
                             // Insert student enrollment
-                            $enroll_stmt = $conn->prepare("INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, enrolled_date, status, payment_status) VALUES (?, ?, ?, CURDATE(), 'active', 'pending')");
-                            $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
-                            
-                            if (!$enroll_stmt->execute()) {
-                                $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
+                            if (empty($error_message) && $stream_subject_id) {
+                                $enroll_stmt = $conn->prepare("INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, enrolled_date, status, payment_status) VALUES (?, ?, ?, CURDATE(), 'active', 'pending')");
+                                $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+                                
+                                if (!$enroll_stmt->execute()) {
+                                    $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
+                                }
+                                $enroll_stmt->close();
                             }
-                            $enroll_stmt->close();
-                        } else {
-                            $error_message = 'User created but stream-subject combination not found.';
                         }
-                        $ss_stmt->close();
                     }
                     
                     // Handle teacher-specific data
@@ -173,6 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         
                         // Save teacher assignments (stream-subject combinations)
                         $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+                        $teacher_subjects = isset($_POST['teacher_subjects']) ? $_POST['teacher_subjects'] : [];
                         $assign_stmt = $conn->prepare("INSERT INTO teacher_assignments (teacher_id, stream_subject_id, academic_year, status, assigned_date) VALUES (?, ?, ?, 'active', CURDATE())");
                         
                         foreach ($teacher_subjects as $stream_subject_id) {
@@ -186,7 +303,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     }
                     
                     if (empty($error_message)) {
-                        $success_message = "User '$username' has been successfully created with User ID: $user_id";
+                        if ($role === 'teacher') {
+                            $success_message = "Teacher '$username' has been successfully registered with User ID: $user_id. Your account requires admin approval before you can login.";
+                        } elseif ($approved == 1) {
+                            $success_message = "User '$username' has been successfully created with User ID: $user_id. Your account has been verified and you can now login.";
+                        } else {
+                            $success_message = "User '$username' has been successfully created with User ID: $user_id. Your account is pending admin approval. You will be able to login once approved.";
+                        }
                         // Clear form data
                         $_POST = array();
                     }
@@ -213,7 +336,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New User - Admin</title>
+    <title>Register </title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
@@ -254,6 +377,9 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                     </div>
                 <?php endif; ?>
 
+                <!-- Toast Container -->
+                <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
                 <form method="POST" action="" class="space-y-6" id="addUserForm" enctype="multipart/form-data">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Username -->
@@ -288,8 +414,6 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                                     onchange="toggleRoleBasedFields()">
                                 <option value="student" <?php echo (($_POST['role'] ?? 'student') === 'student') ? 'selected' : ''; ?>>Student</option>
                                 <option value="teacher" <?php echo (($_POST['role'] ?? '') === 'teacher') ? 'selected' : ''; ?>>Teacher</option>
-                                <option value="instructor" <?php echo (($_POST['role'] ?? '') === 'instructor') ? 'selected' : ''; ?>>Instructor</option>
-                                <option value="admin" <?php echo (($_POST['role'] ?? '') === 'admin') ? 'selected' : ''; ?>>Admin</option>
                             </select>
                         </div>
 
@@ -346,28 +470,113 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
                     <!-- Student-specific fields -->
                     <div id="studentFields" class="hidden space-y-6 border-t pt-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Student Enrollment</h3>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Student Information</h3>
                         
-                        <!-- Academic Year -->
-                        <div>
-                            <label for="student_academic_year" class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
-                            <input type="number" id="student_academic_year" name="academic_year" 
-                                   value="<?php echo date('Y'); ?>" min="2020" max="2100"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                   required>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Date of Birth -->
+                            <div>
+                                <label for="dob" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input type="date" id="dob" name="dob" 
+                                       max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
+                            </div>
+
+                            <!-- Gender -->
+                            <div>
+                                <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <select id="gender" name="gender"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                                    <option value="">-- Select Gender --</option>
+                                    <option value="male" <?php echo (($_POST['gender'] ?? '') === 'male') ? 'selected' : ''; ?>>Male</option>
+                                    <option value="female" <?php echo (($_POST['gender'] ?? '') === 'female') ? 'selected' : ''; ?>>Female</option>
+                                </select>
+                            </div>
+
+                            <!-- School Name -->
+                            <div>
+                                <label for="school_name" class="block text-sm font-medium text-gray-700 mb-1">School Name</label>
+                                <input type="text" id="school_name" name="school_name"
+                                       placeholder="Enter school name"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
+                            </div>
+
+                            <!-- Exam Year -->
+                            <div>
+                                <label for="exam_year" class="block text-sm font-medium text-gray-700 mb-1">Exam Year</label>
+                                <input type="number" id="exam_year" name="exam_year" 
+                                       placeholder="e.g., 2024"
+                                       min="2000" max="2100"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       value="<?php echo htmlspecialchars($_POST['exam_year'] ?? ''); ?>">
+                            </div>
+
+                            <!-- Closest Town -->
+                            <div>
+                                <label for="closest_town" class="block text-sm font-medium text-gray-700 mb-1">Closest Town</label>
+                                <input type="text" id="closest_town" name="closest_town"
+                                       placeholder="Enter closest town"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       value="<?php echo htmlspecialchars($_POST['closest_town'] ?? ''); ?>">
+                            </div>
+
+                            <!-- District -->
+                            <div>
+                                <label for="district" class="block text-sm font-medium text-gray-700 mb-1">District</label>
+                                <input type="text" id="district" name="district"
+                                       placeholder="Enter district"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>">
+                            </div>
                         </div>
+
+                        <!-- Address -->
+                        <div>
+                            <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <textarea id="address" name="address" rows="3"
+                                      placeholder="Enter full address"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
+                        </div>
+
+                        <div class="border-t pt-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Student Enrollment</h3>
+                            
+                            <!-- Academic Year -->
+                            <div>
+                                <label for="student_academic_year" class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                                <input type="number" id="student_academic_year" name="academic_year" 
+                                       value="<?php echo date('Y'); ?>" min="2020" max="2100"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       required>
+                            </div>
                         
                         <!-- Stream Dropdown -->
                         <div>
                             <label for="stream_id" class="block text-sm font-medium text-gray-700 mb-1">Select Stream (Grade) *</label>
                             <select id="stream_id" name="stream_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                    onchange="loadSubjects()">
+                                    onchange="handleStreamChange()">
                                 <option value="">-- Select Stream --</option>
                                 <?php foreach ($streams as $stream): ?>
                                     <option value="<?php echo $stream['id']; ?>"><?php echo htmlspecialchars($stream['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <div id="newStreamContainer" class="hidden mt-2">
+                                <input type="text" id="new_stream_name" name="new_stream_name" 
+                                       placeholder="Enter new stream name"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
+                            <!-- Create New Subject Button (shows when no subjects available) -->
+                            <div id="createSubjectBtnContainer" class="hidden mt-2">
+                                <button type="button" id="createSubjectBtn" class="w-full text-sm bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center justify-center space-x-2"
+                                        onclick="openCreateSubjectModalForStudent()">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Create New Subject</span>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Subject Dropdown -->
@@ -375,9 +584,17 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                             <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-1">Select Subject *</label>
                             <select id="subject_id" name="subject_id"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                    onchange="loadTeachers()">
+                                    onchange="handleSubjectChange()">
                                 <option value="">-- Select Subject --</option>
                             </select>
+                            <div id="newSubjectContainer" class="hidden mt-2 space-y-2">
+                                <input type="text" id="new_subject_name" name="new_subject_name" 
+                                       placeholder="Enter new subject name"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <input type="text" id="new_subject_code" name="new_subject_code" 
+                                       placeholder="Enter subject code (optional)"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                            </div>
                         </div>
 
                         <!-- Teachers Grid -->
@@ -393,6 +610,16 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                     <!-- Teacher-specific fields -->
                     <div id="teacherFields" class="hidden space-y-6 border-t pt-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Teacher Details & Assignments</h3>
+                        
+                        <!-- Teacher Approval Notice -->
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 rounded mb-4" role="alert">
+                            <div class="flex">
+                                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                <p class="ml-3 text-sm font-medium">Teacher accounts require admin approval before you can log in to the system. No verification is needed.</p>
+                            </div>
+                        </div>
                         
                         <!-- Academic Year -->
                         <div>
@@ -422,7 +649,16 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Stream Selection (Multi-select) -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Stream(s) *</label>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Stream(s) *</label>
+                                <button type="button" onclick="openCreateStreamModal()" 
+                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Create New Stream</span>
+                                </button>
+                            </div>
                             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <?php foreach ($streams as $stream): ?>
                                     <label class="flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer">
@@ -437,31 +673,114 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
                         <!-- Subject Selection (Based on selected streams) -->
                         <div id="teacherSubjectContainer" class="hidden">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Select Subject(s) *</label>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Select Subject(s) *</label>
+                                <button type="button" onclick="openCreateSubjectModal()" 
+                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    <span>Create New Subject</span>
+                                </button>
+                            </div>
                             <div id="teacherSubjectsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- Subjects will be loaded here based on selected streams -->
                             </div>
                         </div>
                     </div>
 
-                    <!-- Approved Checkbox -->
-                    <div class="flex items-center">
-                        <input type="checkbox" id="approved" name="approved" value="1"
-                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                               <?php echo (isset($_POST['approved']) || !isset($_POST['add_user'])) ? 'checked' : ''; ?>>
-                        <label for="approved" class="ml-2 block text-sm text-gray-700">
-                            Approve user immediately (user can login without approval)
-                        </label>
+                    <!-- Verification Section (Hidden for teachers) -->
+                    <div id="verificationSection" class="border-t pt-6 space-y-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Identity Verification</h3>
+                        <p class="text-sm text-gray-600 mb-4">Please verify your identity using one of the following methods:</p>
+                        
+                        <!-- Verification Method Selection -->
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-red-500 transition-colors">
+                                <input type="radio" name="verification_method" value="nic" id="verify_nic" 
+                                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                                       onchange="handleVerificationMethodChange()">
+                                <div class="flex-1">
+                                    <span class="block font-medium text-gray-900">Verify by NIC Number</span>
+                                    <span class="block text-sm text-gray-500">Enter your Sri Lankan National Identity Card number</span>
+                                </div>
+                            </label>
+                            
+                            <label class="flex items-center space-x-3 p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-red-500 transition-colors">
+                                <input type="radio" name="verification_method" value="mobile" id="verify_mobile"
+                                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
+                                       onchange="handleVerificationMethodChange()">
+                                <div class="flex-1">
+                                    <span class="block font-medium text-gray-900">Verify by WhatsApp/Mobile Number</span>
+                                    <span class="block text-sm text-gray-500">Receive an OTP code on your mobile number</span>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- NIC Verification -->
+                        <div id="nicVerificationContainer" class="hidden">
+                            <label for="nic_number" class="block text-sm font-medium text-gray-700 mb-1">NIC Number *</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="nic_number" name="nic_number" 
+                                       placeholder="Enter NIC (e.g., 123456789V or 199512345678)"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       maxlength="12">
+                                <button type="button" onclick="verifyNIC()" 
+                                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                    Verify
+                                </button>
+                            </div>
+                            <div id="nicVerificationResult" class="mt-2"></div>
+                            <input type="hidden" id="nic_verified" name="nic_verified" value="0">
+                        </div>
+                        
+                        <!-- Mobile/OTP Verification -->
+                        <div id="mobileVerificationContainer" class="hidden space-y-4">
+                            <div>
+                                <label for="verification_mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile/WhatsApp Number *</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="verification_mobile" name="verification_mobile" 
+                                           placeholder="Mobile number will be auto-filled"
+                                           readonly
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                                    <button type="button" onclick="sendOTP()" id="sendOtpBtn"
+                                            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                                        Send OTP
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Using the mobile number from your profile</p>
+                            </div>
+                            
+                            <div id="otpInputContainer" class="hidden">
+                                <label for="otp_code" class="block text-sm font-medium text-gray-700 mb-1">Enter OTP Code *</label>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="otp_code" name="otp_code" 
+                                           placeholder="Enter 6-digit OTP"
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                           maxlength="6">
+                                    <button type="button" onclick="verifyOTP()" 
+                                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                                        Verify OTP
+                                    </button>
+                                </div>
+                                <div id="otpVerificationResult" class="mt-2"></div>
+                                <input type="hidden" id="otp_verified" name="otp_verified" value="0">
+                            </div>
+                        </div>
+                        
+                        <!-- Verification Status -->
+                        <div id="verificationStatus" class="hidden"></div>
                     </div>
+                    <!-- End of Verification Section - submitButtonContainer is OUTSIDE this div -->
 
-                    <!-- Submit Button -->
-                    <div class="flex justify-end space-x-3 pt-4 border-t">
-                        <a href="dashboard.php" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                    <!-- Submit Button (Always Visible) - Direct child of form, NOT inside verificationSection -->
+                    <div id="submitButtonContainer" class="flex justify-end space-x-3 pt-4 border-t mt-6">
+                        <a href="login.php" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                             Cancel
                         </a>
                         <button type="submit" name="add_user"
                                 class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 font-medium">
-                            Add User
+                            Register
                         </button>
                     </div>
                 </form>
@@ -472,43 +791,95 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
     <script>
         // Toggle role-based fields
         function toggleRoleBasedFields() {
-            const role = document.getElementById('role').value;
-            const studentFields = document.getElementById('studentFields');
-            const teacherFields = document.getElementById('teacherFields');
-            
-            if (role === 'student') {
-                studentFields.classList.remove('hidden');
-                teacherFields.classList.add('hidden');
-            } else if (role === 'teacher') {
-                studentFields.classList.add('hidden');
-                teacherFields.classList.remove('hidden');
-                // Clear student fields
-                document.getElementById('subjectContainer').classList.add('hidden');
-                document.getElementById('teachersContainer').classList.add('hidden');
-                document.getElementById('stream_id').value = '';
-                document.getElementById('subject_id').value = '';
-                document.getElementById('selected_teacher_id').value = '';
-            } else {
-                studentFields.classList.add('hidden');
-                teacherFields.classList.add('hidden');
-                // Clear all fields
-                document.getElementById('subjectContainer').classList.add('hidden');
-                document.getElementById('teachersContainer').classList.add('hidden');
-                document.getElementById('stream_id').value = '';
-                document.getElementById('subject_id').value = '';
-                document.getElementById('selected_teacher_id').value = '';
-                // Clear teacher fields
-                document.querySelectorAll('.teacher-stream-checkbox').forEach(cb => cb.checked = false);
-                document.getElementById('teacherSubjectContainer').classList.add('hidden');
-                document.getElementById('educationContainer').innerHTML = '';
+            try {
+                const roleElement = document.getElementById('role');
+                if (!roleElement) return;
+                const role = roleElement.value;
+                const studentFields = document.getElementById('studentFields');
+                const teacherFields = document.getElementById('teacherFields');
+                const verificationSection = document.getElementById('verificationSection');
+                const submitButtonContainer = document.getElementById('submitButtonContainer');
+                if (submitButtonContainer) {
+                    submitButtonContainer.classList.remove('hidden');
+                }
+                if (role === 'student') {
+                    if (studentFields) studentFields.classList.remove('hidden');
+                    if (teacherFields) teacherFields.classList.add('hidden');
+                    if (verificationSection) verificationSection.classList.remove('hidden');
+                } else if (role === 'teacher') {
+                    if (teacherFields) teacherFields.classList.remove('hidden');
+                    if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
+                    if (studentFields) studentFields.classList.add('hidden');
+                    if (verificationSection) verificationSection.classList.add('hidden');
+                    const subjectContainer = document.getElementById('subjectContainer');
+                    if (subjectContainer) subjectContainer.classList.add('hidden');
+                    const teachersContainer = document.getElementById('teachersContainer');
+                    if (teachersContainer) teachersContainer.classList.add('hidden');
+                    const newStreamContainer = document.getElementById('newStreamContainer');
+                    if (newStreamContainer) newStreamContainer.classList.add('hidden');
+                    const newSubjectContainer = document.getElementById('newSubjectContainer');
+                    if (newSubjectContainer) newSubjectContainer.classList.add('hidden');
+                    const streamId = document.getElementById('stream_id');
+                    if (streamId) streamId.value = '';
+                    const subjectId = document.getElementById('subject_id');
+                    if (subjectId) subjectId.value = '';
+                    const selectedTeacherId = document.getElementById('selected_teacher_id');
+                    if (selectedTeacherId) selectedTeacherId.value = '';
+                    const newStreamName = document.getElementById('new_stream_name');
+                    if (newStreamName) newStreamName.value = '';
+                    const newSubjectName = document.getElementById('new_subject_name');
+                    if (newSubjectName) newSubjectName.value = '';
+                    const newSubjectCode = document.getElementById('new_subject_code');
+                    if (newSubjectCode) newSubjectCode.value = '';
+                    try {
+                        const verificationRadios = document.querySelectorAll('input[name="verification_method"]');
+                        if (verificationRadios) {
+                            verificationRadios.forEach(function(radio) {
+                                if (radio) radio.checked = false;
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Error clearing verification method radios:', e);
+                    }
+                    const nicContainer = document.getElementById('nicVerificationContainer');
+                    if (nicContainer) nicContainer.classList.add('hidden');
+                    const mobileContainer = document.getElementById('mobileVerificationContainer');
+                    if (mobileContainer) mobileContainer.classList.add('hidden');
+                    const nicVerified = document.getElementById('nic_verified');
+                    if (nicVerified) nicVerified.value = '0';
+                    const otpVerified = document.getElementById('otp_verified');
+                    if (otpVerified) otpVerified.value = '0';
+                    const verificationStatus = document.getElementById('verificationStatus');
+                    if (verificationStatus) verificationStatus.classList.add('hidden');
+                    const nicNumber = document.getElementById('nic_number');
+                    if (nicNumber) nicNumber.value = '';
+                    const otpCode = document.getElementById('otp_code');
+                    if (otpCode) otpCode.value = '';
+                    const otpInputContainer = document.getElementById('otpInputContainer');
+                    if (otpInputContainer) otpInputContainer.classList.add('hidden');
+                    const nicVerificationResult = document.getElementById('nicVerificationResult');
+                    if (nicVerificationResult) nicVerificationResult.innerHTML = '';
+                    const otpVerificationResult = document.getElementById('otpVerificationResult');
+                    if (otpVerificationResult) otpVerificationResult.innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Error in toggleRoleBasedFields:', error);
+                const teacherFields = document.getElementById('teacherFields');
+                if (teacherFields) teacherFields.classList.remove('hidden');
+                const submitButtonContainer = document.getElementById('submitButtonContainer');
+                if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
             }
         }
 
-        // Add education field
+        // Education field counter
         let educationCount = 0;
+
+        // Add education field (for teachers)
         function addEducationField() {
             educationCount++;
             const container = document.getElementById('educationContainer');
+            if (!container) return;
+            
             const div = document.createElement('div');
             div.className = 'border border-gray-300 rounded-lg p-4 education-field';
             div.innerHTML = `
@@ -556,7 +927,8 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 
         // Remove education field
         function removeEducationField(button) {
-            button.closest('.education-field').remove();
+            const field = button.closest('.education-field');
+            if (field) field.remove();
         }
 
         // Load subjects for selected streams (for teachers)
@@ -565,18 +937,21 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             const subjectContainer = document.getElementById('teacherSubjectContainer');
             const subjectsGrid = document.getElementById('teacherSubjectsGrid');
             
+            if (!subjectContainer || !subjectsGrid) return;
+            
             if (selectedStreams.length === 0) {
                 subjectContainer.classList.add('hidden');
                 subjectsGrid.innerHTML = '';
                 return;
             }
 
+            subjectContainer.classList.remove('hidden');
             subjectsGrid.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">Loading subjects...</div>';
 
             try {
                 // Fetch subjects for all selected streams
                 const subjectPromises = selectedStreams.map(async streamId => {
-                    const response = await fetch(`admin/get_subjects.php?stream_id=${streamId}`);
+                    const response = await fetch(`get_subjects.php?stream_id=${streamId}`);
                     const data = await response.json();
                     return { streamId, data };
                 });
@@ -589,7 +964,10 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 selectedStreams.forEach(streamId => {
                     const checkbox = document.querySelector(`input[value="${streamId}"].teacher-stream-checkbox`);
                     if (checkbox) {
-                        streamNames[streamId] = checkbox.closest('label').textContent.trim();
+                        const label = checkbox.closest('label');
+                        if (label) {
+                            streamNames[streamId] = label.textContent.trim();
+                        }
                     }
                 });
 
@@ -598,7 +976,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                     if (data.success && data.subjects) {
                         for (const subject of data.subjects) {
                             // Get stream_subject_id
-                            const ssResponse = await fetch(`admin/get_stream_subject_id.php?stream_id=${streamId}&subject_id=${subject.id}`);
+                            const ssResponse = await fetch(`get_stream_subject_id.php?stream_id=${streamId}&subject_id=${subject.id}`);
                             const ssData = await ssResponse.json();
                             
                             if (ssData.success && ssData.stream_subject_id) {
@@ -630,6 +1008,8 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             const subjectsGrid = document.getElementById('teacherSubjectsGrid');
             const subjectContainer = document.getElementById('teacherSubjectContainer');
             
+            if (!subjectsGrid || !subjectContainer) return;
+            
             subjectsGrid.innerHTML = '';
             
             if (streamSubjectsMap.size > 0) {
@@ -646,9 +1026,24 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                     `;
                     subjectsGrid.appendChild(label);
                 });
-                subjectContainer.classList.remove('hidden');
+            } else {
+                subjectsGrid.innerHTML = '<div class="col-span-full text-center py-4 text-gray-500">No subjects available for selected streams.</div>';
+            }
+        }
+
+        // Handle stream change (for students - no "new" option)
+        function handleStreamChange() {
+            const streamId = document.getElementById('stream_id').value;
+            const subjectContainer = document.getElementById('subjectContainer');
+            const teachersContainer = document.getElementById('teachersContainer');
+            const createSubjectBtnContainer = document.getElementById('createSubjectBtnContainer');
+            
+            if (streamId) {
+                loadSubjects();
             } else {
                 subjectContainer.classList.add('hidden');
+                teachersContainer.classList.add('hidden');
+                createSubjectBtnContainer.classList.add('hidden');
             }
         }
 
@@ -658,20 +1053,45 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             const subjectContainer = document.getElementById('subjectContainer');
             const subjectSelect = document.getElementById('subject_id');
             const teachersContainer = document.getElementById('teachersContainer');
+            const createSubjectBtnContainer = document.getElementById('createSubjectBtnContainer');
             
             if (!streamId) {
                 subjectContainer.classList.add('hidden');
                 teachersContainer.classList.add('hidden');
+                createSubjectBtnContainer.classList.add('hidden');
                 return;
             }
 
+            // Show loading state
+            subjectContainer.classList.remove('hidden');
+            subjectSelect.innerHTML = '<option value="">Loading subjects...</option>';
+            createSubjectBtnContainer.classList.add('hidden');
+
             // Fetch subjects via AJAX
-            fetch(`admin/get_subjects.php?stream_id=${streamId}`)
-                .then(response => response.json())
+            fetch(`get_subjects.php?stream_id=${streamId}`)
+                .then(response => {
+                    // Check if response is ok
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            console.error('Server error:', text);
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        });
+                    }
+                    // Check content type
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Invalid JSON response:', text);
+                            throw new Error('Invalid JSON response from server');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
                     
-                    if (data.success && data.subjects.length > 0) {
+                    if (data && data.success && data.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
+                        // Subjects found - show subject dropdown, hide create button
                         data.subjects.forEach(subject => {
                             const option = document.createElement('option');
                             option.value = subject.id;
@@ -679,18 +1099,34 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                             subjectSelect.appendChild(option);
                         });
                         subjectContainer.classList.remove('hidden');
+                        createSubjectBtnContainer.classList.add('hidden');
                     } else {
+                        // No subjects found - hide subject dropdown, show create button under stream
                         subjectContainer.classList.add('hidden');
-                        alert('No subjects available for this stream.');
+                        createSubjectBtnContainer.classList.remove('hidden');
                     }
                     
                     teachersContainer.classList.add('hidden');
                     document.getElementById('selected_teacher_id').value = '';
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error loading subjects.');
+                    console.error('Error loading subjects:', error);
+                    // On error, show create button under stream
+                    subjectContainer.classList.add('hidden');
+                    createSubjectBtnContainer.classList.remove('hidden');
                 });
+        }
+
+        // Handle subject change (for students - no "new" option)
+        function handleSubjectChange() {
+            const subjectId = document.getElementById('subject_id').value;
+            const teachersContainer = document.getElementById('teachersContainer');
+            
+            if (subjectId) {
+                loadTeachers();
+            } else {
+                teachersContainer.classList.add('hidden');
+            }
         }
 
         // Load teachers based on selected subject
@@ -700,13 +1136,13 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             const teachersContainer = document.getElementById('teachersContainer');
             const teachersGrid = document.getElementById('teachersGrid');
             
-            if (!streamId || !subjectId) {
+            if (!streamId || !subjectId || streamId === 'new' || subjectId === 'new') {
                 teachersContainer.classList.add('hidden');
                 return;
             }
 
             // Fetch teachers via AJAX
-            fetch(`admin/get_teachers.php?stream_id=${streamId}&subject_id=${subjectId}`)
+            fetch(`get_teachers.php?stream_id=${streamId}&subject_id=${subjectId}`)
                 .then(response => response.json())
                 .then(data => {
                     teachersGrid.innerHTML = '';
@@ -902,20 +1338,437 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             }
         }
 
-        // Update photo requirement based on role
+        // Photo is optional for students
         function updatePhotoRequirement() {
-            const role = document.getElementById('role').value;
             const photoInput = document.getElementById('profile_picture');
             const photoRequired = document.getElementById('photoRequired');
             
-            if (role === 'teacher') {
-                photoInput.setAttribute('required', 'required');
-                photoRequired.classList.remove('hidden');
-            } else {
-                photoInput.removeAttribute('required');
-                photoRequired.classList.add('hidden');
+            photoInput.removeAttribute('required');
+            if (photoRequired) photoRequired.classList.add('hidden');
+        }
+
+        // Create New Stream Modal (for teachers)
+        function openCreateStreamModal() {
+            const name = prompt('Enter new stream name:');
+            if (!name || !name.trim()) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            
+            fetch('create_stream.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload page to refresh stream list
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create stream'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating stream.');
+            });
+        }
+
+        // Create New Subject Modal (for teachers)
+        function openCreateSubjectModal() {
+            const selectedStreams = Array.from(document.querySelectorAll('.teacher-stream-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedStreams.length === 0) {
+                alert('Please select at least one stream first.');
+                return;
+            }
+            
+            // Use first selected stream for creation
+            const streamId = selectedStreams[0];
+            
+            const name = prompt('Enter new subject name:');
+            if (!name || !name.trim()) {
+                return;
+            }
+            
+            const code = prompt('Enter subject code (optional):') || '';
+            
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            formData.append('code', code.trim());
+            formData.append('stream_id', streamId);
+            
+            fetch('create_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload subjects for all selected streams
+                    loadTeacherSubjects();
+                    alert('Subject created successfully!');
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create subject'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating subject.');
+            });
+        }
+
+        // Create New Subject Modal (for students)
+        function openCreateSubjectModalForStudent() {
+            const streamId = document.getElementById('stream_id').value;
+            
+            if (!streamId) {
+                alert('Please select a stream first.');
+                return;
+            }
+            
+            const name = prompt('Enter new subject name:');
+            if (!name || !name.trim()) {
+                return;
+            }
+            
+            const code = prompt('Enter subject code (optional):') || '';
+            
+            const formData = new FormData();
+            formData.append('name', name.trim());
+            formData.append('code', code.trim());
+            formData.append('stream_id', streamId);
+            
+            fetch('create_subject.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload subjects for the selected stream
+                    loadSubjects();
+                    alert('Subject created successfully!');
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to create subject'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating subject.');
+            });
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
+            
+            const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
+            const icon = type === 'success' ? 
+                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
+                '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>';
+            
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `${bgColor} text-white px-6 py-4 rounded-lg shadow-lg mb-4 flex items-center space-x-3 transform transition-all duration-300 translate-x-full opacity-0 max-w-md`;
+            toast.innerHTML = `
+                <svg class="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    ${icon}
+                </svg>
+                <p class="flex-1 text-sm font-medium">${message}</p>
+                <button onclick="closeToast('${toastId}')" class="text-white hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 10);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                closeToast(toastId);
+            }, 5000);
+        }
+
+        function closeToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
             }
         }
+
+        // Verification Method Change Handler
+        function handleVerificationMethodChange() {
+            const nicMethod = document.getElementById('verify_nic');
+            const mobileMethod = document.getElementById('verify_mobile');
+            const nicContainer = document.getElementById('nicVerificationContainer');
+            const mobileContainer = document.getElementById('mobileVerificationContainer');
+            const verificationStatus = document.getElementById('verificationStatus');
+            
+            // Reset verification status
+            document.getElementById('nic_verified').value = '0';
+            document.getElementById('otp_verified').value = '0';
+            verificationStatus.classList.add('hidden');
+            
+            if (nicMethod.checked) {
+                nicContainer.classList.remove('hidden');
+                mobileContainer.classList.add('hidden');
+                document.getElementById('otpInputContainer').classList.add('hidden');
+                document.getElementById('otp_code').value = '';
+                document.getElementById('otpVerificationResult').innerHTML = '';
+            } else if (mobileMethod.checked) {
+                nicContainer.classList.add('hidden');
+                mobileContainer.classList.remove('hidden');
+                document.getElementById('nic_number').value = '';
+                document.getElementById('nicVerificationResult').innerHTML = '';
+                
+                // Auto-fill mobile number from form fields (use WhatsApp number first, then mobile number)
+                const whatsappNumber = document.getElementById('whatsapp_number').value.trim();
+                const mobileNumber = document.getElementById('mobile_number').value.trim();
+                const verificationMobile = document.getElementById('verification_mobile');
+                
+                if (whatsappNumber) {
+                    verificationMobile.value = whatsappNumber;
+                    verificationMobile.readOnly = true;
+                    verificationMobile.classList.add('bg-gray-50');
+                } else if (mobileNumber) {
+                    verificationMobile.value = mobileNumber;
+                    verificationMobile.readOnly = true;
+                    verificationMobile.classList.add('bg-gray-50');
+                } else {
+                    // If no number found, make field editable
+                    verificationMobile.value = '';
+                    verificationMobile.readOnly = false;
+                    verificationMobile.classList.remove('bg-gray-50');
+                    verificationMobile.placeholder = 'Enter mobile number';
+                }
+            } else {
+                nicContainer.classList.add('hidden');
+                mobileContainer.classList.add('hidden');
+            }
+        }
+
+        // Verify NIC
+        function verifyNIC() {
+            const nicNumber = document.getElementById('nic_number').value.trim();
+            const resultDiv = document.getElementById('nicVerificationResult');
+            const dobField = document.getElementById('dob');
+            const genderField = document.getElementById('gender');
+            
+            if (!nicNumber) {
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter NIC number</div>';
+                showToast('Please enter NIC number', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('nic', nicNumber);
+            
+            // If DOB and Gender are filled, send them for verification
+            const dob = dobField ? dobField.value.trim() : '';
+            const gender = genderField ? genderField.value.trim() : '';
+            
+            if (dob) {
+                formData.append('dob', dob);
+            }
+            if (gender) {
+                formData.append('gender', gender);
+            }
+            
+            fetch('verify_nic.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.valid) {
+                    let messageText = 'NIC verified successfully!';
+                    if (dob && gender) {
+                        messageText = 'NIC verified successfully against your DOB and Gender!';
+                    }
+                    
+                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">${messageText}</div>`;
+                    document.getElementById('nic_verified').value = '1';
+                    
+                    // Auto-fill gender if available from NIC verification and not already set
+                    if (data.gender && genderField && !gender) {
+                        genderField.value = data.gender;
+                    }
+                    
+                    // Auto-fill date of birth if available from NIC verification and not already set
+                    if (data.date_of_birth && dobField && !dob) {
+                        dobField.value = data.date_of_birth;
+                    }
+                    
+                    updateVerificationStatus();
+                    showToast(dob && gender ? 'NIC verified successfully against your information!' : 'NIC verified successfully!', 'success');
+                } else {
+                    // Hide detailed error messages - only show generic message
+                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">NIC verification failed. Please check your NIC number and try again.</div>';
+                    document.getElementById('nic_verified').value = '0';
+                    updateVerificationStatus();
+                    showToast('NIC verification failed. Please check your information and try again.', 'error');
+                    
+                    // Silently auto-fill extracted data if available (only if fields are empty)
+                    if (data.date_of_birth && !dob && dobField) {
+                        dobField.value = data.date_of_birth;
+                    }
+                    if (data.gender && !gender && genderField) {
+                        genderField.value = data.gender;
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying NIC. Please try again.</div>';
+                document.getElementById('nic_verified').value = '0';
+                showToast('Error verifying NIC. Please try again.', 'error');
+            });
+        }
+
+        // Send OTP
+        function sendOTP() {
+            const mobileNumber = document.getElementById('verification_mobile').value.trim();
+            const sendOtpBtn = document.getElementById('sendOtpBtn');
+            
+            if (!mobileNumber) {
+                showToast('Please enter mobile number', 'error');
+                return;
+            }
+            
+            sendOtpBtn.disabled = true;
+            sendOtpBtn.textContent = 'Sending...';
+            
+            const formData = new FormData();
+            formData.append('mobile_number', mobileNumber);
+            
+            fetch('send_otp.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('otpInputContainer').classList.remove('hidden');
+                    // In production, remove the OTP display - it's only for testing
+                    showToast('OTP sent successfully! Check your mobile. OTP: ' + data.otp, 'success');
+                } else {
+                    showToast('Error: ' + (data.message || 'Failed to send OTP'), 'error');
+                }
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = 'Send OTP';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error sending OTP. Please try again.', 'error');
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = 'Send OTP';
+            });
+        }
+
+        // Verify OTP
+        function verifyOTP() {
+            const otpCode = document.getElementById('otp_code').value.trim();
+            const resultDiv = document.getElementById('otpVerificationResult');
+            
+            if (!otpCode || otpCode.length !== 6) {
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter 6-digit OTP code</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('otp_code', otpCode);
+            
+            fetch('verify_otp.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.verified) {
+                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">OTP verified successfully!</div>`;
+                    document.getElementById('otp_verified').value = '1';
+                    updateVerificationStatus();
+                    showToast('Mobile number verified successfully!', 'success');
+                } else {
+                    resultDiv.innerHTML = `<div class="text-red-600 text-sm">${data.message || 'Invalid OTP code'}</div>`;
+                    document.getElementById('otp_verified').value = '0';
+                    updateVerificationStatus();
+                    showToast(data.message || 'Invalid OTP code', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying OTP. Please try again.</div>';
+                document.getElementById('otp_verified').value = '0';
+                showToast('Error verifying OTP. Please try again.', 'error');
+            });
+        }
+
+        // Update Verification Status
+        function updateVerificationStatus() {
+            const verificationStatus = document.getElementById('verificationStatus');
+            const nicVerified = document.getElementById('nic_verified').value === '1';
+            const otpVerified = document.getElementById('otp_verified').value === '1';
+            
+            if (nicVerified || otpVerified) {
+                verificationStatus.innerHTML = `<div class="bg-green-50 border-l-4 border-green-400 text-green-700 p-4 rounded">
+                    <div class="flex">
+                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <p class="ml-3 text-sm font-medium">Verification successful! You can now submit the form.</p>
+                    </div>
+                </div>`;
+                verificationStatus.classList.remove('hidden');
+            } else {
+                verificationStatus.classList.add('hidden');
+            }
+        }
+
+        // Form Submission Validation
+        document.getElementById('addUserForm')?.addEventListener('submit', function(e) {
+            const role = document.getElementById('role').value;
+            const verificationMethod = document.querySelector('input[name="verification_method"]:checked');
+            const nicVerified = document.getElementById('nic_verified').value === '1';
+            const otpVerified = document.getElementById('otp_verified').value === '1';
+            
+            // Teachers don't need verification
+            if (role === 'teacher') {
+                return true; // Allow submission for teachers
+            }
+            
+            // Students need verification
+            if (!verificationMethod) {
+                e.preventDefault();
+                showToast('Please select a verification method and complete the verification.', 'error');
+                return false;
+            }
+            
+            if (verificationMethod.value === 'nic' && !nicVerified) {
+                e.preventDefault();
+                showToast('Please verify your NIC number before submitting.', 'error');
+                return false;
+            }
+            
+            if (verificationMethod.value === 'mobile' && !otpVerified) {
+                e.preventDefault();
+                showToast('Please verify your mobile number with OTP before submitting.', 'error');
+                return false;
+            }
+        });
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -925,6 +1778,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             // Update photo requirement when role changes
             document.getElementById('role').addEventListener('change', function() {
                 updatePhotoRequirement();
+                toggleRoleBasedFields();
             });
         });
     </script>
