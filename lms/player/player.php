@@ -1564,11 +1564,27 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 scroll-behavior: smooth;
             }
             
-            /* Desktop participants list */
-            #participants-list {
-                max-height: calc(100vh - 80px) !important;
-                overflow-y: auto !important;
-            }
+        /* Desktop participants list */
+        #participants-list {
+            max-height: calc(100vh - 80px) !important;
+            overflow-y: auto !important;
+            display: block !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Ensure participants modal content displays properly */
+        #participants-modal .mobile-chat-modal-content {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        #participants-modal .mobile-chat-modal-messages {
+            display: block !important;
+            flex: 1 !important;
+            min-height: 0 !important;
+        }
 
             .mobile-chat-modal-input-container {
                 position: sticky;
@@ -1871,6 +1887,9 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             #participants-list {
                 overflow-y: auto !important;
                 max-height: calc(70vh - 80px);
+                display: block !important;
+                flex: 1 !important;
+                min-height: 0 !important;
             }
 
             /* Ensure chat message styles work in mobile modal */
@@ -2382,7 +2401,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="mobile-chat-modal-messages" id="participants-list" style="overflow-y: auto;">
+                <div class="mobile-chat-modal-messages" id="participants-list" style="overflow-y: auto; display: block; flex: 1; min-height: 0;">
                     <div class="chat-empty">
                         <div>
                             <i class="fas fa-users text-4xl mb-2 text-gray-600"></i>
@@ -3649,23 +3668,23 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 }
 
                 container.innerHTML = `
-                    <div class="p-4 border-b border-gray-700">
-                        <p class="text-white font-semibold">Total: ${participants.length} | Online: ${onlineCount}</p>
+                    <div style="padding: 1rem; border-bottom: 1px solid #374151; margin-bottom: 0.5rem;">
+                        <p style="color: white; font-weight: 600; margin: 0;">Total: ${participants.length} | Online: ${onlineCount}</p>
                     </div>
                     ${participants.map(p => {
                         const avatarUrl = p.profile_picture 
                             ? `../${p.profile_picture}`
                             : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=059669&color=fff&size=128`;
                         return `
-                            <div class="flex items-center gap-3 p-3 border-b border-gray-700">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid #374151;">
                                 <img src="${escapeHtml(avatarUrl)}" 
                                      alt="${escapeHtml(p.name)}"
-                                     class="w-10 h-10 rounded-full object-cover border-2 ${p.is_online ? 'border-green-500' : 'border-gray-600'}"
+                                     style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid ${p.is_online ? '#10b981' : '#4b5563'};"
                                      onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=059669&color=fff&size=128'">
-                                <div class="flex-1">
-                                    <p class="text-white font-medium">${escapeHtml(p.name)}</p>
-                                    <p class="text-gray-400 text-xs">
-                                        ${p.is_online ? '<span class="text-green-500">● Online</span>' : 'Joined: ' + formatChatTime(p.joined_at)}
+                                <div style="flex: 1; min-width: 0;">
+                                    <p style="color: white; font-weight: 500; margin: 0 0 0.25rem 0;">${escapeHtml(p.name)}</p>
+                                    <p style="color: #9ca3af; font-size: 0.75rem; margin: 0;">
+                                        ${p.is_online ? '<span style="color: #10b981;">● Online</span>' : 'Joined: ' + formatChatTime(p.joined_at)}
                                     </p>
                                 </div>
                             </div>
