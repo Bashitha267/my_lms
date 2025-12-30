@@ -661,6 +661,79 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             max-width: 100vw;
             max-height: 100vh;
         }
+        
+        /* Aggressive Fullscreen rules to remove all distractions */
+        .player-main:fullscreen,
+        .player-main:-webkit-full-screen,
+        .player-main:-moz-full-screen,
+        .player-main:-ms-fullscreen {
+            background-color: #000 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            overflow: hidden !important; /* Prevents scrolling into hidden content */
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* Specifically hide unwanted sections when in fullscreen */
+        .player-main:fullscreen .video-info,
+        .player-main:fullscreen .downloads-section,
+        .player-main:fullscreen .other-videos-section,
+        .player-main:fullscreen .back-btn,
+        .player-main:fullscreen .mobile-videos-section {
+            display: none !important;
+        }
+
+        /* Force the player wrapper to fill the absolute entire screen */
+        .player-main:fullscreen .player-wrapper {
+            height: 100vh !important;
+            width: 100vw !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 1 !important;
+            margin: 0 !important;
+        }
+
+        /* Maintain floating buttons on top of the video */
+        .player-main:fullscreen .mobile-chat-btn,
+        .player-main:fullscreen #participants-btn {
+            z-index: 10002 !important;
+            display: flex !important;
+            position: fixed !important;
+        }
+
+        /* Ensure Chat and Participant Modals display correctly on top of everything */
+        .player-main:fullscreen .mobile-chat-modal {
+            z-index: 10003 !important;
+        }
+        
+        /* Ensure the YouTube player iframe fills the wrapper in fullscreen */
+        .player-main:fullscreen #player,
+        .player-main:-webkit-full-screen #player,
+        .player-main:-moz-full-screen #player,
+        .player-main:-ms-fullscreen #player {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
+        
+        /* Ensure overlay covers the entire player in fullscreen */
+        .player-main:fullscreen #overlay,
+        .player-main:-webkit-full-screen #overlay,
+        .player-main:-moz-full-screen #overlay,
+        .player-main:-ms-fullscreen #overlay {
+            width: 100% !important;
+            height: 100% !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
 
         /* Ensure mobile videos section is hidden on desktop */
         /* Hide mobile videos section on desktop - consolidated */
@@ -1323,10 +1396,10 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
 
         /* Back Button */
         .back-btn {
-            position: absolute;
+            position: fixed;
             top: 1rem;
             left: 1rem;
-            z-index: 30;
+            z-index: 100;
             background: rgba(0, 0, 0, 0.7);
             color: white;
             border: none;
@@ -1337,6 +1410,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             align-items: center;
             gap: 0.5rem;
             transition: background 0.2s;
+            text-decoration: none;
         }
 
         .back-btn:hover {
@@ -1360,8 +1434,30 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             justify-content: center;
             font-size: 1.5rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
+            z-index: 10002; /* Higher than modals (10001) so buttons are always clickable */
             transition: background 0.2s, transform 0.2s;
+        }
+        
+        /* Participants button - ensure it's visible */
+        #participants-btn {
+            z-index: 10002 !important; /* Higher than modals (10001) so buttons are always clickable */
+            top: 5rem !important;
+        }
+        
+        /* Ensure buttons are always visible in fullscreen - global rule */
+        :fullscreen .mobile-chat-btn,
+        :-webkit-full-screen .mobile-chat-btn,
+        :-moz-full-screen .mobile-chat-btn,
+        :-ms-fullscreen .mobile-chat-btn,
+        :fullscreen #participants-btn,
+        :-webkit-full-screen #participants-btn,
+        :-moz-full-screen #participants-btn,
+        :-ms-fullscreen #participants-btn {
+            display: flex !important;
+            z-index: 10002 !important;
+            position: fixed !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
 
         .mobile-chat-btn:hover {
@@ -1413,13 +1509,47 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
+            z-index: 10001; /* Higher than player-container (10000) */
             display: none;
             align-items: flex-end;
             justify-content: center;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        /* Ensure participants modal is visible - override base styles */
+        #participants-modal {
+            z-index: 10001 !important; /* Higher than player-container (10000) */
+        }
+        
+        /* Ensure chat modal is also above player container */
+        #mobile-chat-modal {
+            z-index: 10001 !important; /* Higher than player-container (10000) */
+        }
+        
+        #participants-modal.active {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+        }
+        
+        /* Ensure participants modal content is visible */
+        #participants-modal.active .mobile-chat-modal-content {
+            display: flex !important;
+            pointer-events: auto !important;
+        }
+        
+        /* Mobile: participants modal should slide from bottom */
+        @media (max-width: 768px) {
+            #participants-modal .mobile-chat-modal-content {
+                transform: translateY(100%) !important;
+            }
+            
+            #participants-modal.active .mobile-chat-modal-content {
+                transform: translateY(0) !important;
+            }
         }
 
         .mobile-chat-modal.active {
@@ -1554,7 +1684,17 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             }
 
             .mobile-chat-modal.active .mobile-chat-modal-content {
-                transform: translateX(0);
+                transform: translateX(0) !important;
+            }
+            
+            /* Ensure participants modal works on desktop */
+            /* Participants modal on desktop - slide from right */
+            #participants-modal .mobile-chat-modal-content {
+                transform: translateX(100%) !important;
+            }
+            
+            #participants-modal.active .mobile-chat-modal-content {
+                transform: translateX(0) !important;
             }
 
             .mobile-chat-modal-messages {
@@ -1812,16 +1952,57 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 }
             }
 
-            /* Show chat button in fullscreen mode (for both desktop and mobile) */
-            .player-container:fullscreen .mobile-chat-btn,
-            .player-container:-webkit-full-screen .mobile-chat-btn,
-            .player-container:-moz-full-screen .mobile-chat-btn,
-            .player-container:-ms-fullscreen .mobile-chat-btn,
+            /* Show chat and participants buttons in fullscreen mode (for both desktop and mobile) */
+            /* Target buttons when player-container is fullscreen */
+            .player-container:fullscreen ~ .mobile-chat-btn,
+            .player-container:-webkit-full-screen ~ .mobile-chat-btn,
+            .player-container:-moz-full-screen ~ .mobile-chat-btn,
+            .player-container:-ms-fullscreen ~ .mobile-chat-btn,
+            /* Target buttons when player-wrapper is fullscreen */
+            .player-wrapper:fullscreen ~ .mobile-chat-btn,
+            .player-wrapper:-webkit-full-screen ~ .mobile-chat-btn,
+            .player-wrapper:-moz-full-screen ~ .mobile-chat-btn,
+            .player-wrapper:-ms-fullscreen ~ .mobile-chat-btn,
+            /* Target buttons when any element is fullscreen (global) */
             :fullscreen .mobile-chat-btn,
             :-webkit-full-screen .mobile-chat-btn,
             :-moz-full-screen .mobile-chat-btn,
-            :-ms-fullscreen .mobile-chat-btn {
+            :-ms-fullscreen .mobile-chat-btn,
+            /* Target buttons directly (when document is fullscreen) */
+            html:fullscreen .mobile-chat-btn,
+            html:-webkit-full-screen .mobile-chat-btn,
+            html:-moz-full-screen .mobile-chat-btn,
+            html:-ms-fullscreen .mobile-chat-btn,
+            body:fullscreen .mobile-chat-btn,
+            body:-webkit-full-screen .mobile-chat-btn,
+            body:-moz-full-screen .mobile-chat-btn,
+            body:-ms-fullscreen .mobile-chat-btn,
+            /* Same for participants button */
+            .player-container:fullscreen ~ #participants-btn,
+            .player-container:-webkit-full-screen ~ #participants-btn,
+            .player-container:-moz-full-screen ~ #participants-btn,
+            .player-container:-ms-fullscreen ~ #participants-btn,
+            .player-wrapper:fullscreen ~ #participants-btn,
+            .player-wrapper:-webkit-full-screen ~ #participants-btn,
+            .player-wrapper:-moz-full-screen ~ #participants-btn,
+            .player-wrapper:-ms-fullscreen ~ #participants-btn,
+            :fullscreen #participants-btn,
+            :-webkit-full-screen #participants-btn,
+            :-moz-full-screen #participants-btn,
+            :-ms-fullscreen #participants-btn,
+            html:fullscreen #participants-btn,
+            html:-webkit-full-screen #participants-btn,
+            html:-moz-full-screen #participants-btn,
+            html:-ms-fullscreen #participants-btn,
+            body:fullscreen #participants-btn,
+            body:-webkit-full-screen #participants-btn,
+            body:-moz-full-screen #participants-btn,
+            body:-ms-fullscreen #participants-btn {
                 display: flex !important;
+                z-index: 10002 !important;
+                position: fixed !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
 
 
@@ -2104,7 +2285,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             <div class="player-main">
                 <!-- Back Button -->
                 <a href="../dashboard/content.php?stream_subject_id=<?php echo $stream_subject_id; ?>&academic_year=<?php echo $academic_year; ?>" 
-                   class="back-btn">
+                   class="back-btn" style="display: flex !important; z-index: 100 !important;">
                     <i class="fas fa-arrow-left"></i>
                     <span>Back</span>
                 </a>
@@ -2331,26 +2512,24 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     <?php endif; ?>
                 </div>
 
-            </div>
+                <!-- Chat Floating Button (shown on desktop and mobile) -->
+                <?php if ($role === 'student' || $role === 'teacher'): ?>
+                <button class="mobile-chat-btn <?php echo $is_live_class ? 'live-class-chat-btn' : ''; ?>" id="mobile-chat-btn" onclick="toggleMobileChatModal()" title="Chat" style="top: 1.2rem; right: 1.5rem; display: flex !important;">
+                    <i class="fas fa-comments"></i>
+                    <span class="chat-notification-badge hidden" id="chat-notification-badge">0</span>
+                </button>
+                <?php endif; ?>
 
-        <!-- Chat Floating Button (shown on desktop and mobile) -->
-        <?php if ($role === 'student' || $role === 'teacher'): ?>
-        <button class="mobile-chat-btn <?php echo $is_live_class ? 'live-class-chat-btn' : ''; ?>" id="mobile-chat-btn" onclick="toggleMobileChatModal()" title="Chat" style="top: 1.2rem; right: 1.5rem; display: flex !important;">
-            <i class="fas fa-comments"></i>
-            <span class="chat-notification-badge hidden" id="chat-notification-badge">0</span>
-        </button>
-        <?php endif; ?>
+                <!-- Participants Button (for live classes only) -->
+                <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
+                <button class="mobile-chat-btn live-class-chat-btn" id="participants-btn" onclick="toggleParticipantsModal()" title="Participants" style="top: 5rem; right: 1.5rem; background: #059669; display: flex !important;">
+                    <i class="fas fa-users"></i>
+                    <span class="chat-notification-badge hidden" id="participants-count-badge">0</span>
+                </button>
+                <?php endif; ?>
 
-        <!-- Participants Button (for live classes only) -->
-        <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
-        <button class="mobile-chat-btn live-class-chat-btn" id="participants-btn" onclick="toggleParticipantsModal()" title="Participants" style="top: 5rem; right: 1.5rem; background: #059669; display: flex !important;">
-            <i class="fas fa-users"></i>
-            <span class="chat-notification-badge hidden" id="participants-count-badge">0</span>
-        </button>
-        <?php endif; ?>
-
-        <!-- Mobile Chat Modal -->
-        <?php if ($role === 'student' || $role === 'teacher'): ?>
+                <!-- Mobile Chat Modal -->
+                <?php if ($role === 'student' || $role === 'teacher'): ?>
         <div class="mobile-chat-modal" id="mobile-chat-modal">
             <div class="mobile-chat-modal-content">
                 <div class="mobile-chat-modal-header">
@@ -2384,12 +2563,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     </form>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
-        </div>
+                </div>
+                <?php endif; ?>
 
-        <!-- Participants Modal (for live classes) -->
-        <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
+                <!-- Participants Modal (for live classes) -->
+                <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
         <div class="mobile-chat-modal" id="participants-modal">
             <div class="mobile-chat-modal-content">
                 <div class="mobile-chat-modal-header">
@@ -2410,11 +2588,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     </div>
                 </div>
             </div>
-        </div>
-        <?php endif; ?>
+                </div>
+                <?php endif; ?>
 
-        <!-- End Live Class Confirmation Modal -->
-        <?php if ($is_live_class && $is_teacher_owner): ?>
+                <!-- End Live Class Confirmation Modal -->
+                <?php if ($is_live_class && $is_teacher_owner): ?>
         <div class="mobile-chat-modal" id="end-live-modal">
             <div class="mobile-chat-modal-header">
                 <h3>
@@ -2461,15 +2639,19 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         End Live Class
                     </button>
                 </div>
-            </div>
-        </div>
-        <?php endif; ?>
+                </div>
+                <?php endif; ?>
 
-            <!-- Chat Notifications Container -->
-            <?php if ($role === 'student' || $role === 'teacher'): ?>
-            <div id="chat-notifications-container"></div>
-            <?php endif; ?>
+                <!-- Chat Notifications Container -->
+                <?php if ($role === 'student' || $role === 'teacher'): ?>
+                <div id="chat-notifications-container"></div>
+                <?php endif; ?>
+
+            </div>
+            <!-- End of player-main -->
+
         </div>
+        <!-- End of player-container -->
     <?php endif; ?>
 
         <script>
@@ -2761,46 +2943,36 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             }
 
             function toggleFullscreen() {
-                const playerWrapper = document.querySelector('.player-wrapper');
-                const sidebar = document.querySelector('.videos-sidebar');
-                const chatSidebar = document.querySelector('.chat-sidebar');
-                const videoInfo = document.querySelector('.video-info');
-                const otherVideosSection = document.querySelector('.other-videos-section');
-                const backBtn = document.querySelector('.back-btn');
+                const playerMain = document.querySelector('.player-main');
                 
-                if (!document.fullscreenElement) {
-                    // Request fullscreen on player-wrapper only
-                    if (playerWrapper) {
-                        if (playerWrapper.requestFullscreen) {
-                            playerWrapper.requestFullscreen().catch(err => {
-                                console.log('Error attempting to enable fullscreen:', err);
-                            });
-                        } else if (playerWrapper.webkitRequestFullscreen) {
-                            playerWrapper.webkitRequestFullscreen();
-                        } else if (playerWrapper.mozRequestFullScreen) {
-                            playerWrapper.mozRequestFullScreen();
-                        } else if (playerWrapper.msRequestFullscreen) {
-                            playerWrapper.msRequestFullscreen();
-                        }
+                // Comprehensive check for fullscreen status across browsers
+                const isFullScreen = document.fullscreenElement || 
+                                     document.webkitFullscreenElement || 
+                                     document.mozFullScreenElement || 
+                                     document.msFullscreenElement;
+
+                if (!isFullScreen) {
+                    // Request fullscreen on player-main
+                    if (playerMain.requestFullscreen) {
+                        playerMain.requestFullscreen();
+                    } else if (playerMain.webkitRequestFullscreen) {
+                        playerMain.webkitRequestFullscreen();
+                    } else if (playerMain.mozRequestFullScreen) {
+                        playerMain.mozRequestFullScreen();
+                    } else if (playerMain.msRequestFullscreen) {
+                        playerMain.msRequestFullscreen();
                     }
-                    document.getElementById('expand-icon').classList.add('hidden');
-                    document.getElementById('compress-icon').classList.remove('hidden');
-                    // Hide sidebars, video info, other videos, and back button
-                    if (sidebar) sidebar.style.display = 'none';
-                    if (chatSidebar) chatSidebar.style.display = 'none';
-                    if (videoInfo) videoInfo.style.display = 'none';
-                    if (otherVideosSection) otherVideosSection.style.display = 'none';
-                    if (backBtn) backBtn.style.display = 'none';
                 } else {
-                    document.exitFullscreen();
-                    document.getElementById('expand-icon').classList.remove('hidden');
-                    document.getElementById('compress-icon').classList.add('hidden');
-                    // Show sidebars and video info
-                    if (sidebar) sidebar.style.display = 'flex';
-                    if (chatSidebar) chatSidebar.style.display = 'flex';
-                    if (videoInfo) videoInfo.style.display = 'block';
-                    if (otherVideosSection) otherVideosSection.style.display = 'block';
-                    if (backBtn) backBtn.style.display = 'flex';
+                    // Exit fullscreen
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
                 }
             }
 
@@ -2811,35 +2983,25 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
             function handleFullscreenChange() {
-                const sidebar = document.querySelector('.videos-sidebar');
-                const chatSidebar = document.querySelector('.chat-sidebar');
-                const videoInfo = document.querySelector('.video-info');
-                const otherVideosSection = document.querySelector('.other-videos-section');
-                const backBtn = document.querySelector('.back-btn');
                 const expandIcon = document.getElementById('expand-icon');
                 const compressIcon = document.getElementById('compress-icon');
                 
-                if (document.fullscreenElement || 
-                    document.webkitFullscreenElement || 
-                    document.mozFullScreenElement || 
-                    document.msFullscreenElement) {
+                const isFullScreen = document.fullscreenElement || 
+                                     document.webkitFullscreenElement || 
+                                     document.mozFullScreenElement || 
+                                     document.msFullscreenElement;
+
+                if (isFullScreen) {
                     // Entered fullscreen
-                    if (sidebar) sidebar.style.display = 'none';
-                    if (chatSidebar) chatSidebar.style.display = 'none';
-                    if (videoInfo) videoInfo.style.display = 'none';
-                    if (otherVideosSection) otherVideosSection.style.display = 'none';
-                    if (backBtn) backBtn.style.display = 'none';
                     if (expandIcon) expandIcon.classList.add('hidden');
                     if (compressIcon) compressIcon.classList.remove('hidden');
+                    // Prevent body scrolling just in case
+                    document.body.style.overflow = 'hidden';
                 } else {
                     // Exited fullscreen
-                    if (sidebar) sidebar.style.display = 'flex';
-                    if (chatSidebar) chatSidebar.style.display = 'flex';
-                    if (videoInfo) videoInfo.style.display = 'block';
-                    if (otherVideosSection) otherVideosSection.style.display = 'block';
-                    if (backBtn) backBtn.style.display = 'flex';
                     if (expandIcon) expandIcon.classList.remove('hidden');
                     if (compressIcon) compressIcon.classList.add('hidden');
+                    document.body.style.overflow = '';
                 }
             }
 
@@ -3604,31 +3766,53 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 return iconMap[ext] || 'fas fa-file';
             }
 
-            // Live Class Functions
-            <?php if ($is_live_class): ?>
+            // Live Class Functions - Always define these functions
             function toggleParticipantsModal() {
                 const modal = document.getElementById('participants-modal');
-                if (!modal) return;
+                if (!modal) {
+                    console.error('Participants modal not found');
+                    return;
+                }
 
-                isParticipantsOpen = !modal.classList.contains('active');
-                modal.classList.toggle('active');
+                const isActive = modal.classList.contains('active');
+                const modalContent = modal.querySelector('.mobile-chat-modal-content');
                 
-                if (modal.classList.contains('active')) {
-                    loadParticipants('participants-list');
-                    // Start polling for participants
-                    if (!participantsPollInterval) {
-                        participantsPollInterval = setInterval(() => loadParticipants('participants-list'), 3000);
-                    }
-                } else {
+                // Remove ALL inline styles to let CSS handle everything
+                modal.removeAttribute('style');
+                if (modalContent) {
+                    modalContent.removeAttribute('style');
+                }
+                
+                if (isActive) {
+                    // Closing modal
+                    modal.classList.remove('active');
+                    
                     // Stop polling
                     if (participantsPollInterval) {
                         clearInterval(participantsPollInterval);
                         participantsPollInterval = null;
                     }
+                } else {
+                    // Opening modal
+                    modal.classList.add('active');
+                    
+                    // Load participants
+                    loadParticipants('participants-list');
+                    
+                    // Start polling for participants
+                    if (!participantsPollInterval) {
+                        participantsPollInterval = setInterval(() => loadParticipants('participants-list'), 3000);
+                    }
                 }
             }
-
+            
             function loadParticipants(listId = 'participants-list') {
+                const container = document.getElementById(listId);
+                if (!container) {
+                    console.error('Participants list container not found:', listId);
+                    return;
+                }
+                
                 fetch(`get_participants.php?recording_id=${recordingId}`)
                     .then(response => response.json())
                     .then(data => {
@@ -3644,10 +3828,30 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                                     badge.classList.add('hidden');
                                 }
                             }
+                        } else {
+                            console.error('Failed to load participants:', data.message);
+                            container.innerHTML = `
+                                <div class="chat-empty">
+                                    <div>
+                                        <i class="fas fa-users text-4xl mb-2 text-gray-600"></i>
+                                        <p>Error loading participants: ${data.message || 'Unknown error'}</p>
+                                    </div>
+                                </div>
+                            `;
                         }
                     })
                     .catch(error => {
                         console.error('Error loading participants:', error);
+                        if (container) {
+                            container.innerHTML = `
+                                <div class="chat-empty">
+                                    <div>
+                                        <i class="fas fa-users text-4xl mb-2 text-gray-600"></i>
+                                        <p>Error loading participants. Please try again.</p>
+                                    </div>
+                                </div>
+                            `;
+                        }
                     });
             }
 
@@ -3692,7 +3896,8 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     }).join('')}
                 `;
             }
-
+            
+            <?php if ($is_live_class): ?>
             function showEndLiveClassModal() {
                 const modal = document.getElementById('end-live-modal');
                 if (modal) {
