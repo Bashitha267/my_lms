@@ -22,11 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
     
-    // Verify recording exists and user has access
-    $query = "SELECT r.id, r.status, ta.stream_subject_id, ta.academic_year
+    // Verify recording exists and user has access (handle both regular recordings and live classes)
+    $query = "SELECT r.id, r.status, r.is_live, ta.stream_subject_id, ta.academic_year
               FROM recordings r
               INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
-              WHERE r.id = ? AND r.status = 'active'";
+              WHERE r.id = ? AND (r.status = 'active' OR (r.is_live = 1 AND r.status IN ('scheduled', 'ongoing', 'ended', 'cancelled')))";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $recording_id);
     $stmt->execute();

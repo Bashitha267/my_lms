@@ -293,20 +293,23 @@ if ($stream_subject_id > 0) {
     $stmt->close();
 }
 
-// Get recordings for this teacher assignment(s)
+// Get recordings for this teacher assignment(s) - separate live classes and regular recordings
 $recordings = [];
+$live_classes = [];
 $paid_months = []; // Months student has paid for (for students)
 
 if (!empty($teacher_assignment_ids)) {
     // Create placeholders for IN clause
     $placeholders = str_repeat('?,', count($teacher_assignment_ids) - 1) . '?';
+    
+    // Get regular recordings (not live)
     $query = "SELECT DISTINCT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
-                     r.view_count, r.status, r.created_at, r.free_video, r.watch_limit,
+                     r.view_count, r.status, r.created_at, r.free_video, r.watch_limit, r.is_live,
                      u.first_name, u.second_name
               FROM recordings r
               INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
               INNER JOIN users u ON ta.teacher_id = u.user_id
-              WHERE r.teacher_assignment_id IN ($placeholders) AND r.status = 'active'
+              WHERE r.teacher_assignment_id IN ($placeholders) AND r.status = 'active' AND (r.is_live = 0 OR r.is_live IS NULL)
               ORDER BY r.created_at DESC";
     $stmt = $conn->prepare($query);
     $types = str_repeat('i', count($teacher_assignment_ids));
@@ -318,6 +321,34 @@ if (!empty($teacher_assignment_ids)) {
         $recordings[] = $row;
     }
     $stmt->close();
+    
+    // Get live classes (all statuses except inactive)
+    $live_query = "SELECT DISTINCT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
+                          r.view_count, r.status, r.created_at, r.free_video, r.watch_limit, r.is_live,
+                          r.scheduled_start_time, r.actual_start_time, r.end_time,
+                          u.first_name, u.second_name
+                   FROM recordings r
+                   INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                   INNER JOIN users u ON ta.teacher_id = u.user_id
+                   WHERE r.teacher_assignment_id IN ($placeholders) AND r.is_live = 1 AND r.status != 'inactive'
+                   ORDER BY 
+                     CASE r.status
+                       WHEN 'ongoing' THEN 1
+                       WHEN 'scheduled' THEN 2
+                       WHEN 'ended' THEN 3
+                       WHEN 'cancelled' THEN 4
+                       ELSE 5
+                     END,
+                     r.scheduled_start_time DESC, r.created_at DESC";
+    $live_stmt = $conn->prepare($live_query);
+    $live_stmt->bind_param($types, ...$teacher_assignment_ids);
+    $live_stmt->execute();
+    $live_result = $live_stmt->get_result();
+    
+    while ($row = $live_result->fetch_assoc()) {
+        $live_classes[] = $row;
+    }
+    $live_stmt->close();
     
     // For students: Check which months they have paid for
     if ($role === 'student' && $stream_subject_id > 0) {
@@ -441,6 +472,112 @@ krsort($recordings_by_month);
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
                         </svg>
                         <p class="ml-3 text-sm font-medium"><?php echo htmlspecialchars($error_message); ?></p>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Live Classes Section -->
+            <?php if (!empty($live_classes)): ?>
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        Live Classes
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <?php foreach ($live_classes as $live_class): ?>
+                            <?php
+                            $status_colors = [
+                                'scheduled' => 'bg-yellow-100 text-yellow-800',
+                                'ongoing' => 'bg-green-100 text-green-800',
+                                'ended' => 'bg-gray-100 text-gray-800',
+                                'cancelled' => 'bg-red-100 text-red-800'
+                            ];
+                            $status_color = $status_colors[$live_class['status']] ?? 'bg-gray-100 text-gray-800';
+                            $can_join = ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
+                            ?>
+                            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border-l-4 border-blue-500">
+                                <!-- Thumbnail or Live Badge -->
+                                <div class="relative aspect-video bg-gray-200">
+                                    <?php if ($live_class['thumbnail_url']): ?>
+                                        <img src="<?php echo htmlspecialchars($live_class['thumbnail_url']); ?>" 
+                                             alt="<?php echo htmlspecialchars($live_class['title']); ?>"
+                                             class="w-full h-full object-cover">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
+                                            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </div>
+                                    <?php endif; ?>
+                                    <!-- Status Badge -->
+                                    <div class="absolute top-2 left-2">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php echo $status_color; ?>">
+                                            <?php echo ucfirst($live_class['status']); ?>
+                                        </span>
+                                    </div>
+                                    <!-- Live Indicator -->
+                                    <?php if ($live_class['status'] === 'ongoing'): ?>
+                                        <div class="absolute top-2 right-2">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-600 text-white animate-pulse">
+                                                <span class="w-2 h-2 bg-white rounded-full mr-1"></span>
+                                                LIVE
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Live Class Info -->
+                                <div class="p-4">
+                                    <h3 class="font-semibold text-gray-900 line-clamp-2 mb-2" title="<?php echo htmlspecialchars($live_class['title']); ?>">
+                                        <?php echo htmlspecialchars($live_class['title']); ?>
+                                    </h3>
+                                    
+                                    <?php if ($live_class['scheduled_start_time']): ?>
+                                        <p class="text-xs text-gray-600 mb-2">
+                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                            </svg>
+                                            <?php echo date('M d, Y H:i', strtotime($live_class['scheduled_start_time'])); ?>
+                                        </p>
+                                    <?php endif; ?>
+                                    
+                                    <div class="flex items-center justify-between mt-3">
+                                        <?php if ($role === 'teacher'): ?>
+                                            <div class="flex gap-2">
+                                                <?php if ($live_class['status'] === 'scheduled'): ?>
+                                                    <button onclick="startLiveClass(<?php echo $live_class['id']; ?>)" 
+                                                            class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                                                        Start
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($live_class['status'] === 'scheduled' || $live_class['status'] === 'cancelled'): ?>
+                                                    <button onclick="deleteLiveClass(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
+                                                            class="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                                                        Delete
+                                                    </button>
+                                                <?php endif; ?>
+                                                <?php if ($can_join): ?>
+                                                    <a href="../player/player.php?id=<?php echo $live_class['id']; ?>&stream_subject_id=<?php echo $stream_subject_id; ?>&academic_year=<?php echo $academic_year; ?>" 
+                                                       class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                                                        <?php echo $live_class['status'] === 'ongoing' ? 'Join' : 'View'; ?>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <?php if ($can_join): ?>
+                                                <a href="../player/player.php?id=<?php echo $live_class['id']; ?>&stream_subject_id=<?php echo $stream_subject_id; ?>&academic_year=<?php echo $academic_year; ?>" 
+                                                   class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                                                    <?php echo $live_class['status'] === 'ongoing' ? 'Join Live' : 'View'; ?>
+                                                </a>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -1004,6 +1141,108 @@ krsort($recordings_by_month);
                 closePaymentModal();
             }
         });
+
+        // Live Class Management Functions
+        function startLiveClass(recordingId) {
+            if (!confirm('Start this live class? Students will be able to join.')) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'start');
+            formData.append('recording_id', recordingId);
+            
+            fetch('manage_live_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.message || 'Error starting live class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error starting live class. Please try again.', 'error');
+            });
+        }
+
+        function deleteLiveClass(recordingId, title) {
+            if (!confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('recording_id', recordingId);
+            
+            fetch('manage_live_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.message || 'Error deleting live class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting live class. Please try again.', 'error');
+            });
+        }
+
+        // Toast notification function
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer') || createToastContainer();
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+            const icon = type === 'success' ? 
+                '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' :
+                '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>';
+            
+            toast.className = `${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px] max-w-md transform transition-all duration-300 ease-in-out translate-x-full opacity-0 fixed top-4 right-4 z-50`;
+            toast.innerHTML = `
+                ${icon}
+                <span class="flex-1">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 10);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.parentElement.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'fixed top-4 right-4 z-50 space-y-2';
+            document.body.appendChild(container);
+            return container;
+        }
     </script>
 </body>
 </html>

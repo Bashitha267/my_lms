@@ -16,10 +16,11 @@ $current_recording = null;
 $other_recordings = [];
 
 if ($recording_id > 0) {
-    // Get current recording details
+    // Get current recording details - handle both regular recordings and live classes
     $query = "SELECT r.id, r.title, r.description, r.youtube_video_id, r.youtube_url, r.thumbnail_url, 
-                     r.created_at, r.free_video, r.watch_limit,
-                     ta.stream_subject_id, ta.academic_year,
+                     r.created_at, r.free_video, r.watch_limit, r.is_live, r.status,
+                     r.scheduled_start_time, r.actual_start_time, r.end_time,
+                     ta.stream_subject_id, ta.academic_year, ta.teacher_id,
                      s.name as stream_name, sub.name as subject_name,
                      u.first_name, u.second_name, u.profile_picture
               FROM recordings r
@@ -28,7 +29,7 @@ if ($recording_id > 0) {
               INNER JOIN streams s ON ss.stream_id = s.id
               INNER JOIN subjects sub ON ss.subject_id = sub.id
               INNER JOIN users u ON ta.teacher_id = u.user_id
-              WHERE r.id = ? AND r.status = 'active'";
+              WHERE r.id = ? AND (r.status = 'active' OR (r.is_live = 1 AND r.status IN ('scheduled', 'ongoing', 'ended', 'cancelled')))";
     
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $recording_id);
@@ -72,13 +73,26 @@ if ($recording_id > 0) {
     $stmt->close();
 }
 
-// For students: Check payment access and watch limit
+// Check if this is a live class
+$is_live_class = false;
+$is_teacher_owner = false;
+if ($current_recording) {
+    $is_live_class = ($current_recording['is_live'] == 1);
+    $is_teacher_owner = ($role === 'teacher' && $current_recording['teacher_id'] === $user_id);
+}
+
+// For students: Check payment access and watch limit (skip for live classes)
+// For teachers: Always allow access to their own content
 $can_watch = true;
 $paid_months = [];
 $watch_count = 0;
 $watch_limit = 0;
 $remaining_watches = 0;
-if ($role === 'student' && $current_recording) {
+
+// Teachers can always watch their own recordings/live classes
+if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
+    $can_watch = true;
+} elseif ($role === 'student' && $current_recording && !$is_live_class) {
     // Get watch limit from recording
     $watch_limit = intval($current_recording['watch_limit'] ?? 3);
     
@@ -143,6 +157,55 @@ if ($role === 'student' && $current_recording) {
         $can_watch = $current_recording['free_video'] == 1;
     }
     $enroll_stmt->close();
+} elseif ($is_live_class) {
+    // For live classes, check if free or requires payment
+    if ($role === 'teacher' && $is_teacher_owner) {
+        // Teachers can always watch their own live classes
+        $can_watch = true;
+    } elseif ($role === 'student') {
+        // Check enrollment first
+        $enroll_query = "SELECT id FROM student_enrollment 
+                       WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active'
+                       LIMIT 1";
+        $enroll_stmt = $conn->prepare($enroll_query);
+        $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+        $enroll_stmt->execute();
+        $enroll_result = $enroll_stmt->get_result();
+        
+        if ($enroll_result->num_rows > 0) {
+            $enroll_row = $enroll_result->fetch_assoc();
+            $enrollment_id = $enroll_row['id'];
+            
+            // If free video, allow access
+            if ($current_recording['free_video'] == 1) {
+                $can_watch = true;
+            } else {
+                // Check if student has paid for the month of the live class
+                // Use scheduled_start_time if available, otherwise use created_at
+                $live_class_date = !empty($current_recording['scheduled_start_time']) 
+                    ? $current_recording['scheduled_start_time'] 
+                    : $current_recording['created_at'];
+                $live_class_month = date('n', strtotime($live_class_date));
+                $live_class_year = date('Y', strtotime($live_class_date));
+                
+                $paid_query = "SELECT id FROM monthly_payments 
+                              WHERE student_enrollment_id = ? 
+                              AND month = ? 
+                              AND year = ? 
+                              AND payment_status = 'paid'
+                              LIMIT 1";
+                $paid_stmt = $conn->prepare($paid_query);
+                $paid_stmt->bind_param("iii", $enrollment_id, $live_class_month, $live_class_year);
+                $paid_stmt->execute();
+                $paid_result = $paid_stmt->get_result();
+                $can_watch = $paid_result->num_rows > 0;
+                $paid_stmt->close();
+            }
+        } else {
+            $can_watch = false;
+        }
+        $enroll_stmt->close();
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -223,15 +286,27 @@ if ($role === 'student' && $current_recording) {
             transition: width 0.3s ease, opacity 0.3s ease;
         }
 
+        /* Hide sidebar on mobile */
+        @media (max-width: 768px) {
+            .videos-sidebar {
+                display: none !important;
+            }
+        }
+
         /* Hide sidebar in fullscreen */
-        .player-container:fullscreen .videos-sidebar,
-        .player-container:-webkit-full-screen .videos-sidebar,
-        .player-container:-moz-full-screen .videos-sidebar,
-        .player-container:-ms-fullscreen .videos-sidebar {
-            width: 0;
-            opacity: 0;
-            overflow: hidden;
-            border-right: none;
+        .player-wrapper:fullscreen ~ .videos-sidebar,
+        .player-wrapper:-webkit-full-screen ~ .videos-sidebar,
+        .player-wrapper:-moz-full-screen ~ .videos-sidebar,
+        .player-wrapper:-ms-fullscreen ~ .videos-sidebar,
+        :fullscreen .videos-sidebar,
+        :-webkit-full-screen .videos-sidebar,
+        :-moz-full-screen .videos-sidebar,
+        :-ms-fullscreen .videos-sidebar {
+            display: none !important;
+            width: 0 !important;
+            opacity: 0 !important;
+            overflow: hidden !important;
+            border-right: none !important;
         }
 
         /* Right Sidebar - Chat (Hidden on desktop, use popup instead) */
@@ -557,18 +632,34 @@ if ($role === 'student' && $current_recording) {
             flex-direction: column;
             position: relative;
             background: #000;
-            min-height: 600px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            height: 100vh;
         }
 
         .player-wrapper {
             position: relative;
             width: 100%;
-            flex: 1;
+            height: 75vh;
             background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 500px;
+            flex-shrink: 0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Fullscreen styles for player-wrapper */
+        .player-wrapper:fullscreen,
+        .player-wrapper:-webkit-full-screen,
+        .player-wrapper:-moz-full-screen,
+        .player-wrapper:-ms-fullscreen {
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
         }
 
         /* Ensure mobile videos section is hidden on desktop */
@@ -585,9 +676,22 @@ if ($role === 'student' && $current_recording) {
         }
 
         #player {
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
             border: 0;
+            display: block;
+            margin: 0 !important;
+            padding: 0 !important;
+            position: relative;
+        }
+
+        /* Ensure player fills fullscreen wrapper */
+        .player-wrapper:fullscreen #player,
+        .player-wrapper:-webkit-full-screen #player,
+        .player-wrapper:-moz-full-screen #player,
+        .player-wrapper:-ms-fullscreen #player {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         /* Transparent Overlay - Prevents interaction with YouTube player */
@@ -596,7 +700,7 @@ if ($role === 'student' && $current_recording) {
             top: 0;
             left: 0;
             width: 100%;
-            height: calc(100% - 100px);
+            height: 100%;
             cursor: pointer;
             z-index: 10;
             background: transparent;
@@ -803,8 +907,7 @@ if ($role === 'student' && $current_recording) {
             padding: 1.5rem;
             background: #0f0f0f;
             border-top: 1px solid #333;
-            transition: opacity 0.3s ease, height 0.3s ease;
-            flex-shrink: 0;
+            width: 100%;
         }
 
 
@@ -851,6 +954,7 @@ if ($role === 'student' && $current_recording) {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid #333;
+            overflow-y: visible;
         }
 
         .section-header {
@@ -892,85 +996,224 @@ if ($role === 'student' && $current_recording) {
             color: #dc2626;
         }
 
+        /* Other Videos Section - Bottom (Mobile only) */
+        .other-videos-section {
+            padding: 1.5rem;
+            background: #0f0f0f;
+            border-top: 1px solid #333;
+        }
+
+        /* Hide other videos section on desktop (sidebar is used instead) */
+        @media (min-width: 769px) {
+            .other-videos-section {
+                display: none !important;
+            }
+        }
+
+        .other-videos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        /* Show more videos per row on larger screens */
+        @media (min-width: 1200px) {
+            .other-videos-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (min-width: 1600px) {
+            .other-videos-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .other-videos-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .other-videos-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .other-video-card {
+            background: #1a1a1a;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .other-video-card:hover {
+            border-color: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+        }
+
+        .other-video-card img {
+            width: 100%;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+        }
+
+        .other-video-card-info {
+            padding: 1rem;
+        }
+
+        .other-video-card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+
+        .other-video-card-date {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
         .files-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
         }
 
         .file-item {
             display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
+            flex-direction: column;
+            padding: 1.25rem;
             background: #1a1a1a;
             border: 1px solid #333;
-            border-radius: 0.5rem;
-            transition: all 0.2s;
+            border-radius: 0.75rem;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
         }
 
         .file-item:hover {
             background: #252525;
             border-color: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
         }
 
         .file-icon {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #252525;
-            border-radius: 0.5rem;
-            font-size: 1.5rem;
+            background: linear-gradient(135deg, #252525 0%, #1a1a1a 100%);
+            border-radius: 0.75rem;
+            font-size: 2rem;
             color: #dc2626;
-            flex-shrink: 0;
+            margin: 0 auto 1rem;
+            border: 2px solid #333;
+        }
+
+        .file-item:hover .file-icon {
+            border-color: #dc2626;
+            transform: scale(1.05);
         }
 
         .file-info {
             flex: 1;
-            min-width: 0;
+            text-align: center;
+            margin-bottom: 1rem;
         }
 
         .file-name {
             font-size: 0.875rem;
-            font-weight: 500;
+            font-weight: 600;
             color: white;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.75rem;
             word-break: break-word;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .file-meta {
             font-size: 0.75rem;
             color: #9ca3af;
             display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
             align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
+        }
+
+        .file-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .file-actions {
             display: flex;
-            gap: 0.5rem;
+            width: 100%;
+            margin-top: auto;
         }
 
         .file-download-btn {
-            padding: 0.5rem 1rem;
+            width: 100%;
+            padding: 0.75rem;
             background: #dc2626;
             color: white;
             border: none;
             border-radius: 0.5rem;
             cursor: pointer;
             font-size: 0.875rem;
+            font-weight: 500;
             transition: background 0.2s;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             text-decoration: none;
         }
 
         .file-download-btn:hover {
             background: #b91c1c;
+        }
+
+        /* Responsive grid */
+        @media (max-width: 1400px) {
+            .files-list {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .files-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .files-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .files-list {
+                grid-template-columns: 1fr;
+            }
         }
 
         .files-loading, .files-empty {
@@ -1064,6 +1307,9 @@ if ($role === 'student' && $current_recording) {
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            margin-top: 1rem;
+            position: relative;
+            z-index: 10;
         }
 
         .upload-btn:hover {
@@ -1312,10 +1558,16 @@ if ($role === 'student' && $current_recording) {
             }
 
             .mobile-chat-modal-messages {
-                max-height: calc(100vh - 140px);
-                overflow-y: auto;
+                max-height: calc(100vh - 140px) !important;
+                overflow-y: auto !important;
                 overflow-x: hidden;
                 scroll-behavior: smooth;
+            }
+            
+            /* Desktop participants list */
+            #participants-list {
+                max-height: calc(100vh - 80px) !important;
+                overflow-y: auto !important;
             }
 
             .mobile-chat-modal-input-container {
@@ -1453,24 +1705,44 @@ if ($role === 'student' && $current_recording) {
             .player-main {
                 flex: 1;
                 min-height: 0;
-                overflow: hidden;
+                overflow-y: auto;
+                overflow-x: hidden;
                 display: flex;
                 flex-direction: column;
+                height: 100dvh;
             }
 
             .player-wrapper {
-                flex: 1;
-                min-height: 0;
-                height: 100%;
+                position: relative;
+                width: 100%;
+                height: 75vh;
+                background: #000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
                 overflow: hidden;
+            }
+            
+            #player {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            #overlay {
+                height: 100% !important;
             }
 
             .video-info {
                 flex-shrink: 0;
                 max-height: none;
                 overflow-y: auto;
+                overflow-x: hidden;
                 padding-bottom: 0;
                 border-bottom: none;
+                -webkit-overflow-scrolling: touch;
             }
 
             /* Mobile Videos Section - Horizontal Scrollable */
@@ -1494,6 +1766,12 @@ if ($role === 'student' && $current_recording) {
                 margin-bottom: 0.75rem;
             }
 
+            /* Always show chat buttons for live classes */
+            .live-class-chat-btn {
+                display: flex !important;
+                z-index: 1400;
+            }
+            
             /* Landscape mode: Use toggle button for popup chat */
             @media (max-width: 768px) and (orientation: landscape) {
                 .mobile-chat-btn {
@@ -1508,6 +1786,13 @@ if ($role === 'student' && $current_recording) {
 
                 .mobile-chat-modal-messages {
                     max-height: calc(60vh - 140px);
+                }
+            }
+            
+            /* Desktop: Always show chat buttons */
+            @media (min-width: 769px) {
+                .mobile-chat-btn {
+                    display: flex !important;
                 }
             }
 
@@ -1571,7 +1856,7 @@ if ($role === 'student' && $current_recording) {
             .mobile-chat-modal-messages {
                 flex: 1;
                 padding: 1rem;
-                overflow-y: auto;
+                overflow-y: auto !important;
                 overflow-x: hidden;
                 display: flex;
                 flex-direction: column;
@@ -1580,6 +1865,12 @@ if ($role === 'student' && $current_recording) {
                 min-height: 0;
                 max-height: calc(70vh - 140px);
                 scroll-behavior: smooth;
+            }
+            
+            /* Ensure participants list scrolls properly */
+            #participants-list {
+                overflow-y: auto !important;
+                max-height: calc(70vh - 80px);
             }
 
             /* Ensure chat message styles work in mobile modal */
@@ -1712,8 +2003,8 @@ if ($role === 'student' && $current_recording) {
         }
     </style>
 </head>
-<body>
-    <?php if (!$current_recording || !$can_watch): ?>
+<body >
+    <?php if (!$current_recording || (!$can_watch && !$is_live_class)): ?>
         <div class="flex items-center justify-center h-screen bg-black text-white">
             <div class="text-center">
                 <i class="fas fa-exclamation-triangle text-6xl text-red-600 mb-4"></i>
@@ -1733,9 +2024,28 @@ if ($role === 'student' && $current_recording) {
                 </a>
             </div>
         </div>
+        
+        <!-- Show chat and participant buttons for live classes even if payment required -->
+        <?php if ($is_live_class && $current_recording): ?>
+        <!-- Chat Floating Button (shown on desktop and mobile) -->
+        <?php if ($role === 'student' || $role === 'teacher'): ?>
+        <button class="mobile-chat-btn live-class-chat-btn" id="mobile-chat-btn" onclick="toggleMobileChatModal()" title="Chat" style="top: 1.2rem; right: 1.5rem; display: flex !important;">
+            <i class="fas fa-comments"></i>
+            <span class="chat-notification-badge hidden" id="chat-notification-badge">0</span>
+        </button>
+        <?php endif; ?>
+
+        <!-- Participants Button (for live classes only) -->
+        <?php if ($role === 'student' || $role === 'teacher'): ?>
+        <button class="mobile-chat-btn live-class-chat-btn" id="participants-btn" onclick="toggleParticipantsModal()" title="Participants" style="top: 5rem; right: 1.5rem; background: #059669; display: flex !important;">
+            <i class="fas fa-users"></i>
+            <span class="chat-notification-badge hidden" id="participants-count-badge">0</span>
+        </button>
+        <?php endif; ?>
+        <?php endif; ?>
     <?php else: ?>
         <div class="player-container">
-            <!-- Left Sidebar - Other Videos -->
+            <!-- Left Sidebar - Other Videos (Desktop only) -->
             <div class="videos-sidebar">
                 <div class="videos-sidebar-header">
                     <h3 class="text-white font-semibold text-lg">
@@ -1750,7 +2060,7 @@ if ($role === 'student' && $current_recording) {
                     <?php else: ?>
                         <?php foreach ($other_recordings as $recording): ?>
                             <?php 
-                            // Triple-check: skip if this is the current video
+                            // Skip if this is the current video
                             if ($recording['id'] == $recording_id) continue; 
                             ?>
                             <div class="video-item" onclick="switchVideo(<?php echo $recording['id']; ?>)">
@@ -1914,6 +2224,16 @@ if ($role === 'student' && $current_recording) {
                     <?php if ($current_recording['description']): ?>
                         <p class="text-gray-300 mt-3 text-sm"><?php echo htmlspecialchars($current_recording['description']); ?></p>
                     <?php endif; ?>
+                    
+                    <!-- End Live Class Button (for teachers only, in description section) -->
+                    <?php if ($is_live_class && $is_teacher_owner && $current_recording['status'] === 'ongoing'): ?>
+                    <div class="mt-4">
+                        <button onclick="showEndLiveClassModal()" class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-stop-circle"></i>
+                            <span>End Live Class</span>
+                        </button>
+                    </div>
+                    <?php endif; ?>
 
                     <!-- Downloads Section -->
                     <div class="downloads-section mt-4">
@@ -1960,62 +2280,69 @@ if ($role === 'student' && $current_recording) {
                     </div>
                 </div>
 
-                <!-- Mobile Videos Section (shown only on mobile) -->
-                <div class="mobile-videos-section">
-                    <div class="mobile-videos-header">
-                        <h3>
-                            <i class="fas fa-calendar-alt"></i>
-                            <?php echo date('F Y', strtotime($current_recording['created_at'])); ?> - Other Videos
-                        </h3>
-                    </div>
-                    <div class="mobile-videos-scroll">
-                        <?php if (empty($other_recordings)): ?>
-                            <p class="text-gray-500 text-sm text-center py-4" style="width: 100%;">No other videos this month</p>
-                        <?php else: ?>
+                <!-- Other Videos Section -->
+                <div class="other-videos-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        <?php echo date('F Y', strtotime($current_recording['created_at'])); ?> - Other Videos
+                    </h3>
+                    <?php if (empty($other_recordings)): ?>
+                        <p class="text-gray-500 text-sm text-center py-4">No other videos this month</p>
+                    <?php else: ?>
+                        <div class="other-videos-grid">
                             <?php foreach ($other_recordings as $recording): ?>
                                 <?php 
                                 // Skip if this is the current video
                                 if ($recording['id'] == $recording_id) continue; 
                                 ?>
-                                <div class="mobile-video-item" onclick="switchVideo(<?php echo $recording['id']; ?>)">
+                                <div class="other-video-card" onclick="switchVideo(<?php echo $recording['id']; ?>)">
                                     <img src="<?php echo htmlspecialchars($recording['thumbnail_url']); ?>" 
                                          alt="<?php echo htmlspecialchars($recording['title']); ?>"
-                                         class="mobile-video-thumbnail"
                                          onerror="this.src='https://img.youtube.com/vi/<?php echo htmlspecialchars($recording['youtube_video_id']); ?>/hqdefault.jpg'">
-                                    <div class="mobile-video-info">
-                                        <div class="mobile-video-title"><?php echo htmlspecialchars($recording['title']); ?></div>
-                                        <div class="mobile-video-date">
+                                    <div class="other-video-card-info">
+                                        <div class="other-video-card-title"><?php echo htmlspecialchars($recording['title']); ?></div>
+                                        <div class="other-video-card-date">
                                             <i class="far fa-clock mr-1"></i>
                                             <?php echo date('M d, Y', strtotime($recording['created_at'])); ?>
                                         </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
             </div>
 
         <!-- Chat Floating Button (shown on desktop and mobile) -->
         <?php if ($role === 'student' || $role === 'teacher'): ?>
-        <button class="mobile-chat-btn" id="mobile-chat-btn" onclick="toggleMobileChatModal()" title="Chat">
+        <button class="mobile-chat-btn <?php echo $is_live_class ? 'live-class-chat-btn' : ''; ?>" id="mobile-chat-btn" onclick="toggleMobileChatModal()" title="Chat" style="top: 1.2rem; right: 1.5rem; display: flex !important;">
             <i class="fas fa-comments"></i>
             <span class="chat-notification-badge hidden" id="chat-notification-badge">0</span>
         </button>
+        <?php endif; ?>
+
+        <!-- Participants Button (for live classes only) -->
+        <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
+        <button class="mobile-chat-btn live-class-chat-btn" id="participants-btn" onclick="toggleParticipantsModal()" title="Participants" style="top: 5rem; right: 1.5rem; background: #059669; display: flex !important;">
+            <i class="fas fa-users"></i>
+            <span class="chat-notification-badge hidden" id="participants-count-badge">0</span>
+        </button>
+        <?php endif; ?>
 
         <!-- Mobile Chat Modal -->
+        <?php if ($role === 'student' || $role === 'teacher'): ?>
         <div class="mobile-chat-modal" id="mobile-chat-modal">
-            <div class="mobile-chat-modal-header">
-                <h3>
-                    <i class="fas fa-comments"></i>
-                    Chat
-                </h3>
-                <button class="mobile-chat-modal-close" onclick="toggleMobileChatModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
             <div class="mobile-chat-modal-content">
+                <div class="mobile-chat-modal-header">
+                    <h3>
+                        <i class="fas fa-comments"></i>
+                        Chat
+                    </h3>
+                    <button class="mobile-chat-modal-close" onclick="toggleMobileChatModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
                 <div class="mobile-chat-modal-messages" id="mobile-chat-modal-messages">
                     <div class="chat-empty">
                         <div>
@@ -2042,11 +2369,89 @@ if ($role === 'student' && $current_recording) {
         <?php endif; ?>
         </div>
 
+        <!-- Participants Modal (for live classes) -->
+        <?php if ($is_live_class && ($role === 'student' || $role === 'teacher')): ?>
+        <div class="mobile-chat-modal" id="participants-modal">
+            <div class="mobile-chat-modal-content">
+                <div class="mobile-chat-modal-header">
+                    <h3>
+                        <i class="fas fa-users"></i>
+                        Participants
+                    </h3>
+                    <button class="mobile-chat-modal-close" onclick="toggleParticipantsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mobile-chat-modal-messages" id="participants-list" style="overflow-y: auto;">
+                    <div class="chat-empty">
+                        <div>
+                            <i class="fas fa-users text-4xl mb-2 text-gray-600"></i>
+                            <p>Loading participants...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- End Live Class Confirmation Modal -->
+        <?php if ($is_live_class && $is_teacher_owner): ?>
+        <div class="mobile-chat-modal" id="end-live-modal">
+            <div class="mobile-chat-modal-header">
+                <h3>
+                    <i class="fas fa-stop-circle"></i>
+                    End Live Class
+                </h3>
+                <button class="mobile-chat-modal-close" onclick="closeEndLiveClassModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mobile-chat-modal-content" style="padding: 2rem;">
+                <div class="text-center mb-6">
+                    <svg class="w-16 h-16 text-red-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    <p class="text-white text-lg font-semibold mb-2">Are you sure you want to end this live class?</p>
+                    <p class="text-gray-400 text-sm">This action cannot be undone.</p>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="flex items-center p-4 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition mb-3">
+                        <input type="radio" name="save_option" value="yes" class="mr-3" checked>
+                        <div>
+                            <div class="text-white font-semibold">Save to Recordings</div>
+                            <div class="text-gray-400 text-sm">The live class will be saved and available as a recording</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 bg-gray-800 rounded-lg cursor-pointer hover:bg-gray-700 transition">
+                        <input type="radio" name="save_option" value="no" class="mr-3">
+                        <div>
+                            <div class="text-white font-semibold">Cancel (Don't Save)</div>
+                            <div class="text-gray-400 text-sm">The live class will be cancelled and not saved</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="closeEndLiveClassModal()" 
+                            class="flex-1 px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition">
+                        Cancel
+                    </button>
+                    <button onclick="confirmEndLiveClass()" 
+                            class="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        End Live Class
+                    </button>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
             <!-- Chat Notifications Container -->
             <?php if ($role === 'student' || $role === 'teacher'): ?>
             <div id="chat-notifications-container"></div>
             <?php endif; ?>
         </div>
+    <?php endif; ?>
 
         <script>
             // YouTube API
@@ -2069,6 +2474,14 @@ if ($role === 'student' && $current_recording) {
             var unreadCount = 0;
             var isChatOpen = false;
             
+            // Live class variables
+            var isLiveClass = <?php echo $is_live_class ? 'true' : 'false'; ?>;
+            var isTeacherOwner = <?php echo $is_teacher_owner ? 'true' : 'false'; ?>;
+            var liveClassStatus = '<?php echo $current_recording['status'] ?? ''; ?>';
+            var participantsPollInterval = null;
+            var isParticipantsOpen = false;
+            var hasJoinedLiveClass = false;
+            
             // Quality mapping for display
             var qualityLabels = {
                 'auto': 'Auto',
@@ -2082,23 +2495,41 @@ if ($role === 'student' && $current_recording) {
             };
 
             function onYouTubeIframeAPIReady() {
-                player = new YT.Player('player', {
-                    height: '100%',
-                    width: '100%',
-                    videoId: currentVideoId,
-                    playerVars: {
-                        'autoplay': 0,
-                        'controls': 0,
-                        'rel': 0,
-                        'showinfo': 0,
-                        'modestbranding': 1,
-                        'playsinline': 1
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange
-                    }
-                });
+                // Only initialize YouTube player if we have a video ID and it's not a live class without video
+                if (currentVideoId && (!isLiveClass || currentVideoId)) {
+                    player = new YT.Player('player', {
+                        height: '100%',
+                        width: '100%',
+                        videoId: currentVideoId,
+                        playerVars: {
+                            'autoplay': isLiveClass ? 1 : 0,
+                            'controls': 1,
+                            'rel': 0,
+                            'showinfo': 0,
+                            'modestbranding': 1,
+                            'playsinline': 1,
+                            'enablejsapi': 1,
+                            'origin': window.location.origin
+                        },
+                        events: {
+                            'onReady': onPlayerReady,
+                            'onStateChange': onPlayerStateChange
+                        }
+                    });
+                } else if (isLiveClass && !currentVideoId) {
+                    // For live classes without YouTube video, show a placeholder
+                    document.getElementById('player').innerHTML = `
+                        <div class="flex items-center justify-center h-full bg-black text-white">
+                            <div class="text-center">
+                                <svg class="w-24 h-24 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                <h2 class="text-2xl font-bold mb-2">Live Class</h2>
+                                <p class="text-gray-400">Live stream will appear here</p>
+                            </div>
+                        </div>
+                    `;
+                }
             }
 
             function onPlayerReady(event) {
@@ -2311,41 +2742,46 @@ if ($role === 'student' && $current_recording) {
             }
 
             function toggleFullscreen() {
-                const container = document.querySelector('.player-container');
+                const playerWrapper = document.querySelector('.player-wrapper');
                 const sidebar = document.querySelector('.videos-sidebar');
                 const chatSidebar = document.querySelector('.chat-sidebar');
                 const videoInfo = document.querySelector('.video-info');
+                const otherVideosSection = document.querySelector('.other-videos-section');
+                const backBtn = document.querySelector('.back-btn');
                 
                 if (!document.fullscreenElement) {
-                    container.requestFullscreen().catch(err => {
-                        console.log('Error attempting to enable fullscreen:', err);
-                    });
+                    // Request fullscreen on player-wrapper only
+                    if (playerWrapper) {
+                        if (playerWrapper.requestFullscreen) {
+                            playerWrapper.requestFullscreen().catch(err => {
+                                console.log('Error attempting to enable fullscreen:', err);
+                            });
+                        } else if (playerWrapper.webkitRequestFullscreen) {
+                            playerWrapper.webkitRequestFullscreen();
+                        } else if (playerWrapper.mozRequestFullScreen) {
+                            playerWrapper.mozRequestFullScreen();
+                        } else if (playerWrapper.msRequestFullscreen) {
+                            playerWrapper.msRequestFullscreen();
+                        }
+                    }
                     document.getElementById('expand-icon').classList.add('hidden');
                     document.getElementById('compress-icon').classList.remove('hidden');
-                    // Hide sidebars and video info
-                    if (sidebar) {
-                        sidebar.style.display = 'none';
-                    }
-                    if (chatSidebar) {
-                        chatSidebar.style.display = 'none';
-                    }
-                    if (videoInfo) {
-                        videoInfo.style.display = 'none';
-                    }
+                    // Hide sidebars, video info, other videos, and back button
+                    if (sidebar) sidebar.style.display = 'none';
+                    if (chatSidebar) chatSidebar.style.display = 'none';
+                    if (videoInfo) videoInfo.style.display = 'none';
+                    if (otherVideosSection) otherVideosSection.style.display = 'none';
+                    if (backBtn) backBtn.style.display = 'none';
                 } else {
                     document.exitFullscreen();
                     document.getElementById('expand-icon').classList.remove('hidden');
                     document.getElementById('compress-icon').classList.add('hidden');
                     // Show sidebars and video info
-                    if (sidebar) {
-                        sidebar.style.display = 'flex';
-                    }
-                    if (chatSidebar) {
-                        chatSidebar.style.display = 'flex';
-                    }
-                    if (videoInfo) {
-                        videoInfo.style.display = 'block';
-                    }
+                    if (sidebar) sidebar.style.display = 'flex';
+                    if (chatSidebar) chatSidebar.style.display = 'flex';
+                    if (videoInfo) videoInfo.style.display = 'block';
+                    if (otherVideosSection) otherVideosSection.style.display = 'block';
+                    if (backBtn) backBtn.style.display = 'flex';
                 }
             }
 
@@ -2359,6 +2795,8 @@ if ($role === 'student' && $current_recording) {
                 const sidebar = document.querySelector('.videos-sidebar');
                 const chatSidebar = document.querySelector('.chat-sidebar');
                 const videoInfo = document.querySelector('.video-info');
+                const otherVideosSection = document.querySelector('.other-videos-section');
+                const backBtn = document.querySelector('.back-btn');
                 const expandIcon = document.getElementById('expand-icon');
                 const compressIcon = document.getElementById('compress-icon');
                 
@@ -2367,28 +2805,20 @@ if ($role === 'student' && $current_recording) {
                     document.mozFullScreenElement || 
                     document.msFullscreenElement) {
                     // Entered fullscreen
-                    if (sidebar) {
-                        sidebar.style.display = 'none';
-                    }
-                    if (chatSidebar) {
-                        chatSidebar.style.display = 'none';
-                    }
-                    if (videoInfo) {
-                        videoInfo.style.display = 'none';
-                    }
+                    if (sidebar) sidebar.style.display = 'none';
+                    if (chatSidebar) chatSidebar.style.display = 'none';
+                    if (videoInfo) videoInfo.style.display = 'none';
+                    if (otherVideosSection) otherVideosSection.style.display = 'none';
+                    if (backBtn) backBtn.style.display = 'none';
                     if (expandIcon) expandIcon.classList.add('hidden');
                     if (compressIcon) compressIcon.classList.remove('hidden');
                 } else {
                     // Exited fullscreen
-                    if (sidebar) {
-                        sidebar.style.display = 'flex';
-                    }
-                    if (chatSidebar) {
-                        chatSidebar.style.display = 'flex';
-                    }
-                    if (videoInfo) {
-                        videoInfo.style.display = 'block';
-                    }
+                    if (sidebar) sidebar.style.display = 'flex';
+                    if (chatSidebar) chatSidebar.style.display = 'flex';
+                    if (videoInfo) videoInfo.style.display = 'block';
+                    if (otherVideosSection) otherVideosSection.style.display = 'block';
+                    if (backBtn) backBtn.style.display = 'flex';
                     if (expandIcon) expandIcon.classList.remove('hidden');
                     if (compressIcon) compressIcon.classList.add('hidden');
                 }
@@ -2460,6 +2890,12 @@ if ($role === 'student' && $current_recording) {
                 if (chatPollInterval) {
                     clearInterval(chatPollInterval);
                 }
+                if (participantsPollInterval) {
+                    clearInterval(participantsPollInterval);
+                }
+                <?php if ($is_live_class && $role === 'student'): ?>
+                leaveLiveClass();
+                <?php endif; ?>
             });
 
             // Chat functionality
@@ -2518,28 +2954,28 @@ if ($role === 'student' && $current_recording) {
             }
 
             function toggleMobileChatModal() {
-                // Always use popup modal (both desktop and mobile)
-                const mobileChatModal = document.getElementById('mobile-chat-modal');
-                if (mobileChatModal) {
-                    isChatOpen = !mobileChatModal.classList.contains('active');
-                    mobileChatModal.classList.toggle('active');
-                    if (mobileChatModal.classList.contains('active')) {
-                        // Clear unread count when opening chat
-                        unreadCount = 0;
-                        updateChatBadge();
-                        // Focus input when opening
-                        const input = document.getElementById('mobile-chat-modal-input');
-                        if (input) {
-                            setTimeout(() => input.focus(), 300);
-                        }
-                        // Scroll to bottom when opening
-                        setTimeout(() => scrollChatToBottom(true), 300);
-                    } else {
-                        // Blur input when closing
-                        const input = document.getElementById('mobile-chat-modal-input');
-                        if (input) {
-                            input.blur();
-                        }
+                const modal = document.getElementById('mobile-chat-modal');
+                if (!modal) return;
+
+                isChatOpen = !modal.classList.contains('active');
+                modal.classList.toggle('active');
+                
+                if (modal.classList.contains('active')) {
+                    // Clear unread count when opening chat
+                    unreadCount = 0;
+                    updateChatBadge();
+                    // Focus input when opening
+                    const input = document.getElementById('mobile-chat-modal-input');
+                    if (input) {
+                        setTimeout(() => input.focus(), 300);
+                    }
+                    // Scroll to bottom when opening
+                    setTimeout(() => scrollChatToBottom(true), 300);
+                } else {
+                    // Blur input when closing
+                    const input = document.getElementById('mobile-chat-modal-input');
+                    if (input) {
+                        input.blur();
                     }
                 }
             }
@@ -2554,6 +2990,20 @@ if ($role === 'student' && $current_recording) {
                         // Close if clicking directly on the modal (overlay), not on content
                         if (e.target === mobileChatModal || (mobileChatModalContent && !mobileChatModalContent.contains(e.target))) {
                             toggleMobileChatModal();
+                        }
+                    });
+                }
+            }
+            
+            function setupParticipantsModalClose() {
+                const participantsModal = document.getElementById('participants-modal');
+                const participantsModalContent = participantsModal ? participantsModal.querySelector('.mobile-chat-modal-content') : null;
+                
+                if (participantsModal) {
+                    participantsModal.addEventListener('click', function(e) {
+                        // Close if clicking directly on the modal (overlay), not on content
+                        if (e.target === participantsModal || (participantsModalContent && !participantsModalContent.contains(e.target))) {
+                            toggleParticipantsModal();
                         }
                     });
                 }
@@ -2857,12 +3307,18 @@ if ($role === 'student' && $current_recording) {
                 document.addEventListener('DOMContentLoaded', function() {
                     initializeChat();
                     setupMobileChatModalClose();
+                    <?php if ($is_live_class): ?>
+                    setupParticipantsModalClose();
+                    <?php endif; ?>
                     initializeFileUpload();
                     loadFiles();
                 });
             } else {
                 initializeChat();
                 setupMobileChatModalClose();
+                <?php if ($is_live_class): ?>
+                setupParticipantsModalClose();
+                <?php endif; ?>
                 initializeFileUpload();
                 loadFiles();
             }
@@ -2890,6 +3346,10 @@ if ($role === 'student' && $current_recording) {
                     if (this.files.length > 0) {
                         uploadBtn.style.display = 'flex';
                         uploadLabel.querySelector('span').textContent = this.files[0].name;
+                        // Scroll to upload button to make it visible
+                        setTimeout(() => {
+                            uploadBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 100);
                     } else {
                         uploadBtn.style.display = 'none';
                         uploadLabel.querySelector('span').textContent = 'Click to select file or drag and drop';
@@ -2914,6 +3374,12 @@ if ($role === 'student' && $current_recording) {
                     if (e.dataTransfer.files.length > 0) {
                         fileInput.files = e.dataTransfer.files;
                         fileInput.dispatchEvent(new Event('change'));
+                        // Scroll to upload button after file is dropped
+                        setTimeout(() => {
+                            if (uploadBtn) {
+                                uploadBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                            }
+                        }, 100);
                     }
                 });
 
@@ -3055,7 +3521,7 @@ if ($role === 'student' && $current_recording) {
                                 <i class="${fileIcon}"></i>
                             </div>
                             <div class="file-info">
-                                <div class="file-name">${escapeHtml(file.file_name)}</div>
+                                <div class="file-name" title="${escapeHtml(file.file_name)}">${escapeHtml(file.file_name)}</div>
                                 <div class="file-meta">
                                     <span><i class="fas fa-user"></i> ${escapeHtml(uploaderInfo)}</span>
                                     <span><i class="fas fa-calendar"></i> ${uploadDate}</span>
@@ -3063,7 +3529,7 @@ if ($role === 'student' && $current_recording) {
                                 </div>
                             </div>
                             <div class="file-actions">
-                                <a href="../${escapeHtml(file.file_path)}" download="${escapeHtml(file.file_name)}" class="file-download-btn">
+                                <a href="../${escapeHtml(file.file_path)}" download="${escapeHtml(file.file_name)}" class="file-download-btn" onclick="event.stopPropagation();">
                                     <i class="fas fa-download"></i>
                                     Download
                                 </a>
@@ -3117,6 +3583,234 @@ if ($role === 'student' && $current_recording) {
                     'mp3': 'fas fa-file-audio'
                 };
                 return iconMap[ext] || 'fas fa-file';
+            }
+
+            // Live Class Functions
+            <?php if ($is_live_class): ?>
+            function toggleParticipantsModal() {
+                const modal = document.getElementById('participants-modal');
+                if (!modal) return;
+
+                isParticipantsOpen = !modal.classList.contains('active');
+                modal.classList.toggle('active');
+                
+                if (modal.classList.contains('active')) {
+                    loadParticipants('participants-list');
+                    // Start polling for participants
+                    if (!participantsPollInterval) {
+                        participantsPollInterval = setInterval(() => loadParticipants('participants-list'), 3000);
+                    }
+                } else {
+                    // Stop polling
+                    if (participantsPollInterval) {
+                        clearInterval(participantsPollInterval);
+                        participantsPollInterval = null;
+                    }
+                }
+            }
+
+            function loadParticipants(listId = 'participants-list') {
+                fetch(`get_participants.php?recording_id=${recordingId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            renderParticipants(data.participants, data.online_count, listId);
+                            // Update badge
+                            const badge = document.getElementById('participants-count-badge');
+                            if (badge) {
+                                if (data.online_count > 0) {
+                                    badge.textContent = data.online_count;
+                                    badge.classList.remove('hidden');
+                                } else {
+                                    badge.classList.add('hidden');
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading participants:', error);
+                    });
+            }
+
+            function renderParticipants(participants, onlineCount, listId = 'participants-list') {
+                const container = document.getElementById(listId);
+                if (!container) return;
+
+                if (participants.length === 0) {
+                    container.innerHTML = `
+                        <div class="chat-empty">
+                            <div>
+                                <i class="fas fa-users text-4xl mb-2 text-gray-600"></i>
+                                <p>No participants yet</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div class="p-4 border-b border-gray-700">
+                        <p class="text-white font-semibold">Total: ${participants.length} | Online: ${onlineCount}</p>
+                    </div>
+                    ${participants.map(p => {
+                        const avatarUrl = p.profile_picture 
+                            ? `../${p.profile_picture}`
+                            : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=059669&color=fff&size=128`;
+                        return `
+                            <div class="flex items-center gap-3 p-3 border-b border-gray-700">
+                                <img src="${escapeHtml(avatarUrl)}" 
+                                     alt="${escapeHtml(p.name)}"
+                                     class="w-10 h-10 rounded-full object-cover border-2 ${p.is_online ? 'border-green-500' : 'border-gray-600'}"
+                                     onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=059669&color=fff&size=128'">
+                                <div class="flex-1">
+                                    <p class="text-white font-medium">${escapeHtml(p.name)}</p>
+                                    <p class="text-gray-400 text-xs">
+                                        ${p.is_online ? '<span class="text-green-500">● Online</span>' : 'Joined: ' + formatChatTime(p.joined_at)}
+                                    </p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+            }
+
+            function showEndLiveClassModal() {
+                const modal = document.getElementById('end-live-modal');
+                if (modal) {
+                    modal.classList.add('active');
+                }
+            }
+
+            function closeEndLiveClassModal() {
+                const modal = document.getElementById('end-live-modal');
+                if (modal) {
+                    modal.classList.remove('active');
+                }
+            }
+
+            function confirmEndLiveClass() {
+                const saveOption = document.querySelector('input[name="save_option"]:checked');
+                const saveToRecordings = saveOption ? saveOption.value === 'yes' : true;
+
+                const formData = new FormData();
+                formData.append('action', 'end');
+                formData.append('recording_id', recordingId);
+                formData.append('save_to_recordings', saveToRecordings ? 'yes' : 'no');
+
+                fetch('../dashboard/manage_live_class.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.href = '../dashboard/content.php?stream_subject_id=<?php echo $stream_subject_id; ?>&academic_year=<?php echo $academic_year; ?>';
+                        }, 1500);
+                    } else {
+                        showToast(data.message || 'Error ending live class', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error ending live class. Please try again.', 'error');
+                });
+            }
+
+            // Auto-join live class for students
+            function joinLiveClass() {
+                if (!isLiveClass || hasJoinedLiveClass || '<?php echo $role; ?>' !== 'student') return;
+                
+                if (liveClassStatus === 'ongoing' || liveClassStatus === 'scheduled') {
+                    const formData = new FormData();
+                    formData.append('recording_id', recordingId);
+
+                    fetch('join_live_class.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            hasJoinedLiveClass = true;
+                            if (!data.already_joined) {
+                                showToast('Joined live class', 'success');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error joining live class:', error);
+                    });
+                }
+            }
+
+            // Leave live class when page unloads
+            function leaveLiveClass() {
+                if (!isLiveClass || !hasJoinedLiveClass || '<?php echo $role; ?>' !== 'student') return;
+                
+                if (liveClassStatus === 'ongoing') {
+                    const formData = new FormData();
+                    formData.append('recording_id', recordingId);
+
+                    // Use sendBeacon for reliable delivery on page unload
+                    navigator.sendBeacon('leave_live_class.php', formData);
+                }
+            }
+
+            // Initialize live class features
+            if (isLiveClass) {
+                // Auto-join for students
+                if ('<?php echo $role; ?>' === 'student') {
+                    setTimeout(joinLiveClass, 1000); // Delay to ensure page is loaded
+                }
+
+                // Load participants if teacher
+                if (isTeacherOwner) {
+                    setTimeout(() => {
+                        loadParticipants();
+                        participantsPollInterval = setInterval(loadParticipants, 3000);
+                    }, 1000);
+                }
+            }
+
+            // Toast notification function
+            function showToast(message, type = 'success') {
+                const container = document.getElementById('toastContainer') || createToastContainer();
+                const toast = document.createElement('div');
+                const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+                const icon = type === 'success' ? 
+                    '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>' :
+                    '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>';
+                
+                toast.className = `${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 min-w-[300px] max-w-md transform transition-all duration-300 ease-in-out translate-x-full opacity-0 fixed top-4 right-4 z-50`;
+                toast.innerHTML = `
+                    ${icon}
+                    <span class="flex-1">${message}</span>
+                `;
+                
+                container.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.remove('translate-x-full', 'opacity-0');
+                }, 10);
+                
+                setTimeout(() => {
+                    toast.classList.add('translate-x-full', 'opacity-0');
+                    setTimeout(() => {
+                        if (toast.parentElement) {
+                            toast.parentElement.removeChild(toast);
+                        }
+                    }, 300);
+                }, 3000);
+            }
+
+            function createToastContainer() {
+                const container = document.createElement('div');
+                container.id = 'toastContainer';
+                container.className = 'fixed top-4 right-4 z-50 space-y-2';
+                document.body.appendChild(container);
+                return container;
             }
             <?php endif; ?>
         </script>

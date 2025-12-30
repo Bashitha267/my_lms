@@ -24,10 +24,10 @@ if ($recording_id <= 0) {
     exit;
 }
 
-// Verify recording exists and user has access
+// Verify recording exists and user has access (handle both regular recordings and live classes)
 $check_query = "SELECT r.id FROM recordings r 
                 INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
-                WHERE r.id = ? AND r.status = 'active'";
+                WHERE r.id = ? AND (r.status = 'active' OR (r.is_live = 1 AND r.status IN ('scheduled', 'ongoing', 'ended', 'cancelled')))";
 $check_stmt = $conn->prepare($check_query);
 $check_stmt->bind_param("i", $recording_id);
 $check_stmt->execute();
@@ -101,5 +101,7 @@ if ($insert_stmt->execute()) {
 $insert_stmt->close();
 $conn->close();
 ?>
+
+
 
 
