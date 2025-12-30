@@ -6,6 +6,19 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $current_year = date('Y');
 
+// Get dashboard background image from system settings
+$dashboard_background = null;
+$bg_stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'dashboard_background' LIMIT 1");
+if ($bg_stmt) {
+    $bg_stmt->execute();
+    $bg_result = $bg_stmt->get_result();
+    if ($bg_result->num_rows > 0) {
+        $bg_row = $bg_result->fetch_assoc();
+        $dashboard_background = $bg_row['setting_value'];
+    }
+    $bg_stmt->close();
+}
+
 // Get all teachers with their education details and assignments
 $query = "SELECT DISTINCT u.user_id, u.username, u.email, u.first_name, u.second_name, 
                  u.mobile_number, u.whatsapp_number, u.profile_picture, u.role
@@ -154,14 +167,72 @@ $streams_stmt->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            <?php if ($dashboard_background): ?>
+            background-image: url('../<?php echo htmlspecialchars($dashboard_background); ?>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            <?php endif; ?>
+        }
+        
+        /* Glassmorphism overlay - more transparent to show background */
+        <?php if ($dashboard_background): ?>
+        .content-overlay {
+            background-color: rgba(249, 249, 249, 0.15);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            min-height: 100vh;
+        }
+        
+        /* Glass effect for cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        
+        .glass-card-light {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.12);
+        }
+        
+        /* Hover effects for glass cards */
+        .glass-card-light:hover {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.20);
+            transform: translateY(-2px);
+        }
+        <?php else: ?>
+        /* Fallback for no background */
+        .glass-card {
+            background: white;
+        }
+        
+        .glass-card-light {
+            background: white;
+        }
+        <?php endif; ?>
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
     
+    <?php if ($dashboard_background): ?>
+    <div class="content-overlay">
+    <?php endif; ?>
+    
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Welcome Section -->
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="glass-card rounded-lg shadow-lg p-6 mb-6 transition-all duration-300">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
                     <div>
                         <h1 class="text-3xl font-bold text-gray-900 mb-2">Teachers</h1>
@@ -200,7 +271,7 @@ $streams_stmt->close();
 
             <!-- Teachers Grid -->
             <?php if (empty($teachers)): ?>
-                <div class="bg-white rounded-lg shadow p-8 text-center">
+                <div class="glass-card rounded-lg shadow-lg p-8 text-center">
                     <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                     </svg>
@@ -213,7 +284,7 @@ $streams_stmt->close();
                         <h2 class="text-2xl font-bold text-gray-900 mb-4">My Teachers</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <?php foreach ($enrolled_teachers as $teacher): ?>
-                        <div class="teacher-card bg-white border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl transition-all duration-200 flex flex-col h-full"
+                        <div class="teacher-card glass-card-light border-2 border-red-500 rounded-lg p-6 hover:border-red-600 transition-all duration-300 flex flex-col h-full"
                              data-streams="<?php echo htmlspecialchars(implode(',', array_unique(array_column($teacher['assignments'], 'stream_name')))); ?>"
                              data-subjects="<?php echo htmlspecialchars(implode(',', array_unique(array_column($teacher['assignments'], 'subject_name')))); ?>">
                             <!-- Large centered profile picture -->
@@ -348,7 +419,7 @@ $streams_stmt->close();
                     <?php endif; ?>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <?php foreach ($other_teachers as $teacher): ?>
-                            <div class="teacher-card bg-white border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl transition-all duration-200 flex flex-col h-full"
+                            <div class="teacher-card glass-card-light border-2 border-red-500 rounded-lg p-6 hover:border-red-600 transition-all duration-300 flex flex-col h-full"
                                  data-streams="<?php echo htmlspecialchars(implode(',', array_unique(array_column($teacher['assignments'], 'stream_name')))); ?>"
                                  data-subjects="<?php echo htmlspecialchars(implode(',', array_unique(array_column($teacher['assignments'], 'subject_name')))); ?>">
                                 <!-- Large centered profile picture -->
@@ -667,7 +738,7 @@ $streams_stmt->close();
                     let emptyMsg = section.querySelector('.no-results-message');
                     if (!emptyMsg) {
                         emptyMsg = document.createElement('div');
-                        emptyMsg.className = 'no-results-message col-span-full bg-white rounded-lg shadow p-8 text-center';
+                        emptyMsg.className = 'no-results-message col-span-full glass-card rounded-lg shadow-lg p-8 text-center';
                         emptyMsg.innerHTML = `
                             <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -821,5 +892,9 @@ $streams_stmt->close();
             }
         });
     </script>
+    
+    <?php if ($dashboard_background): ?>
+    </div> <!-- Close content-overlay -->
+    <?php endif; ?>
 </body>
 </html>

@@ -6,6 +6,15 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $current_year = date('Y');
 
+// Get live classes background image
+$live_classes_background = null;
+$bg_query = "SELECT setting_value FROM system_settings WHERE setting_key = 'live_classes_background' LIMIT 1";
+$bg_result = $conn->query($bg_query);
+if ($bg_result && $bg_result->num_rows > 0) {
+    $bg_row = $bg_result->fetch_assoc();
+    $live_classes_background = $bg_row['setting_value'];
+}
+
 $success_message = $_GET['success'] ?? '';
 $error_message = '';
 
@@ -228,10 +237,40 @@ if ($role === 'student') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Classes - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            <?php if (!empty($live_classes_background)): ?>
+            background-image: url('../<?php echo htmlspecialchars($live_classes_background); ?>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            <?php endif; ?>
+        }
+        .content-overlay {
+            background-color: rgba(243, 244, 246, 0.15);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .glass-card-light {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
     
+    <div class="content-overlay">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Welcome Section -->
@@ -624,6 +663,7 @@ if ($role === 'student') {
                 </div>
             <?php endif; ?>
         </div>
+    </div>
     </div>
 
     <!-- Toast Notification Container -->

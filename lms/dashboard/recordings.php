@@ -6,6 +6,15 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $current_year = date('Y');
 
+// Get recordings background image
+$recordings_background = null;
+$bg_query = "SELECT setting_value FROM system_settings WHERE setting_key = 'recordings_background' LIMIT 1";
+$bg_result = $conn->query($bg_query);
+if ($bg_result && $bg_result->num_rows > 0) {
+    $bg_row = $bg_result->fetch_assoc();
+    $recordings_background = $bg_row['setting_value'];
+}
+
 $success_message = '';
 $error_message = '';
 
@@ -311,14 +320,44 @@ if ($role === 'teacher') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recordings - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            <?php if (!empty($recordings_background)): ?>
+            background-image: url('../<?php echo htmlspecialchars($recordings_background); ?>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            <?php endif; ?>
+        }
+        .content-overlay {
+            background-color: rgba(243, 244, 246, 0.35);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .glass-card-light {
+            background: rgba(255, 255, 255, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
     
+    <div class="content-overlay">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Welcome Section -->
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="glass-card rounded-lg shadow p-6 mb-6">
                 <h1 class="text-3xl font-bold text-gray-900 mb-4">Recordings</h1>
                 <p class="text-gray-600">
                     Welcome, <?php echo htmlspecialchars($_SESSION['username'] ?? 'User'); ?>!
@@ -718,6 +757,7 @@ if ($role === 'teacher') {
                 </div>
             <?php endif; ?>
         </div>
+    </div>
     </div>
 
     <!-- Toast Notification Container -->

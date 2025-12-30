@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $username = trim($_POST['username'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    $role = $_POST['role'] ?? 'student';
+    $role = 'student'; // Only student registration allowed
     $first_name = trim($_POST['first_name'] ?? '');
     $second_name = trim($_POST['second_name'] ?? '');
     $mobile_number = trim($_POST['mobile_number'] ?? '');
@@ -32,67 +32,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $address = !empty($_POST['address']) ? trim($_POST['address']) : null;
     $gender = !empty($_POST['gender']) ? trim($_POST['gender']) : null;
     
-    // Determine approval status based on verification
-    // Teachers always require admin approval (no verification needed)
-    // Students need verification for auto-approval
+    // Determine approval status based on verification (students only)
     $approved = 0;
     $verification_status = 'pending';
     
-    if ($role === 'teacher') {
-        // Teachers always require admin approval - no verification needed
+    // For students: verification determines approval
+    if ($verification_method === 'nic' && $nic_verified === 1) {
+        $approved = 1;
+        $verification_status = 'verified_nic';
+    } elseif ($verification_method === 'mobile' && $otp_verified === 1) {
+        $approved = 1;
+        $verification_status = 'verified_mobile';
+    } else {
+        // Verification failed or not completed - require admin approval
         $approved = 0;
         $verification_status = 'pending';
-    } else {
-        // For students: verification determines approval
-        if ($verification_method === 'nic' && $nic_verified === 1) {
-            $approved = 1;
-            $verification_status = 'verified_nic';
-        } elseif ($verification_method === 'mobile' && $otp_verified === 1) {
-            $approved = 1;
-            $verification_status = 'verified_mobile';
-        } else {
-            // Verification failed or not completed - require admin approval
-            $approved = 0;
-            $verification_status = 'pending';
-        }
     }
     
-    // Validation
+    // Validation (students only)
     if (empty($username) || empty($email) || empty($password)) {
         $error_message = 'Username, email, and password are required.';
-    } elseif ($role !== 'teacher' && (empty($verification_method) || $verification_method === 'none')) {
-        // Only students need verification
+    } elseif (empty($verification_method) || $verification_method === 'none') {
         $error_message = 'Please select a verification method and complete the verification.';
-    } elseif ($role !== 'teacher' && $verification_method === 'nic' && $nic_verified !== 1) {
+    } elseif ($verification_method === 'nic' && $nic_verified !== 1) {
         $error_message = 'Please verify your NIC number before submitting.';
-    } elseif ($role !== 'teacher' && $verification_method === 'mobile' && $otp_verified !== 1) {
+    } elseif ($verification_method === 'mobile' && $otp_verified !== 1) {
         $error_message = 'Please verify your mobile number with OTP before submitting.';
     } else {
         // Additional validation for students
-        if ($role === 'student') {
-            $stream_id_input = $_POST['stream_id'] ?? '';
-            $subject_id_input = $_POST['subject_id'] ?? '';
-            $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
-            $new_stream_name = trim($_POST['new_stream_name'] ?? '');
-            $new_subject_name = trim($_POST['new_subject_name'] ?? '');
-            
-            if (intval($stream_id_input) <= 0) {
-                $error_message = 'Please select a stream.';
-            } elseif (intval($subject_id_input) <= 0) {
-                $error_message = 'Please select a subject.';
-            } elseif (empty($selected_teacher_id)) {
-                $error_message = 'Please select a teacher.';
-            }
-        }
+        $stream_id_input = $_POST['stream_id'] ?? '';
+        $subject_id_input = $_POST['subject_id'] ?? '';
+        $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
+        $new_stream_name = trim($_POST['new_stream_name'] ?? '');
+        $new_subject_name = trim($_POST['new_subject_name'] ?? '');
         
-        // Additional validation for teachers
-        if ($role === 'teacher') {
-            $selected_streams = isset($_POST['teacher_streams']) ? $_POST['teacher_streams'] : [];
-            $teacher_subjects = isset($_POST['teacher_subjects']) ? $_POST['teacher_subjects'] : [];
-            
-            if (empty($selected_streams) || empty($teacher_subjects)) {
-                $error_message = 'For teachers, please select at least one Stream and Subject.';
-            }
+        if (intval($stream_id_input) <= 0) {
+            $error_message = 'Please select a stream.';
+        } elseif (intval($subject_id_input) <= 0) {
+            $error_message = 'Please select a subject.';
+        } elseif (empty($selected_teacher_id)) {
+            $error_message = 'Please select a teacher.';
         }
         
         // If no validation errors, proceed with user creation
@@ -126,19 +105,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             // Hash password
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
             
-            // Handle profile picture upload
+            // Handle profile picture upload (optional for students)
             $profile_picture_path = null;
-            
-            // Check if photo is required (for teachers)
-            if ($role === 'teacher') {
-                if (!isset($_FILES['profile_picture']) || $_FILES['profile_picture']['error'] !== UPLOAD_ERR_OK || empty($_FILES['profile_picture']['name'])) {
-                    $error_message = 'Profile picture is required for teachers.';
-                }
-            }
             
             // Process upload if file is provided
             if (empty($error_message) && isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK && !empty($_FILES['profile_picture']['name'])) {
-                $upload_dir = '../uploads/profiles/';
+                $upload_dir = 'uploads/profiles/';
                 if (!file_exists($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
                 }
@@ -268,47 +240,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         }
                     }
                     
-                    // Handle teacher-specific data
-                    if ($role === 'teacher') {
-                        // Save education details
-                        if (isset($_POST['education']) && is_array($_POST['education'])) {
-                            $edu_stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study, grade_or_class) VALUES (?, ?, ?, ?, ?, ?)");
-                            foreach ($_POST['education'] as $edu) {
-                                if (!empty($edu['qualification'])) {
-                                    $institution = $edu['institution'] ?? '';
-                                    $year = !empty($edu['year_obtained']) ? intval($edu['year_obtained']) : null;
-                                    $field = $edu['field_of_study'] ?? '';
-                                    $grade = $edu['grade_or_class'] ?? '';
-                                    
-                                    $edu_stmt->bind_param("sssiss", $user_id, $edu['qualification'], $institution, $year, $field, $grade);
-                                    $edu_stmt->execute();
-                                }
-                            }
-                            $edu_stmt->close();
-                        }
-                        
-                        // Save teacher assignments (stream-subject combinations)
-                        $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
-                        $teacher_subjects = isset($_POST['teacher_subjects']) ? $_POST['teacher_subjects'] : [];
-                        $assign_stmt = $conn->prepare("INSERT INTO teacher_assignments (teacher_id, stream_subject_id, academic_year, status, assigned_date) VALUES (?, ?, ?, 'active', CURDATE())");
-                        
-                        foreach ($teacher_subjects as $stream_subject_id) {
-                            $stream_subject_id = intval($stream_subject_id);
-                            if ($stream_subject_id > 0) {
-                                $assign_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
-                                $assign_stmt->execute();
-                            }
-                        }
-                        $assign_stmt->close();
-                    }
-                    
                     if (empty($error_message)) {
-                        if ($role === 'teacher') {
-                            $success_message = "Teacher '$username' has been successfully registered with User ID: $user_id. Your account requires admin approval before you can login.";
-                        } elseif ($approved == 1) {
-                            $success_message = "User '$username' has been successfully created with User ID: $user_id. Your account has been verified and you can now login.";
+                        if ($approved == 1) {
+                            $success_message = "Student '$username' has been successfully registered with User ID: $user_id. Your account has been verified and you can now login.";
                         } else {
-                            $success_message = "User '$username' has been successfully created with User ID: $user_id. Your account is pending admin approval. You will be able to login once approved.";
+                            $success_message = "Student '$username' has been successfully registered with User ID: $user_id. Your account is pending admin approval. You will be able to login once approved.";
                         }
                         // Clear form data
                         $_POST = array();
@@ -336,7 +272,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register </title>
+    <title>Student Registration</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100">
@@ -349,7 +285,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                         <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                         </svg>
-                        <span>Register</span>
+                        <span>Student Registration</span>
                     </h1>
                 </div>
 
@@ -406,16 +342,8 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                                    placeholder="Default: 1234">
                         </div>
 
-                        <!-- Role -->
-                        <div>
-                            <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                            <select id="role" name="role" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                    onchange="toggleRoleBasedFields()">
-                                <option value="student" <?php echo (($_POST['role'] ?? 'student') === 'student') ? 'selected' : ''; ?>>Student</option>
-                                <option value="teacher" <?php echo (($_POST['role'] ?? '') === 'teacher') ? 'selected' : ''; ?>>Teacher</option>
-                            </select>
-                        </div>
+                        <!-- Role (Hidden - Student Only) -->
+                        <input type="hidden" id="role" name="role" value="student">
 
                         <!-- First Name -->
                         <div>
@@ -789,85 +717,23 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
     </div>
 
     <script>
-        // Toggle role-based fields
+        // Toggle role-based fields (student only now)
         function toggleRoleBasedFields() {
             try {
-                const roleElement = document.getElementById('role');
-                if (!roleElement) return;
-                const role = roleElement.value;
                 const studentFields = document.getElementById('studentFields');
                 const teacherFields = document.getElementById('teacherFields');
                 const verificationSection = document.getElementById('verificationSection');
                 const submitButtonContainer = document.getElementById('submitButtonContainer');
-                if (submitButtonContainer) {
-                    submitButtonContainer.classList.remove('hidden');
-                }
-                if (role === 'student') {
-                    if (studentFields) studentFields.classList.remove('hidden');
-                    if (teacherFields) teacherFields.classList.add('hidden');
-                    if (verificationSection) verificationSection.classList.remove('hidden');
-                } else if (role === 'teacher') {
-                    if (teacherFields) teacherFields.classList.remove('hidden');
-                    if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
-                    if (studentFields) studentFields.classList.add('hidden');
-                    if (verificationSection) verificationSection.classList.add('hidden');
-                    const subjectContainer = document.getElementById('subjectContainer');
-                    if (subjectContainer) subjectContainer.classList.add('hidden');
-                    const teachersContainer = document.getElementById('teachersContainer');
-                    if (teachersContainer) teachersContainer.classList.add('hidden');
-                    const newStreamContainer = document.getElementById('newStreamContainer');
-                    if (newStreamContainer) newStreamContainer.classList.add('hidden');
-                    const newSubjectContainer = document.getElementById('newSubjectContainer');
-                    if (newSubjectContainer) newSubjectContainer.classList.add('hidden');
-                    const streamId = document.getElementById('stream_id');
-                    if (streamId) streamId.value = '';
-                    const subjectId = document.getElementById('subject_id');
-                    if (subjectId) subjectId.value = '';
-                    const selectedTeacherId = document.getElementById('selected_teacher_id');
-                    if (selectedTeacherId) selectedTeacherId.value = '';
-                    const newStreamName = document.getElementById('new_stream_name');
-                    if (newStreamName) newStreamName.value = '';
-                    const newSubjectName = document.getElementById('new_subject_name');
-                    if (newSubjectName) newSubjectName.value = '';
-                    const newSubjectCode = document.getElementById('new_subject_code');
-                    if (newSubjectCode) newSubjectCode.value = '';
-                    try {
-                        const verificationRadios = document.querySelectorAll('input[name="verification_method"]');
-                        if (verificationRadios) {
-                            verificationRadios.forEach(function(radio) {
-                                if (radio) radio.checked = false;
-                            });
-                        }
-                    } catch (e) {
-                        console.warn('Error clearing verification method radios:', e);
-                    }
-                    const nicContainer = document.getElementById('nicVerificationContainer');
-                    if (nicContainer) nicContainer.classList.add('hidden');
-                    const mobileContainer = document.getElementById('mobileVerificationContainer');
-                    if (mobileContainer) mobileContainer.classList.add('hidden');
-                    const nicVerified = document.getElementById('nic_verified');
-                    if (nicVerified) nicVerified.value = '0';
-                    const otpVerified = document.getElementById('otp_verified');
-                    if (otpVerified) otpVerified.value = '0';
-                    const verificationStatus = document.getElementById('verificationStatus');
-                    if (verificationStatus) verificationStatus.classList.add('hidden');
-                    const nicNumber = document.getElementById('nic_number');
-                    if (nicNumber) nicNumber.value = '';
-                    const otpCode = document.getElementById('otp_code');
-                    if (otpCode) otpCode.value = '';
-                    const otpInputContainer = document.getElementById('otpInputContainer');
-                    if (otpInputContainer) otpInputContainer.classList.add('hidden');
-                    const nicVerificationResult = document.getElementById('nicVerificationResult');
-                    if (nicVerificationResult) nicVerificationResult.innerHTML = '';
-                    const otpVerificationResult = document.getElementById('otpVerificationResult');
-                    if (otpVerificationResult) otpVerificationResult.innerHTML = '';
-                }
+                
+                // Always show student fields and verification
+                if (studentFields) studentFields.classList.remove('hidden');
+                if (verificationSection) verificationSection.classList.remove('hidden');
+                if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
+                
+                // Always hide teacher fields
+                if (teacherFields) teacherFields.classList.add('hidden');
             } catch (error) {
                 console.error('Error in toggleRoleBasedFields:', error);
-                const teacherFields = document.getElementById('teacherFields');
-                if (teacherFields) teacherFields.classList.remove('hidden');
-                const submitButtonContainer = document.getElementById('submitButtonContainer');
-                if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
             }
         }
 
@@ -1573,19 +1439,30 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('nic', nicNumber);
-            
-            // If DOB and Gender are filled, send them for verification
+            // Check if DOB and Gender are filled first
             const dob = dobField ? dobField.value.trim() : '';
             const gender = genderField ? genderField.value.trim() : '';
             
-            if (dob) {
-                formData.append('dob', dob);
+            if (!dob) {
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter your Date of Birth first</div>';
+                showToast('Please enter your Date of Birth before verifying NIC', 'error');
+                dobField.focus();
+                return;
             }
-            if (gender) {
-                formData.append('gender', gender);
+            
+            if (!gender) {
+                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please select your Gender first</div>';
+                showToast('Please select your Gender before verifying NIC', 'error');
+                genderField.focus();
+                return;
             }
+            
+            const formData = new FormData();
+            formData.append('nic', nicNumber);
+            
+            // Send DOB and Gender for verification
+            formData.append('dob', dob);
+            formData.append('gender', gender);
             
             fetch('verify_nic.php', {
                 method: 'POST',
@@ -1594,40 +1471,16 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.valid) {
-                    let messageText = 'NIC verified successfully!';
-                    if (dob && gender) {
-                        messageText = 'NIC verified successfully against your DOB and Gender!';
-                    }
-                    
-                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">${messageText}</div>`;
+                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">NIC verified successfully against your DOB and Gender!</div>`;
                     document.getElementById('nic_verified').value = '1';
-                    
-                    // Auto-fill gender if available from NIC verification and not already set
-                    if (data.gender && genderField && !gender) {
-                        genderField.value = data.gender;
-                    }
-                    
-                    // Auto-fill date of birth if available from NIC verification and not already set
-                    if (data.date_of_birth && dobField && !dob) {
-                        dobField.value = data.date_of_birth;
-                    }
-                    
                     updateVerificationStatus();
-                    showToast(dob && gender ? 'NIC verified successfully against your information!' : 'NIC verified successfully!', 'success');
+                    showToast('NIC verified successfully against your information!', 'success');
                 } else {
-                    // Hide detailed error messages - only show generic message
-                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">NIC verification failed. Please check your NIC number and try again.</div>';
+                    // Show verification failed message
+                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">NIC verification failed. The NIC number does not match with your Date of Birth and Gender. Please check and try again.</div>';
                     document.getElementById('nic_verified').value = '0';
                     updateVerificationStatus();
                     showToast('NIC verification failed. Please check your information and try again.', 'error');
-                    
-                    // Silently auto-fill extracted data if available (only if fields are empty)
-                    if (data.date_of_birth && !dob && dobField) {
-                        dobField.value = data.date_of_birth;
-                    }
-                    if (data.gender && !gender && genderField) {
-                        genderField.value = data.gender;
-                    }
                 }
             })
             .catch(error => {
@@ -1738,17 +1591,11 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
             }
         }
 
-        // Form Submission Validation
+        // Form Submission Validation (students only)
         document.getElementById('addUserForm')?.addEventListener('submit', function(e) {
-            const role = document.getElementById('role').value;
             const verificationMethod = document.querySelector('input[name="verification_method"]:checked');
             const nicVerified = document.getElementById('nic_verified').value === '1';
             const otpVerified = document.getElementById('otp_verified').value === '1';
-            
-            // Teachers don't need verification
-            if (role === 'teacher') {
-                return true; // Allow submission for teachers
-            }
             
             // Students need verification
             if (!verificationMethod) {
@@ -1774,12 +1621,6 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
         document.addEventListener('DOMContentLoaded', function() {
             toggleRoleBasedFields();
             updatePhotoRequirement();
-            
-            // Update photo requirement when role changes
-            document.getElementById('role').addEventListener('change', function() {
-                updatePhotoRequirement();
-                toggleRoleBasedFields();
-            });
         });
     </script>
 </body>

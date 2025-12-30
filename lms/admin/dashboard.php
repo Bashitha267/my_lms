@@ -8,6 +8,19 @@ if ($_SESSION['role'] !== 'admin') {
     exit();
 }
 
+// Get dashboard background image from system settings
+$dashboard_background = null;
+$bg_stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'dashboard_background' LIMIT 1");
+if ($bg_stmt) {
+    $bg_stmt->execute();
+    $bg_result = $bg_stmt->get_result();
+    if ($bg_result->num_rows > 0) {
+        $bg_row = $bg_result->fetch_assoc();
+        $dashboard_background = $bg_row['setting_value'];
+    }
+    $bg_stmt->close();
+}
+
 // Get all teachers with their education details
 $query = "SELECT DISTINCT u.user_id, u.username, u.email, u.first_name, u.second_name, 
                  u.mobile_number, u.whatsapp_number, u.profile_picture, u.role
@@ -62,14 +75,56 @@ $stmt->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            <?php if ($dashboard_background): ?>
+            background-image: url('../<?php echo htmlspecialchars($dashboard_background); ?>');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            <?php endif; ?>
+        }
+        
+        /* Add semi-transparent overlay for better content readability */
+        <?php if ($dashboard_background): ?>
+        .content-overlay {
+            background-color: rgba(243, 244, 246, 0.85);
+            min-height: 100vh;
+        }
+        
+        /* Make content cards more transparent to show background */
+        .transparent-card {
+            background-color: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(10px);
+        }
+        
+        .transparent-card-light {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+        }
+        <?php else: ?>
+        .transparent-card {
+            background-color: white;
+        }
+        
+        .transparent-card-light {
+            background-color: white;
+        }
+        <?php endif; ?>
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include 'header.php'; ?>
     
+    <?php if ($dashboard_background): ?>
+    <div class="content-overlay">
+    <?php endif; ?>
+    
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Welcome Section -->
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="transparent-card rounded-lg shadow p-6 mb-6">
                 <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
                 <p class="text-gray-600">
                     Welcome, <span class="font-semibold text-red-600"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Admin'); ?></span>!
@@ -81,7 +136,7 @@ $stmt->close();
                 <h2 class="text-2xl font-bold text-gray-900 mb-4">All Teachers</h2>
                 
                 <?php if (empty($teachers)): ?>
-                    <div class="bg-white rounded-lg shadow p-8 text-center">
+                    <div class="transparent-card rounded-lg shadow p-8 text-center">
                         <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
@@ -90,7 +145,7 @@ $stmt->close();
                 <?php else: ?>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <?php foreach ($teachers as $teacher): ?>
-                            <div class="bg-white border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl transition-all duration-200 flex flex-col h-full">
+                            <div class="transparent-card-light border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl transition-all duration-200 flex flex-col h-full">
                                 <!-- Large centered profile picture -->
                                 <div class="flex justify-center mb-6">
                                     <?php if ($teacher['profile_picture']): ?>
@@ -171,5 +226,9 @@ $stmt->close();
             </div>
         </div>
     </div>
+    
+    <?php if ($dashboard_background): ?>
+    </div> <!-- Close content-overlay -->
+    <?php endif; ?>
 </body>
 </html>
