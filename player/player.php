@@ -1068,6 +1068,39 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
         .section-title i {
             color: #dc2626;
         }
+        
+        /* Uploads Section */
+        .uploads-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #333;
+            overflow-y: visible;
+        }
+        
+        .uploads-section .section-title i {
+            color: #059669;
+        }
+        
+        .uploads-section .file-icon {
+            color: #059669;
+        }
+        
+        .uploads-section .file-download-btn {
+            background: #059669;
+        }
+        
+        .uploads-section .file-download-btn:hover {
+            background: #047857;
+        }
+        
+        .uploads-section .file-item:hover {
+            border-color: #059669;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+        }
+        
+        .uploads-section .file-item:hover .file-icon {
+            border-color: #059669;
+        }
 
         /* Other Videos Section - Bottom (Mobile only) */
         .other-videos-section {
@@ -2435,7 +2468,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     </div>
                     <?php endif; ?>
 
-                    <!-- Downloads Section -->
+                    <!-- Downloads Section (Teacher Files) -->
                     <div class="downloads-section mt-4">
                         <div class="section-header">
                             <h3 class="section-title">
@@ -2474,7 +2507,20 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                             </form>
                         </div>
                         <?php endif; ?>
-                        <div class="files-list" id="files-list">
+                        <div class="files-list" id="downloads-list">
+                            <div class="files-loading">Loading files...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Uploads Section (Student Files) -->
+                    <div class="uploads-section mt-4">
+                        <div class="section-header">
+                            <h3 class="section-title">
+                                <i class="fas fa-upload mr-2"></i>
+                                Uploads
+                            </h3>
+                        </div>
+                        <div class="files-list" id="uploads-list">
                             <div class="files-loading">Loading files...</div>
                         </div>
                     </div>
@@ -3713,10 +3759,15 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             }
 
             function loadFiles() {
-                const filesList = document.getElementById('files-list');
-                if (!filesList) return;
-
-                filesList.innerHTML = '<div class="files-loading">Loading files...</div>';
+                const downloadsList = document.getElementById('downloads-list');
+                const uploadsList = document.getElementById('uploads-list');
+                
+                if (downloadsList) {
+                    downloadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
+                }
+                if (uploadsList) {
+                    uploadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
+                }
 
                 fetch(`get_files.php?recording_id=<?php echo $recording_id; ?>`)
                     .then(response => response.json())
@@ -3724,54 +3775,81 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         if (data.success && data.files) {
                             renderFiles(data.files);
                         } else {
-                            filesList.innerHTML = '<div class="files-empty">No files uploaded yet</div>';
+                            if (downloadsList) {
+                                downloadsList.innerHTML = '<div class="files-empty">No files available</div>';
+                            }
+                            if (uploadsList) {
+                                uploadsList.innerHTML = '<div class="files-empty">No files uploaded</div>';
+                            }
                         }
                     })
                     .catch(error => {
                         console.error('Error loading files:', error);
-                        filesList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                        if (downloadsList) {
+                            downloadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                        }
+                        if (uploadsList) {
+                            uploadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                        }
                     });
             }
 
             function renderFiles(files) {
-                const filesList = document.getElementById('files-list');
-                if (!filesList) return;
-
-                if (files.length === 0) {
-                    filesList.innerHTML = '<div class="files-empty">No files uploaded yet</div>';
-                    return;
+                const downloadsList = document.getElementById('downloads-list');
+                const uploadsList = document.getElementById('uploads-list');
+                
+                // Separate files by uploader role
+                const teacherFiles = files.filter(file => file.uploader_role === 'teacher');
+                const studentFiles = files.filter(file => file.uploader_role === 'student');
+                
+                // Render teacher files in Downloads section
+                if (downloadsList) {
+                    if (teacherFiles.length === 0) {
+                        downloadsList.innerHTML = '<div class="files-empty">No files available from teacher</div>';
+                    } else {
+                        downloadsList.innerHTML = teacherFiles.map(file => renderFileItem(file)).join('');
+                    }
                 }
+                
+                // Render student files in Uploads section
+                if (uploadsList) {
+                    if (studentFiles.length === 0) {
+                        uploadsList.innerHTML = '<div class="files-empty">No files uploaded by students</div>';
+                    } else {
+                        uploadsList.innerHTML = studentFiles.map(file => renderFileItem(file)).join('');
+                    }
+                }
+            }
+            
+            function renderFileItem(file) {
+                const fileSize = formatFileSize(file.file_size);
+                const fileIcon = getFileIcon(file.file_extension);
+                const uploadDate = formatFileDate(file.upload_date);
+                const uploaderInfo = file.is_own_file 
+                    ? 'You' 
+                    : `${file.uploader_name} (${file.uploader_role === 'teacher' ? 'Teacher' : 'Student'})`;
 
-                filesList.innerHTML = files.map(file => {
-                    const fileSize = formatFileSize(file.file_size);
-                    const fileIcon = getFileIcon(file.file_extension);
-                    const uploadDate = formatFileDate(file.upload_date);
-                    const uploaderInfo = file.is_own_file 
-                        ? 'You' 
-                        : `${file.uploader_name} (${file.uploader_role === 'teacher' ? 'Teacher' : 'Student'})`;
-
-                    return `
-                        <div class="file-item">
-                            <div class="file-icon">
-                                <i class="${fileIcon}"></i>
-                            </div>
-                            <div class="file-info">
-                                <div class="file-name" title="${escapeHtml(file.file_name)}">${escapeHtml(file.file_name)}</div>
-                                <div class="file-meta">
-                                    <span><i class="fas fa-user"></i> ${escapeHtml(uploaderInfo)}</span>
-                                    <span><i class="fas fa-calendar"></i> ${uploadDate}</span>
-                                    <span><i class="fas fa-weight"></i> ${fileSize}</span>
-                                </div>
-                            </div>
-                            <div class="file-actions">
-                                <a href="../${escapeHtml(file.file_path)}" download="${escapeHtml(file.file_name)}" class="file-download-btn" onclick="event.stopPropagation();">
-                                    <i class="fas fa-download"></i>
-                                    Download
-                                </a>
+                return `
+                    <div class="file-item">
+                        <div class="file-icon">
+                            <i class="${fileIcon}"></i>
+                        </div>
+                        <div class="file-info">
+                            <div class="file-name" title="${escapeHtml(file.file_name)}">${escapeHtml(file.file_name)}</div>
+                            <div class="file-meta">
+                                <span><i class="fas fa-user"></i> ${escapeHtml(uploaderInfo)}</span>
+                                <span><i class="fas fa-calendar"></i> ${uploadDate}</span>
+                                <span><i class="fas fa-weight"></i> ${fileSize}</span>
                             </div>
                         </div>
-                    `;
-                }).join('');
+                        <div class="file-actions">
+                            <a href="../${escapeHtml(file.file_path)}" download="${escapeHtml(file.file_name)}" class="file-download-btn" onclick="event.stopPropagation();">
+                                <i class="fas fa-download"></i>
+                                Download
+                            </a>
+                        </div>
+                    </div>
+                `;
             }
 
             function formatFileSize(bytes) {
