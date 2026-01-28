@@ -92,6 +92,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
     }
 }
 
+// Handle Zoom class creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) && $role === 'teacher') {
+    $stream_subject_id = isset($_POST['stream_subject_id']) ? intval($_POST['stream_subject_id']) : 0;
+    $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $scheduled_start_time = trim($_POST['scheduled_start_time'] ?? '');
+    $zoom_meeting_link = trim($_POST['zoom_meeting_link'] ?? '');
+    $zoom_meeting_id = trim($_POST['zoom_meeting_id'] ?? '');
+    $zoom_passcode = trim($_POST['zoom_passcode'] ?? '');
+    $free_class = isset($_POST['free_class']) ? intval($_POST['free_class']) : 0;
+    
+    if (empty($title)) {
+        $error_message = 'Title is required.';
+    } elseif (empty($zoom_meeting_link)) {
+        $error_message = 'Zoom meeting link is required.';
+    } elseif (empty($scheduled_start_time)) {
+        $error_message = 'Scheduled start time is required.';
+    } elseif ($stream_subject_id <= 0) {
+        $error_message = 'Please select a subject.';
+    } else {
+        // Get teacher assignment ID
+        $assign_query = "SELECT id FROM teacher_assignments 
+                       WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active' 
+                       LIMIT 1";
+        $assign_stmt = $conn->prepare($assign_query);
+        $assign_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+        $assign_stmt->execute();
+        $assign_result = $assign_stmt->get_result();
+        
+        if ($assign_result->num_rows > 0) {
+            $assign_row = $assign_result->fetch_assoc();
+            $teacher_assignment_id = $assign_row['id'];
+            
+            // Parse scheduled start time
+            $scheduled_datetime = date('Y-m-d H:i:s', strtotime($scheduled_start_time));
+            
+            // Create Zoom class
+            $insert_query = "INSERT INTO zoom_classes (teacher_assignment_id, title, description, zoom_meeting_link, zoom_meeting_id, zoom_passcode, scheduled_start_time, free_class, status) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')";
+            $insert_stmt = $conn->prepare($insert_query);
+            $insert_stmt->bind_param("issssssi", $teacher_assignment_id, $title, $description, $zoom_meeting_link, $zoom_meeting_id, $zoom_passcode, $scheduled_datetime, $free_class);
+        
+            if ($insert_stmt->execute()) {
+                header('Location: live_classes.php?success=' . urlencode('Zoom class created successfully!'));
+                exit;
+            } else {
+                $error_message = 'Error creating Zoom class: ' . $conn->error;
+            }
+            $insert_stmt->close();
+        } else {
+            $error_message = 'You do not have an active assignment for this subject and academic year.';
+        }
+        $assign_stmt->close();
+    }
+}
+
 // Get live classes based on role
 $student_enrollments = [];
 $teacher_assignments = [];
@@ -252,6 +309,36 @@ if (empty($role)) {
             }
         }
         $live_stmt->close();
+        
+        // Get Zoom classes for this assignment
+        $zoom_query = "SELECT zc.id, zc.title, zc.description, zc.status, zc.scheduled_start_time, 
+                              zc.actual_start_time, zc.end_time, zc.created_at, zc.free_class, zc.zoom_meeting_link
+                       FROM zoom_classes zc
+                       WHERE zc.teacher_assignment_id = ? 
+                         AND zc.status != 'cancelled'
+                       ORDER BY 
+                         CASE zc.status
+                           WHEN 'ongoing' THEN 1
+                           WHEN 'scheduled' THEN 2
+                           WHEN 'ended' THEN 3
+                           ELSE 4
+                         END,
+                         zc.scheduled_start_time DESC, zc.created_at DESC";
+        
+        $zoom_stmt = $conn->prepare($zoom_query);
+        $zoom_stmt->bind_param("i", $assignment_id);
+        $zoom_stmt->execute();
+        $zoom_result = $zoom_stmt->get_result();
+        
+        $zoom_classes = [];
+        while ($zoom_row = $zoom_result->fetch_assoc()) {
+            $zoom_row['is_zoom'] = true; // Mark as Zoom class
+            $live_classes[] = $zoom_row; // Add to live classes array for unified display
+            if ($zoom_row['status'] === 'ongoing') {
+                $ongoing_classes[] = $zoom_row;
+            }
+        }
+        $zoom_stmt->close();
         
         if (!empty($live_classes)) {
             $live_classes_by_assignment[$assignment_id] = $live_classes;
@@ -709,8 +796,13 @@ if (empty($role)) {
                                             
                                             <div class="flex items-center justify-between">
                                                 <?php if ($can_join): ?>
-                                                    <a href="../player/player.php?id=<?php echo $live_class['id']; ?>&stream_subject_id=<?php echo $assignment['stream_subject_id']; ?>&academic_year=<?php echo $assignment['academic_year']; ?>" 
-                                                       class="px-4 py-2 <?php echo $live_class['status'] === 'ongoing' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'; ?> text-white text-sm rounded font-semibold">
+                                                    <?php 
+                                                    $player_url = isset($live_class['is_zoom']) && $live_class['is_zoom'] 
+                                                        ? "../player/zoom.php?id=" . $live_class['id']
+                                                        : "../player/player.php?id=" . $live_class['id'] . "&stream_subject_id=" . $assignment['stream_subject_id'] . "&academic_year=" . $assignment['academic_year'];
+                                                    ?>
+                                                    <a href="<?php echo $player_url; ?>" 
+                                                       class="px-4 py-2 <?php echo $live_class['status'] === 'ongoing' ? 'bg-red-600 hover:bg-red-700' : (isset($live_class['is_zoom']) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'); ?> text-white text-sm rounded font-semibold">
                                                         <?php echo $live_class['status'] === 'ongoing' ? 'Join Live' : 'View'; ?>
                                                     </a>
                                                 <?php else: ?>
@@ -720,14 +812,19 @@ if (empty($role)) {
                                                 <?php endif; ?>
                                                 
                                                 <div class="flex gap-2">
-                                                    <?php if ($live_class['status'] === 'scheduled'): ?>
+                                                    <?php if (isset($live_class['is_zoom']) && $live_class['is_zoom']): ?>
+                                                        <span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded font-semibold">
+                                                            <i class="fas fa-video mr-1"></i>Zoom
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <?php if ($live_class['status'] === 'scheduled' && (!isset($live_class['is_zoom']) || !$live_class['is_zoom'])): ?>
                                                         <button onclick="startLiveClass(<?php echo $live_class['id']; ?>)" 
                                                                 class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
                                                             Start
                                                         </button>
                                                     <?php endif; ?>
                                                     <?php if ($live_class['status'] === 'scheduled' || $live_class['status'] === 'cancelled'): ?>
-                                                        <button onclick="deleteLiveClass(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
+                                                        <button onclick="<?php echo isset($live_class['is_zoom']) && $live_class['is_zoom'] ? 'deleteZoomClass' : 'deleteLiveClass'; ?>(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
                                                                 class="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
                                                             Delete
                                                         </button>
@@ -808,13 +905,20 @@ if (empty($role)) {
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <div class="mt-4">
+                                    <div class="mt-4 flex gap-2">
                                         <button onclick="openCreateLiveClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
-                                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm">
+                                                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                             </svg>
                                             Create Live Class
+                                        </button>
+                                        <button onclick="openCreateZoomClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
+                                                class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center text-sm">
+                                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            Create Zoom Class
                                         </button>
                                     </div>
                                 </div>
@@ -923,6 +1027,115 @@ if (empty($role)) {
         </div>
     <?php endif; ?>
 
+    <!-- Create Zoom Class Modal (Teachers Only) -->
+    <?php if ($role === 'teacher'): ?>
+        <div id="createZoomClassModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Create Zoom Class</h3>
+                    <button onclick="closeCreateZoomClassModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form method="POST" action="" id="createZoomClassForm" class="space-y-4">
+                    <input type="hidden" name="create_zoom_class" value="1">
+                    <input type="hidden" id="zoom_stream_subject_id" name="stream_subject_id" value="">
+                    <input type="hidden" id="zoom_academic_year" name="academic_year" value="">
+                    
+                    <!-- Selected Subject Info -->
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-indigo-900 mb-2">Selected Subject:</h4>
+                        <p class="text-indigo-800" id="zoom_selected_subject_info">-</p>
+                    </div>
+                    
+                    <!-- Title -->
+                    <div>
+                        <label for="zoom_title" class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                        <input type="text" id="zoom_title" name="title" required
+                               placeholder="e.g., Zoom Class: Advanced Mathematics"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="zoom_description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="zoom_description" name="description" rows="3"
+                                  placeholder="Describe what will be covered in this Zoom class..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                    </div>
+                    
+                    <!-- Zoom Meeting Link -->
+                    <div>
+                        <label for="zoom_meeting_link" class="block text-sm font-medium text-gray-700 mb-1">Zoom Meeting Link *</label>
+                        <input type="url" id="zoom_meeting_link" name="zoom_meeting_link" required
+                               placeholder="https://zoom.us/j/1234567890"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <p class="text-xs text-gray-500 mt-1">Enter the Zoom meeting URL</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Meeting ID -->
+                        <div>
+                            <label for="zoom_meeting_id" class="block text-sm font-medium text-gray-700 mb-1">Meeting ID (Optional)</label>
+                            <input type="text" id="zoom_meeting_id" name="zoom_meeting_id"
+                                   placeholder="123 456 7890"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <!-- Passcode -->
+                        <div>
+                            <label for="zoom_passcode" class="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                            <input type="text" id="zoom_passcode" name="zoom_passcode"
+                                   placeholder="abc123"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                    </div>
+                    
+                    <!-- Scheduled Start Time -->
+                    <div>
+                        <label for="zoom_scheduled_start_time" class="block text-sm font-medium text-gray-700 mb-1">Scheduled Start Time *</label>
+                        <input type="datetime-local" id="zoom_scheduled_start_time" name="scheduled_start_time" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <p class="text-xs text-gray-500 mt-1">When should this Zoom class start?</p>
+                    </div>
+                    
+                    <!-- Free Class or Payment Required -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Access Type *</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="free_class" value="0" checked class="h-4 w-4 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="font-medium">Paid Class</span> - Only students who have paid for the month can access
+                                </span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="free_class" value="1" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-gray-700">
+                                    <span class="font-medium">Free Class</span> - All enrolled students (and guests) can access
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="closeCreateZoomClassModal()" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            Create Zoom Class
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Login/Register Popup for Guests -->
     <?php if (empty($role)): ?>
     <div id="authModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 z-50 flex items-center justify-center">
@@ -1019,6 +1232,19 @@ if (empty($role)) {
             document.getElementById('createLiveClassForm').reset();
         }
 
+        // Zoom Class Modal Functions
+        function openCreateZoomClassModal(streamSubjectId, academicYear, subjectName, streamName) {
+            document.getElementById('zoom_stream_subject_id').value = streamSubjectId;
+            document.getElementById('zoom_academic_year').value = academicYear;
+            document.getElementById('zoom_selected_subject_info').textContent = subjectName + ' - ' + streamName + ' (' + academicYear + ')';
+            document.getElementById('createZoomClassModal').classList.remove('hidden');
+        }
+
+        function closeCreateZoomClassModal() {
+            document.getElementById('createZoomClassModal').classList.add('hidden');
+            document.getElementById('createZoomClassForm').reset();
+        }
+
         // Live Class Management Functions
         function startLiveClass(recordingId) {
             if (!confirm('Start this live class? Students will be able to join.')) {
@@ -1077,6 +1303,35 @@ if (empty($role)) {
             .catch(error => {
                 console.error('Error:', error);
                 showToast('Error deleting live class. Please try again.', 'error');
+            });
+        }
+
+        function deleteZoomClass(zoomClassId, title) {
+            if (!confirm(`Are you sure you want to delete Zoom class "${title}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('zoom_class_id', zoomClassId);
+            
+            fetch('../player/end_zoom_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Zoom class deleted successfully', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.message || 'Error deleting Zoom class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting Zoom class. Please try again.', 'error');
             });
         }
 

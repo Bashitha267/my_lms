@@ -605,7 +605,15 @@ ksort($recordings_by_month);
                                                             title="<?php echo $recording['free_video'] == 1 ? 'Make Paid' : 'Make Free'; ?>">
                                                         <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform <?php echo $recording['free_video'] == 1 ? 'translate-x-6' : 'translate-x-1'; ?>"></span>
                                                     </button>
-                                                    <!-- Edit Button -->
+                                                     <!-- View Participants Report Button -->
+                                                     <button onclick="event.stopPropagation(); openParticipantReport(<?php echo $recording['id']; ?>)" 
+                                                             class="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                                                             title="View Participant Report">
+                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                                         </svg>
+                                                     </button>
+                                                     <!-- Edit Button -->
                                                     <button onclick="event.stopPropagation(); openEditModal(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>', '<?php echo htmlspecialchars(addslashes($recording['description'] ?? '')); ?>', '<?php echo htmlspecialchars($recording['youtube_url']); ?>', '<?php echo date('Y-m-d', strtotime($recording['created_at'])); ?>', <?php echo $recording['free_video']; ?>, <?php echo intval($recording['watch_limit'] ?? 3); ?>)" 
                                                             class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                                                             title="Edit Recording">
@@ -833,6 +841,82 @@ ksort($recordings_by_month);
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Participant Report Modal (Teachers Only) -->
+    <?php if ($role === 'teacher'): ?>
+        <div id="participantReportModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4 pb-4 border-b">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900">Video Participant Report</h3>
+                        <p id="report_video_title" class="text-sm text-gray-600 mt-1"></p>
+                    </div>
+                    <button onclick="closeParticipantReport()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Report Stats Overview -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center">
+                        <div class="p-3 bg-blue-100 rounded-full mr-4 text-blue-600">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-600 font-semibold uppercase tracking-wider">Total Unique Watchers</p>
+                            <p id="total_watchers_count" class="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-100 flex items-center">
+                        <div class="p-3 bg-green-100 rounded-full mr-4 text-green-600">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-xs text-green-600 font-semibold uppercase tracking-wider">Total Video Views</p>
+                            <p id="total_views_count" class="text-2xl font-bold text-gray-900">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Participants Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Watch Count</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Last Viewed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="participant_report_body" class="bg-white divide-y divide-gray-200">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                    <div id="report_loading" class="hidden py-10 text-center">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                        <p class="mt-2 text-gray-500">Loading watch history...</p>
+                    </div>
+                    <div id="report_empty" class="hidden py-10 text-center text-gray-500">
+                        No watch data found for this video yet.
+                    </div>
+                </div>
+                
+                <div class="flex justify-end mt-6 pt-4 border-t">
+                    <button onclick="closeParticipantReport()" 
+                            class="px-6 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900">
+                        Close Report
+                    </button>
+                </div>
             </div>
         </div>
     <?php endif; ?>
@@ -1094,6 +1178,79 @@ ksort($recordings_by_month);
         }
 
         // Toast notification function
+        // Participant Report logic
+        function openParticipantReport(recordingId) {
+            const modal = document.getElementById('participantReportModal');
+            const tableBody = document.getElementById('participant_report_body');
+            const loading = document.getElementById('report_loading');
+            const empty = document.getElementById('report_empty');
+            const videoTitle = document.getElementById('report_video_title');
+            const totalWatchers = document.getElementById('total_watchers_count');
+            const totalViews = document.getElementById('total_views_count');
+            
+            // Show modal and loading
+            modal.classList.remove('hidden');
+            tableBody.innerHTML = '';
+            loading.classList.remove('hidden');
+            empty.classList.add('hidden');
+            
+            fetch(`get_video_report.php?recording_id=${recordingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    loading.classList.add('hidden');
+                    
+                    if (data.success) {
+                        videoTitle.textContent = data.recording_title;
+                        totalWatchers.textContent = data.stats.total_watchers;
+                        totalViews.textContent = data.stats.total_views;
+                        
+                        if (data.participants.length === 0) {
+                            empty.classList.remove('hidden');
+                        } else {
+                            data.participants.forEach(p => {
+                                const tr = document.createElement('tr');
+                                const profileImg = p.profile_picture 
+                                    ? `../${p.profile_picture}` 
+                                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`;
+                                
+                                tr.innerHTML = `
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10">
+                                                <img class="h-10 w-10 rounded-full object-cover border border-gray-200" src="${profileImg}" alt="">
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">${p.name}</div>
+                                                <div class="text-xs text-gray-500">${p.student_id}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-gray-900 bg-gray-50/50">
+                                        <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">${p.watch_count}</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500 font-mono">
+                                        ${p.last_watched}
+                                    </td>
+                                `;
+                                tableBody.appendChild(tr);
+                            });
+                        }
+                    } else {
+                        showToast(data.message || 'Error loading report', 'error');
+                        closeParticipantReport();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    loading.classList.add('hidden');
+                    showToast('Error connecting to server', 'error');
+                });
+        }
+
+        function closeParticipantReport() {
+            document.getElementById('participantReportModal').classList.add('hidden');
+        }
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer') || createToastContainer();
             const toast = document.createElement('div');

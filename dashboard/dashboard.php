@@ -163,9 +163,9 @@ if ($is_logged_in && $role === 'student') {
         <?php if (!$is_logged_in): ?>
             <!-- Login Section for Guests -->
             <!-- Hero Section with Slideshow and Login - 50/50 Split -->
-            <div class="mx-14 grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12 ">
+            <div class="md:mx-14 mx-4 grid grid-cols-1 lg:grid-cols-6 gap-6 mb-12 ">
                 <!-- Left Side: Image Slideshow -->
-                <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden relative h-[300px] lg:h-[600px] group ">
+                <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden relative h-[300px] lg:h-[600px] lg:col-span-4 group ">
                     <div class="absolute inset-0">
                         <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" 
                              alt="Education" 
@@ -177,71 +177,71 @@ if ($is_logged_in && $role === 'student') {
                 </div>
 
                 <!-- Right Side: Login Form -->
-                <div id="login-section" class="h-auto lg:h-[600px]">
-                    <div class="bg-white rounded-2xl shadow-xl p-6 lg:p-10 h-full flex flex-col justify-center border border-gray-100 mb-4 lg:mb-0">
-                        <div class="text-center mb-6">
-                            <h2 class="text-2xl lg:text-3xl font-bold text-gray-800">ආයුබෝවන්!!</h2>
-                            <p class="text-sm lg:text-base text-gray-500 mt-3 leading-relaxed">
+                <div id="login-section" class="h-auto lg:h-[600px] lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-xl p-4 lg:p-5 h-full flex flex-col justify-center border border-gray-100 mb-4 lg:mb-0">
+                        <div class="text-center mb-3">
+                            <h2 class="text-xl lg:text-2xl font-bold text-gray-800">ආයුබෝවන්!!</h2>
+                            <p class="text-xs lg:text-[13px] text-gray-500 mt-1 leading-relaxed">
                                 ලංකාවේ සාර්ථකම ඔන්ලිනෙ ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සදහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා  Password  නිවැරදිව ලබා දී Login වෙන්න.
                             </p>
-                            <p class="mt-3 pt-3 text-gray-500 font-semibold text-xs lg:text-sm border-t border-gray-100">
+                            <p class="mt-2 pt-2 text-gray-500 font-semibold text-[10px] lg:text-[11px] border-t border-gray-100">
                                 අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක ක්ලික් කරන්න.
                             </p>
                         </div>
                         
                         <?php if ($error_message): ?>
-                            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-lg mb-4 text-base">
+                            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-2 rounded-lg mb-3 text-xs">
                                 <?php echo htmlspecialchars($error_message); ?>
                             </div>
                         <?php endif; ?>
                         
                         <?php if ($success_message): ?>
-                            <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-lg mb-4 text-base">
+                            <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-2 rounded-lg mb-3 text-xs">
                                 <?php echo htmlspecialchars($success_message); ?>
                             </div>
                         <?php endif; ?>
 
-                        <form action="../auth.php" method="POST" class="space-y-5">
+                        <form action="../auth.php" method="POST" class="space-y-3">
                             <div>
-                                <label for="identifier" class="block text-sm font-semibold text-gray-700 mb-2">Mobile number</label>
+                                <label for="identifier" class="block text-[11px] font-semibold text-gray-700 mb-0.5">Mobile number</label>
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
-                                        <i class="fas fa-user"></i>
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="fas fa-user text-xs"></i>
                                     </span>
                                     <input type="text" id="identifier" name="identifier" required
-                                           class="w-full pl-11 pr-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
+                                           class="w-full pl-10 pr-4 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
                                            placeholder="Enter Mobile number">
                                 </div>
                             </div>
 
                             <div>
-                                <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                                <label for="password" class="block text-[11px] font-semibold text-gray-700 mb-0.5">Password</label>
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
-                                        <i class="fas fa-lock"></i>
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                                        <i class="fas fa-lock text-xs"></i>
                                     </span>
                                     <input type="password" id="password" name="password" required
-                                           class="w-full pl-11 pr-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
+                                           class="w-full pl-10 pr-4 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
                                            placeholder="••••••••">
                                 </div>
                             </div>
                             
-                            <div class="flex items-center justify-between text-sm">
+                            <div class="flex items-center justify-between text-[10px]">
                                 <label class="flex items-center text-gray-500 cursor-pointer">
-                                    <input type="checkbox" class="form-checkbox text-red-600 rounded w-4 h-4">
-                                    <span class="ml-2">Remember Me</span>
+                                    <input type="checkbox" class="form-checkbox text-red-600 rounded w-3 h-3">
+                                    <span class="ml-1.5">Remember Me</span>
                                 </label>
                                 <a href="#" class="text-red-600 hover:text-red-700 font-medium">Forgot Password?</a>
                             </div>
 
                             <button type="submit" name="login"
-                                    class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3.5 px-6 rounded-xl hover:from-red-700 hover:to-red-800 font-bold text-base shadow-lg hover:shadow-red-500/30 transition transform hover:-translate-y-0.5">
+                                    class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2.5 px-6 rounded-xl hover:from-red-700 hover:to-red-800 font-bold text-xs shadow-lg hover:shadow-red-500/30 transition transform hover:-translate-y-0.5">
                                 Sign In
                             </button>
                         </form>
 
-                        <div class="mt-6 text-center pt-6 border-t border-gray-100">
-                            <p class="text-sm text-gray-500">
+                        <div class="mt-3 text-center pt-3 border-t border-gray-100">
+                            <p class="text-[10px] text-gray-500">
                                 New here? 
                                 <a href="../register.php" class="text-red-600 hover:text-red-700 font-bold ml-1 hover:underline">
                                     Register
@@ -273,7 +273,7 @@ if ($is_logged_in && $role === 'student') {
             <div class="space-y-3">
                 <?php foreach ($chunks as $chunkIndex => $chunk): ?>
                 <!-- Bento Block -->
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-2 mx-14">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-2 mx-4">
                     <!-- Left: Large vertical image (spanning 6 columns) -->
                     <?php if (isset($chunk[0])): ?>
                     <div class="md:col-span-6 h-[350px] md:h-[700px] overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 

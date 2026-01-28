@@ -68,6 +68,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_publish']) && 
     exit;
 }
 
+// Handle fetch exam results via AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_exam_results']) && $role === 'teacher') {
+    $exam_id = intval($_POST['exam_id'] ?? 0);
+    
+    // Check if teacher owns this exam
+    $check_stmt = $conn->prepare("SELECT id, title FROM exams WHERE id = ? AND teacher_id = ?");
+    $check_stmt->bind_param("is", $exam_id, $user_id);
+    $check_stmt->execute();
+    if ($check_stmt->get_result()->num_rows === 0) {
+        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+        exit;
+    }
+    $check_stmt->close();
+
+    // Get attempts with student info
+    $results_query = "SELECT ea.*, u.first_name, u.second_name, u.user_id as student_id
+                      FROM exam_attempts ea
+                      INNER JOIN users u ON ea.student_id = u.user_id
+                      WHERE ea.exam_id = ? AND ea.status = 'completed'
+                      ORDER BY ea.score DESC";
+    $stmt = $conn->prepare($results_query);
+    $stmt->bind_param("i", $exam_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    $attempts = [];
+    $total_score = 0;
+    $max_score = -1;
+    $min_score = 101;
+    
+    while ($row = $result->fetch_assoc()) {
+        $row['student_name'] = trim($row['first_name'] . ' ' . $row['second_name']);
+        
+        // Calculate duration
+        $start = strtotime($row['start_time']);
+        $end = strtotime($row['end_time']);
+        $duration_seconds = max(0, $end - $start);
+        
+        $h = floor($duration_seconds / 3600);
+        $m = floor(($duration_seconds % 3600) / 60);
+        
+        $duration_text = "";
+        if ($h > 0) $duration_text .= $h . "h ";
+        $duration_text .= $m . "m";
+        
+        $row['duration_text'] = $duration_text;
+        
+        $score = floatval($row['score']);
+        $total_score += $score;
+        if ($score > $max_score) $max_score = $score;
+        if ($score < $min_score) $min_score = $score;
+        
+        $attempts[] = $row;
+    }
+    $stmt->close();
+    
+    $count = count($attempts);
+    echo json_encode([
+        'success' => true,
+        'attempts' => $attempts,
+        'overview' => [
+            'count' => $count,
+            'highest' => $count > 0 ? number_format($max_score, 1) : 0,
+            'lowest' => $count > 0 ? number_format($min_score, 1) : 0,
+            'average' => $count > 0 ? number_format($total_score / $count, 1) : 0
+        ]
+    ]);
+    exit;
+}
+
 // Get success message from URL
 if (isset($_GET['success'])) {
     $success_message = $_GET['success'];
@@ -293,8 +363,14 @@ if ($role === 'teacher') {
                                     
                                     <?php if ($role === 'teacher'): ?>
                                         <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                                            <span class="text-xs text-gray-400">Click to manage questions</span>
-                                            <i class="fas fa-arrow-right text-red-500"></i>
+                                            <button onclick="event.preventDefault(); event.stopPropagation(); viewResults(<?php echo $exam['id']; ?>, '<?php echo htmlspecialchars($exam['title'], ENT_QUOTES); ?>')" 
+                                                    class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                                                <i class="fas fa-chart-bar mr-2"></i>View Results
+                                            </button>
+                                            <div class="flex items-center text-gray-400 group-hover:text-red-500 transition-colors">
+                                                <span class="text-[10px] mr-2 uppercase tracking-widest font-bold">Manage</span>
+                                                <i class="fas fa-arrow-right text-xs"></i>
+                                            </div>
                                         </div>
                                     <?php else: ?>
                                         <!-- Student Actions -->
@@ -398,7 +474,162 @@ if ($role === 'teacher') {
     </div>
     <?php endif; ?>
 
+    <!-- Results Modal -->
+    <div id="resultsModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
+        <div class="relative top-10 mx-auto p-0 border-0 w-full max-w-4xl shadow-2xl rounded-2xl bg-white mb-10 overflow-hidden">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold text-white" id="modalExamTitle">Exam Results</h3>
+                    <p class="text-xs text-gray-400 uppercase tracking-widest">Teacher Report Overview</p>
+                </div>
+                <button onclick="closeResultsModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <!-- Overview Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center">
+                        <p class="text-[10px] text-blue-500 uppercase font-black tracking-widest mb-1">Participants</p>
+                        <h4 class="text-2xl font-black text-blue-900" id="statParticipants">0</h4>
+                    </div>
+                    <div class="bg-green-50 border border-green-100 p-4 rounded-xl text-center">
+                        <p class="text-[10px] text-green-500 uppercase font-black tracking-widest mb-1">Highest Mark</p>
+                        <h4 class="text-2xl font-black text-green-900" id="statHighest">0%</h4>
+                    </div>
+                    <div class="bg-red-50 border border-red-100 p-4 rounded-xl text-center">
+                        <p class="text-[10px] text-red-500 uppercase font-black tracking-widest mb-1">Lowest Mark</p>
+                        <h4 class="text-2xl font-black text-red-900" id="statLowest">0%</h4>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl text-center">
+                        <p class="text-[10px] text-purple-500 uppercase font-black tracking-widest mb-1">Average</p>
+                        <h4 class="text-2xl font-black text-purple-900" id="statAverage">0%</h4>
+                    </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 border-b border-gray-100 text-[10px] uppercase font-bold text-gray-500">
+                            <tr>
+                                <th class="px-6 py-4">Student</th>
+                                <th class="px-6 py-4">Duration</th>
+                                <th class="px-6 py-4 text-center">Correct</th>
+                                <th class="px-6 py-4 text-right">Final Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody" class="divide-y divide-gray-50 text-sm">
+                            <!-- Data injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noResultsMsg" class="hidden py-10 text-center">
+                    <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-users-slash text-gray-300 text-xl"></i>
+                    </div>
+                    <p class="text-gray-500 font-medium">No students have completed this exam yet.</p>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 px-6 py-4 flex justify-end border-t border-gray-100">
+                <button onclick="closeResultsModal()" class="px-6 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 font-bold text-xs uppercase tracking-widest transition-colors">
+                    Close Report
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        function viewResults(examId, examTitle) {
+            const modal = document.getElementById('resultsModal');
+            document.getElementById('modalExamTitle').textContent = examTitle;
+            modal.classList.remove('hidden');
+            
+            // Show loading state
+            document.getElementById('resultsTableBody').innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400 italic"><i class="fas fa-spinner fa-spin mr-2"></i>Loading results...</td></tr>';
+            
+            const formData = new FormData();
+            formData.append('get_exam_results', '1');
+            formData.append('exam_id', examId);
+            
+            fetch('exam_center.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderResults(data);
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to fetch results'));
+                    closeResultsModal();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while fetching results');
+                closeResultsModal();
+            });
+        }
+
+        function renderResults(data) {
+            // Update stats
+            document.getElementById('statParticipants').textContent = data.overview.count;
+            document.getElementById('statHighest').textContent = data.overview.highest + '%';
+            document.getElementById('statLowest').textContent = data.overview.lowest + '%';
+            document.getElementById('statAverage').textContent = data.overview.average + '%';
+            
+            const tbody = document.getElementById('resultsTableBody');
+            const noResults = document.getElementById('noResultsMsg');
+            
+            if (data.attempts.length === 0) {
+                tbody.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            noResults.classList.add('hidden');
+            tbody.innerHTML = data.attempts.map(attempt => `
+                <tr class="hover:bg-gray-50/50 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-gray-800">${attempt.student_name}</div>
+                        <div class="text-[10px] text-gray-400">ID: ${attempt.student_id}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center text-gray-600">
+                            <i class="far fa-clock text-gray-300 mr-2 text-xs"></i>
+                            ${attempt.duration_text}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-center font-medium text-gray-700">
+                        ${attempt.correct_count} / ${attempt.total_questions}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="inline-block px-3 py-1 rounded-full font-black text-xs ${getScoreClass(attempt.score)}">
+                            ${parseFloat(attempt.score).toFixed(1)}%
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getScoreClass(score) {
+            score = parseFloat(score);
+            if (score >= 75) return 'bg-green-100 text-green-700';
+            if (score >= 50) return 'bg-blue-100 text-blue-700';
+            if (score >= 35) return 'bg-yellow-100 text-yellow-700';
+            return 'bg-red-100 text-red-700';
+        }
+
+        function closeResultsModal() {
+            document.getElementById('resultsModal').classList.add('hidden');
+        }
+
         function openExamModal() {
             document.getElementById('examModal').classList.remove('hidden');
         }

@@ -217,6 +217,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
@@ -979,10 +980,9 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
         .video-info {
             padding: 1.5rem;
             background: #0f0f0f;
-            border-top: 1px solid #333;
+            border-top: 1px solid #222;
             width: 100%;
         }
-
 
         /* Hide video info in fullscreen */
         .player-container:fullscreen .video-info,
@@ -993,33 +993,107 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
         }
 
         .video-title {
-            font-size: 1.25rem;
-            font-weight: 600;
+            font-size: 1.5rem;
+            font-weight: 700;
             color: white;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1.25rem;
+            line-height: 1.2;
+            font-family: 'Outfit', sans-serif;
+            word-wrap: break-word;
         }
 
-        .video-meta {
+        @media (max-width: 768px) {
+            .video-info {
+                padding: 1rem;
+            }
+            .video-title {
+                font-size: 1.25rem;
+                margin-bottom: 1rem;
+            }
+            .video-meta-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            .video-badges {
+                order: 2;
+            }
+            .teacher-profile {
+                order: 1;
+            }
+        }
+
+        .video-meta-container {
             display: flex;
+            align-items: center;
+            justify-content: space-between;
             gap: 1.5rem;
-            font-size: 0.875rem;
-            color: #9ca3af;
-            align-items: center;
             flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #222;
         }
 
-        .video-meta .teacher-info {
+        .teacher-profile {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 1rem;
         }
 
-        .video-meta .teacher-avatar {
-            width: 32px;
-            height: 32px;
+        .teacher-avatar {
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #dc2626;
+            background: #252525;
+        }
+
+        .teacher-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .teacher-name {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        .video-date {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        .video-badges {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.35rem 0.75rem;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            color: #ccc;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge i {
+            color: #dc2626;
+            font-size: 0.8rem;
+        }
+
+        .video-description {
+            color: #9ca3af;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            max-width: 800px;
         }
 
         /* Downloads Section */
@@ -1185,99 +1259,116 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             line-height: 1.4;
         }
 
-        .other-video-card-date {
-            font-size: 0.75rem;
-            color: #9ca3af;
-        }
 
         .files-list {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
         }
 
         .file-item {
             display: flex;
             flex-direction: column;
-            padding: 1.25rem;
+            padding: 0.85rem;
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 0.75rem;
-            transition: all 0.3s;
-            cursor: pointer;
+            transition: all 0.2s;
+            gap: 0.6rem;
             position: relative;
-            overflow: hidden;
         }
 
         .file-item:hover {
-            background: #252525;
-            border-color: #dc2626;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+            background: #222;
+            border-color: #444;
         }
 
         .file-icon {
-            width: 64px;
-            height: 64px;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #252525 0%, #1a1a1a 100%);
-            border-radius: 0.75rem;
-            font-size: 2rem;
+            background: #222;
+            border-radius: 0.35rem;
+            font-size: 0.9rem;
             color: #dc2626;
-            margin: 0 auto 1rem;
-            border: 2px solid #333;
-        }
-
-        .file-item:hover .file-icon {
-            border-color: #dc2626;
-            transform: scale(1.05);
+            border: 1px solid #333;
         }
 
         .file-info {
-            flex: 1;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-
-        .file-name {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 0.75rem;
-            word-break: break-word;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            width: 100%;
+            text-align: left;
+            min-width: 0;
             overflow: hidden;
         }
 
-        .file-meta {
+        .file-name {
             font-size: 0.75rem;
-            color: #9ca3af;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            align-items: center;
+            font-weight: 600;
+            color: #eee;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
         }
 
-        .file-meta span {
+        .file-meta {
+            font-size: 0.6rem;
+            color: #666;
             display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
             align-items: center;
-            gap: 0.5rem;
         }
 
         .file-actions {
             display: flex;
             width: 100%;
-            margin-top: auto;
+            margin-top: 0.25rem;
         }
 
         .file-download-btn {
             width: 100%;
-            padding: 0.75rem;
+            padding: 0.4rem;
+            background: #252525;
+            color: #eee;
+            border: 1px solid #333;
+            border-radius: 0.35rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .file-download-btn:hover {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+        
+        .uploads-section .file-icon { color: #059669; }
+        .uploads-section .file-download-btn:hover { background: #059669; border-color: #059669; }
+        .uploads-section .file-item:hover { border-color: #059669; }
+        
+        .files-empty, .files-loading {
+            font-size: 0.75rem;
+            color: #555;
+            padding: 1rem;
+            text-align: center;
+            background: rgba(255,255,255,0.02);
+            border-radius: 0.5rem;
+            border: 1px dashed #222;
+        }
+        
+        .upload-toggle-btn {
+            padding: 0.5rem 1rem;
             background: #dc2626;
             color: white;
             border: none;
@@ -1288,45 +1379,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             transition: background 0.2s;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 0.5rem;
-            text-decoration: none;
         }
 
-        .file-download-btn:hover {
+        .upload-toggle-btn:hover {
             background: #b91c1c;
-        }
-
-        /* Responsive grid */
-        @media (max-width: 1400px) {
-            .files-list {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-
-        @media (max-width: 1024px) {
-            .files-list {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .files-list {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 480px) {
-            .files-list {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .files-loading, .files-empty {
-            text-align: center;
-            padding: 2rem;
-            color: #9ca3af;
-            font-size: 0.875rem;
         }
 
         .upload-area {
@@ -2404,9 +2461,9 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 <!-- Video Info -->
                 <div class="video-info">
                     <h1 class="video-title"><?php echo htmlspecialchars($current_recording['title']); ?></h1>
-                    <div class="video-meta">
-                        <!-- Teacher Info -->
-                        <span class="teacher-info">
+                    
+                    <div class="video-meta-container">
+                        <div class="teacher-profile">
                             <?php 
                             $teacher_name = trim(($current_recording['first_name'] ?? '') . ' ' . ($current_recording['second_name'] ?? ''));
                             $profile_picture = $current_recording['profile_picture'] ?? '';
@@ -2422,23 +2479,25 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                                      alt="<?php echo htmlspecialchars($teacher_name); ?>"
                                      class="teacher-avatar">
                             <?php endif; ?>
-                            <span>
-                                <i class="fas fa-user mr-1"></i>
-                                <?php echo htmlspecialchars($teacher_name); ?>
-                            </span>
-                        </span>
-                        <span>
-                            <i class="fas fa-book mr-1"></i>
-                            <?php echo htmlspecialchars($current_recording['subject_name']); ?>
-                        </span>
-                        <span>
-                            <i class="fas fa-graduation-cap mr-1"></i>
-                            <?php echo htmlspecialchars($current_recording['stream_name']); ?>
-                        </span>
-                        <span>
-                            <i class="far fa-calendar mr-1"></i>
-                            <?php echo date('F d, Y', strtotime($current_recording['created_at'])); ?>
-                        </span>
+                            <div class="teacher-details">
+                                <span class="teacher-name"><?php echo htmlspecialchars($teacher_name); ?></span>
+                                <span class="video-date">
+                                    <i class="far fa-calendar-alt mr-1"></i>
+                                    <?php echo date('F d, Y', strtotime($current_recording['created_at'])); ?>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="video-badges">
+                            <div class="badge">
+                                <i class="fas fa-book"></i>
+                                <?php echo htmlspecialchars($current_recording['subject_name']); ?>
+                            </div>
+                            <div class="badge">
+                                <i class="fas fa-graduation-cap"></i>
+                                <?php echo htmlspecialchars($current_recording['stream_name']); ?>
+                            </div>
+                        </div>
                     </div>
                     <?php if ($role === 'student' && $watch_limit > 0): ?>
                         <div class="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
@@ -2455,7 +2514,10 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         </div>
                     <?php endif; ?>
                     <?php if ($current_recording['description']): ?>
-                        <p class="text-gray-300 mt-3 text-sm"><?php echo htmlspecialchars($current_recording['description']); ?></p>
+                        <div class="video-description">
+                            <div class="text-white font-semibold mb-1 text-sm uppercase tracking-wider opacity-50">Description</div>
+                            <?php echo nl2br(htmlspecialchars($current_recording['description'])); ?>
+                        </div>
                     <?php endif; ?>
                     
                     <!-- End Live Class Button (for teachers only, in description section) -->
@@ -2468,60 +2530,63 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     </div>
                     <?php endif; ?>
 
-                    <!-- Downloads Section (Teacher Files) -->
-                    <div class="downloads-section mt-4">
-                        <div class="section-header">
-                            <h3 class="section-title">
-                                <i class="fas fa-download mr-2"></i>
-                                Downloads
-                            </h3>
-                            <?php if ($role === 'student' || $role === 'teacher'): ?>
-                            <button class="upload-toggle-btn" id="upload-toggle-btn" onclick="toggleUploadArea()">
-                                <i class="fas fa-upload"></i>
-                                Upload File
-                            </button>
-                            <?php endif; ?>
-                        </div>
-                        <?php if ($role === 'student' || $role === 'teacher'): ?>
-                        <div class="upload-area" id="upload-area" style="display: none;">
-                            <form id="upload-form" enctype="multipart/form-data">
-                                <input type="hidden" name="recording_id" value="<?php echo $recording_id; ?>">
-                                <div class="upload-input-wrapper">
-                                    <input type="file" id="file-input" name="file" accept="*/*" style="display: none;">
-                                    <label for="file-input" class="upload-label">
-                                        <i class="fas fa-cloud-upload-alt"></i>
-                                        <span>Click to select file or drag and drop</span>
-                                        <small>Maximum file size: 50MB</small>
-                                    </label>
-                                </div>
-                                <div class="upload-progress" id="upload-progress" style="display: none;">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="progress-fill"></div>
-                                    </div>
-                                    <span class="progress-text" id="progress-text">0%</span>
-                                </div>
-                                <button type="submit" class="upload-btn" id="upload-btn" style="display: none;">
+                    <div class="files-container">
+                        <!-- Downloads Section (Teacher Files) -->
+                        <div class="downloads-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <i class="fas fa-download mr-2"></i>
+                                    Downloads
+                                </h3>
+                                <?php if ($role === 'student' || $role === 'teacher'): ?>
+                                <button onclick="toggleUploadArea()" class="upload-toggle-btn">
                                     <i class="fas fa-upload"></i>
-                                    Upload File
+                                    Upload
                                 </button>
-                            </form>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <?php if ($role === 'student' || $role === 'teacher'): ?>
+                            <div class="upload-area" id="upload-area" style="display: none;">
+                                <form id="upload-form" enctype="multipart/form-data">
+                                    <input type="hidden" name="recording_id" value="<?php echo $recording_id; ?>">
+                                    <div class="upload-input-wrapper">
+                                        <input type="file" id="file-input" name="file" accept="*/*" style="display: none;">
+                                        <label for="file-input" class="upload-label">
+                                            <i class="fas fa-cloud-upload-alt"></i>
+                                            <span>Select file</span>
+                                        </label>
+                                    </div>
+                                    <div class="upload-progress" id="upload-progress" style="display: none;">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" id="progress-fill"></div>
+                                        </div>
+                                        <span class="progress-text" id="progress-text" style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; display: block; text-align: center;">0%</span>
+                                    </div>
+                                    <button type="submit" class="upload-btn" id="upload-btn" style="display: none;">
+                                        <i class="fas fa-upload mr-2"></i>
+                                        Upload File
+                                    </button>
+                                </form>
+                            </div>
+                            <?php endif; ?>
+
+                            <div class="files-list" id="downloads-list">
+                                <div class="files-loading">Loading...</div>
+                            </div>
                         </div>
-                        <?php endif; ?>
-                        <div class="files-list" id="downloads-list">
-                            <div class="files-loading">Loading files...</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Uploads Section (Student Files) -->
-                    <div class="uploads-section mt-4">
-                        <div class="section-header">
-                            <h3 class="section-title">
-                                <i class="fas fa-upload mr-2"></i>
-                                Uploads
-                            </h3>
-                        </div>
-                        <div class="files-list" id="uploads-list">
-                            <div class="files-loading">Loading files...</div>
+                        
+                        <!-- Uploads Section (Student Files) -->
+                        <div class="uploads-section">
+                            <div class="section-header">
+                                <h3 class="section-title">
+                                    <i class="fas fa-upload mr-2"></i>
+                                    Uploads
+                                </h3>
+                            </div>
+                            <div class="files-list" id="uploads-list">
+                                <div class="files-loading">Loading...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3693,20 +3758,22 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 }
 
                 const formData = new FormData(uploadForm);
+                // remove the file if it's already there to prevent double appends which some servers don't like
+                formData.delete('file'); 
                 formData.append('file', file);
 
                 uploadBtn.disabled = true;
                 progressContainer.style.display = 'block';
-                progressFill.style.width = '0%';
-                progressText.textContent = '0%';
+                if (progressFill) progressFill.style.width = '0%';
+                if (progressText) progressText.textContent = '0%';
 
                 const xhr = new XMLHttpRequest();
 
                 xhr.upload.addEventListener('progress', function(e) {
                     if (e.lengthComputable) {
                         const percentComplete = (e.loaded / e.total) * 100;
-                        progressFill.style.width = percentComplete + '%';
-                        progressText.textContent = Math.round(percentComplete) + '%';
+                        if (progressFill) progressFill.style.width = percentComplete + '%';
+                        if (progressText) progressText.textContent = Math.round(percentComplete) + '%';
                     }
                 });
 
@@ -3715,11 +3782,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         try {
                             const response = JSON.parse(xhr.responseText);
                             if (response.success) {
-                                progressFill.style.width = '100%';
-                                progressText.textContent = '100%';
+                                if (progressFill) progressFill.style.width = '100%';
+                                if (progressText) progressText.textContent = '100%';
                                 setTimeout(() => {
-                                    progressContainer.style.display = 'none';
-                                    uploadForm.reset();
+                                    if (progressContainer) progressContainer.style.display = 'none';
+                                    if (uploadForm) uploadForm.reset();
                                     uploadBtn.style.display = 'none';
                                     const uploadArea = document.getElementById('upload-area');
                                     const uploadLabel = uploadArea ? uploadArea.querySelector('.upload-label') : null;
@@ -3798,14 +3865,21 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 const downloadsList = document.getElementById('downloads-list');
                 const uploadsList = document.getElementById('uploads-list');
                 
+                const isTeacher = '<?php echo $role; ?>' === 'teacher';
+                const currentUserId = '<?php echo $user_id; ?>';
+                
                 // Separate files by uploader role
                 const teacherFiles = files.filter(file => file.uploader_role === 'teacher');
-                const studentFiles = files.filter(file => file.uploader_role === 'student');
+                // For students: only show their own uploads. For teachers: show all student uploads.
+                const studentFiles = files.filter(file => {
+                    if (file.uploader_role !== 'student') return false;
+                    return isTeacher || file.uploaded_by === currentUserId || file.is_own_file;
+                });
                 
                 // Render teacher files in Downloads section
                 if (downloadsList) {
                     if (teacherFiles.length === 0) {
-                        downloadsList.innerHTML = '<div class="files-empty">No files available from teacher</div>';
+                        downloadsList.innerHTML = '<div class="files-empty">No downloads</div>';
                     } else {
                         downloadsList.innerHTML = teacherFiles.map(file => renderFileItem(file)).join('');
                     }
@@ -3814,7 +3888,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 // Render student files in Uploads section
                 if (uploadsList) {
                     if (studentFiles.length === 0) {
-                        uploadsList.innerHTML = '<div class="files-empty">No files uploaded by students</div>';
+                        uploadsList.innerHTML = '<div class="files-empty">No uploads</div>';
                     } else {
                         uploadsList.innerHTML = studentFiles.map(file => renderFileItem(file)).join('');
                     }
@@ -3827,7 +3901,7 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 const uploadDate = formatFileDate(file.upload_date);
                 const uploaderInfo = file.is_own_file 
                     ? 'You' 
-                    : `${file.uploader_name} (${file.uploader_role === 'teacher' ? 'Teacher' : 'Student'})`;
+                    : file.uploader_name;
 
                 return `
                     <div class="file-item">
@@ -3835,11 +3909,13 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                             <i class="${fileIcon}"></i>
                         </div>
                         <div class="file-info">
-                            <div class="file-name" title="${escapeHtml(file.file_name)}">${escapeHtml(file.file_name)}</div>
+                            <div class="file-name" title="${escapeHtml(uploaderInfo)}">${escapeHtml(uploaderInfo)}</div>
+                            <div style="font-size: 0.65rem; color: #aaa; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(file.file_name)}">
+                                ${escapeHtml(file.file_name)}
+                            </div>
                             <div class="file-meta">
-                                <span><i class="fas fa-user"></i> ${escapeHtml(uploaderInfo)}</span>
-                                <span><i class="fas fa-calendar"></i> ${uploadDate}</span>
-                                <span><i class="fas fa-weight"></i> ${fileSize}</span>
+                                <span>${uploadDate}</span>
+                                <span>${fileSize}</span>
                             </div>
                         </div>
                         <div class="file-actions">
