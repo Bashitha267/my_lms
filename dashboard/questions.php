@@ -606,82 +606,74 @@ $questions_stmt->close();
             }
         }
         
-        function saveAndClose(questionId) {
-            const card = document.querySelector(`[data-question-id="${questionId}"]`);
+        async function saveAndClose(questionId) {
             const editEl = document.getElementById(`edit-${questionId}`);
             const btn = document.getElementById(`save-btn-${questionId}`);
+            const originalBtnHtml = btn.innerHTML;
             
-            // Get question data from edit form
+            // Gather data
             const questionText = editEl.querySelector('.question-text').value;
             const questionType = editEl.querySelector('.question-type-select').value;
-            
-            // Get all answers
             const answerRows = editEl.querySelectorAll('.answer-row');
-            const answers = [];
-            answerRows.forEach(row => {
-                answers.push({
-                    id: row.dataset.answerId,
-                    text: row.querySelector('.answer-text').value,
-                    is_correct: row.querySelector('.correct-checkbox').checked ? 1 : 0
-                });
-            });
             
-            // Show loading
+            const answers = Array.from(answerRows).map(row => ({
+                id: row.dataset.answerId,
+                text: row.querySelector('.answer-text').value,
+                is_correct: row.querySelector('.correct-checkbox').checked
+            }));
+
+            // UI Feedback
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
             btn.disabled = true;
-            
-            // Save question
-            const formData = new FormData();
-            formData.append('action', 'update_question');
-            formData.append('question_id', questionId);
-            formData.append('question_text', questionText);
-            formData.append('question_type', questionType);
-            
-            fetch(`questions.php?exam_id=${examId}`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Save answers
-                    const answerPromises = answers.map(answer => {
-                        const answerData = new FormData();
-                        answerData.append('action', 'update_answer');
-                        answerData.append('answer_id', answer.id);
-                        answerData.append('answer_text', answer.text);
-                        return fetch(`questions.php?exam_id=${examId}`, {
-                            method: 'POST',
-                            body: answerData
-                        });
-                    });
-                    
-                    // Save correct answers
+
+            try {
+                // 1. Update Question Text and Type
+                const qFormData = new FormData();
+                qFormData.append('action', 'update_question');
+                qFormData.append('question_id', questionId);
+                qFormData.append('question_text', questionText);
+                qFormData.append('question_type', questionType);
+
+                const qResponse = await fetch(`questions.php?exam_id=${examId}`, { method: 'POST', body: qFormData });
+                const qResult = await qResponse.json();
+                if (!qResult.success) throw new Error(qResult.error || 'Failed to save question text');
+
+                // 2. Update all Answers in parallel
+                const answerPromises = answers.map(async (ans) => {
+                    const aFormData = new FormData();
+                    aFormData.append('action', 'update_answer');
+                    aFormData.append('answer_id', ans.id);
+                    aFormData.append('answer_text', ans.text);
+                    const aResponse = await fetch(`questions.php?exam_id=${examId}`, { method: 'POST', body: aFormData });
+                    const aResult = await aResponse.json();
+                    if (!aResult.success) throw new Error(aResult.error || 'Failed to save answer');
+                });
+
+                // 3. Set Correct Answers
+                const correctPromise = (async () => {
                     const correctAnswers = answers.filter(a => a.is_correct).map(a => parseInt(a.id));
-                    const correctData = new FormData();
-                    correctData.append('action', 'set_correct');
-                    correctData.append('question_id', questionId);
-                    correctData.append('correct_answers', JSON.stringify(correctAnswers));
-                    answerPromises.push(fetch(`questions.php?exam_id=${examId}`, {
-                        method: 'POST',
-                        body: correctData
-                    }));
-                    
-                    return Promise.all(answerPromises);
-                } else {
-                    throw new Error('Failed to save');
-                }
-            })
-            .then(() => {
-                // Reload to show updated view
-                location.reload();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                btn.innerHTML = '<i class="fas fa-save mr-2"></i>Save';
+                    const cFormData = new FormData();
+                    cFormData.append('action', 'set_correct');
+                    cFormData.append('question_id', questionId);
+                    cFormData.append('correct_answers', JSON.stringify(correctAnswers));
+                    const cResponse = await fetch(`questions.php?exam_id=${examId}`, { method: 'POST', body: cFormData });
+                    const cResult = await cResponse.json();
+                    if (!cResult.success) throw new Error(cResult.error || 'Failed to set correct answers');
+                })();
+
+                await Promise.all([...answerPromises, correctPromise]);
+
+                // Success! Clear URL and reload
+                const url = new URL(window.location);
+                url.searchParams.delete('edit');
+                window.location.href = url.toString();
+
+            } catch (error) {
+                console.error('Save Error:', error);
+                alert('Save Failed: ' + error.message);
+                btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
-                alert('Error saving question');
-            });
+            }
         }
         
         function saveQuestion(questionId) {
@@ -981,6 +973,8 @@ $questions_stmt->close();
             formData.append('question_id', questionId);
             formData.append('image', input.files[0]);
             
+            // Show loading state if desired (optional)
+            
             fetch(`questions.php?exam_id=${examId}`, {
                 method: 'POST',
                 body: formData
@@ -988,25 +982,36 @@ $questions_stmt->close();
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.image_id && data.image_path) {
-                    // Add new image to the container without reload
-                    const container = document.querySelector(`#edit-${questionId} .images-container`);
-                    const addBtn = container.querySelector('button:last-child');
+                    // Find the container relative to the input
+                    const container = input.closest('.images-container');
+                    // Find the specific add button (the last element that triggers file click)
+                    const addBtn = Array.from(container.querySelectorAll('button')).find(b => b.innerHTML.includes('fa-plus'));
                     
                     const imageDiv = document.createElement('div');
                     imageDiv.className = 'relative inline-block';
                     imageDiv.setAttribute('data-image-id', data.image_id);
                     imageDiv.innerHTML = `
-                        <img src="../${data.image_path}" class="h-14 w-14 object-cover rounded border" alt="">
-                        <button type="button" onclick="removeQuestionImage(${data.image_id})" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center hover:bg-red-600">
+                        <img src="../${data.image_path}" class="h-14 w-14 object-cover rounded border shadow-sm" alt="Preview">
+                        <button type="button" onclick="removeQuestionImage(${data.image_id})" 
+                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center hover:bg-red-600 shadow-sm border border-white">
                             <i class="fas fa-times" style="font-size: 8px;"></i>
                         </button>
                     `;
                     
-                    container.insertBefore(imageDiv, addBtn);
-                    input.value = ''; // Clear file input
+                    if (addBtn) {
+                        container.insertBefore(imageDiv, addBtn);
+                    } else {
+                        container.appendChild(imageDiv);
+                    }
+                    
+                    input.value = ''; // Clear file input for next upload
                 } else {
                     alert(data.error || 'Error uploading image');
                 }
+            })
+            .catch(err => {
+                console.error('Upload error:', err);
+                alert('Connection error while uploading image');
             });
         }
         

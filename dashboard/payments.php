@@ -338,6 +338,21 @@ if ($role === 'student') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payments - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .premium-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .premium-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
@@ -345,9 +360,12 @@ if ($role === 'student') {
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Header -->
-            <div class="bg-white rounded-lg shadow border border-red-500 p-6 mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Payments</h1>
-                <p class="text-gray-600">Manage your payments and fees</p>
+            <div class="premium-card rounded-3xl p-8 mb-8 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-red-50 rounded-full -mr-32 -mt-32 opacity-50"></div>
+                <div class="relative z-10">
+                    <h1 class="text-3xl font-black text-gray-900 mb-2">Payments & Fees</h1>
+                    <p class="text-gray-500 font-medium">Manage your active enrollments and transaction history</p>
+                </div>
             </div>
 
             <!-- Success/Error Messages -->
@@ -366,19 +384,24 @@ if ($role === 'student') {
                 <!-- Student View -->
                 <div class="space-y-6">
                     <!-- Enrollments with Payment Status -->
-                    <div class="bg-white rounded-lg shadow border border-red-500 overflow-hidden">
-                        <div class="p-6 border-b border-red-100 bg-red-50">
-                            <h2 class="text-2xl font-bold text-gray-900">My Enrollments</h2>
+                    <div class="mb-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-gray-900 flex items-center gap-3">
+                                <span class="w-1.5 h-8 bg-red-600 rounded-full"></span>
+                                My Enrollments
+                            </h2>
                         </div>
-                        <div class="p-6">
-                            <?php if (empty($enrollments)): ?>
-                                <p class="text-gray-500 text-center py-8">No active enrollments found.</p>
-                            <?php else: ?>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <?php foreach ($enrollments as $enrollment): ?>
-                                        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group">
-                                            <div class="h-2 bg-gradient-to-r from-red-500 to-red-600"></div>
-                                            <div class="p-6">
+                        
+                        <?php if (empty($enrollments)): ?>
+                            <div class="premium-card rounded-2xl p-12 text-center text-gray-400">
+                                <i class="fas fa-folder-open text-4xl mb-4 text-gray-200"></i>
+                                <p class="font-medium text-lg">No active enrollments found.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <?php foreach ($enrollments as $enrollment): ?>
+                                    <div class="premium-card rounded-2xl overflow-hidden border-t-4 border-red-600 flex flex-col">
+                                        <div class="p-6 flex-1">
                                                 <div class="flex items-start justify-between mb-4">
                                                     <div>
                                                         <h3 class="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors"><?php echo htmlspecialchars($enrollment['subject_name']); ?></h3>
@@ -392,37 +415,39 @@ if ($role === 'student') {
                                                     </div>
                                                 </div>
 
-                                                <div class="grid grid-cols-2 gap-3 mb-6">
-                                                    <!-- Enrollment Status -->
-                                                    <?php 
-                                                    $enroll_status = $enrollment['enroll_payment_status'] ?? null;
-                                                    ?>
-                                                    <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col items-center">
-                                                        <span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Enrollment</span>
-                                                        <?php if ($enroll_status === 'paid'): ?>
-                                                            <span class="text-xs font-bold text-green-600 flex items-center"><i class="fas fa-check-circle mr-1"></i> Paid</span>
-                                                        <?php elseif ($enroll_status === 'pending'): ?>
-                                                            <span class="text-xs font-bold text-yellow-600 flex items-center"><i class="fas fa-clock mr-1"></i> Pending</span>
-                                                        <?php else: ?>
-                                                            <span class="text-xs font-bold text-red-600 flex items-center"><i class="fas fa-exclamation-circle mr-1"></i> Unpaid</span>
-                                                        <?php endif; ?>
+                                            <div class="flex flex-col gap-3 mb-6">
+                                                <!-- Enrollment Status -->
+                                                <?php $enroll_status = $enrollment['enroll_payment_status'] ?? null; ?>
+                                                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                                                    <div class="flex items-center">
+                                                        <div class="w-2 h-2 rounded-full mr-3 <?php echo $enroll_status === 'paid' ? 'bg-green-500' : 'bg-red-500'; ?>"></div>
+                                                        <span class="text-[11px] text-gray-400 uppercase font-black tracking-widest">Enrollment Fee</span>
                                                     </div>
-
-                                                    <!-- Monthly Status -->
-                                                    <?php 
-                                                    $monthly_status = $enrollment['monthly_payment_status'] ?? null;
-                                                    ?>
-                                                    <div class="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col items-center">
-                                                        <span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1"><?php echo date('F'); ?></span>
-                                                        <?php if ($monthly_status === 'paid'): ?>
-                                                            <span class="text-xs font-bold text-green-600 flex items-center"><i class="fas fa-check-circle mr-1"></i> Paid</span>
-                                                        <?php elseif ($monthly_status === 'pending'): ?>
-                                                            <span class="text-xs font-bold text-yellow-600 flex items-center"><i class="fas fa-clock mr-1"></i> Pending</span>
-                                                        <?php else: ?>
-                                                            <span class="text-xs font-bold text-red-600 flex items-center"><i class="fas fa-exclamation-circle mr-1"></i> Unpaid</span>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                    <?php if ($enroll_status === 'paid'): ?>
+                                                        <span class="text-xs font-black text-green-600 px-3 py-1 bg-green-50 rounded-lg">PAID</span>
+                                                    <?php elseif ($enroll_status === 'pending'): ?>
+                                                        <span class="text-xs font-black text-yellow-600 px-3 py-1 bg-yellow-50 rounded-lg">PENDING</span>
+                                                    <?php else: ?>
+                                                        <span class="text-xs font-black text-red-600 px-3 py-1 bg-red-50 rounded-lg">UNPAID</span>
+                                                    <?php endif; ?>
                                                 </div>
+
+                                                <!-- Monthly Status -->
+                                                <?php $monthly_status = $enrollment['monthly_payment_status'] ?? null; ?>
+                                                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+                                                    <div class="flex items-center">
+                                                        <div class="w-2 h-2 rounded-full mr-3 <?php echo $monthly_status === 'paid' ? 'bg-green-500' : 'bg-red-500'; ?>"></div>
+                                                        <span class="text-[11px] text-gray-400 uppercase font-black tracking-widest"><?php echo strtoupper(date('F')); ?> FEE</span>
+                                                    </div>
+                                                    <?php if ($monthly_status === 'paid'): ?>
+                                                        <span class="text-xs font-black text-green-600 px-3 py-1 bg-green-50 rounded-lg">PAID</span>
+                                                    <?php elseif ($monthly_status === 'pending'): ?>
+                                                        <span class="text-xs font-black text-yellow-600 px-3 py-1 bg-yellow-50 rounded-lg">PENDING</span>
+                                                    <?php else: ?>
+                                                        <span class="text-xs font-black text-red-600 px-3 py-1 bg-red-50 rounded-lg">UNPAID</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
 
                                                 <div class="flex flex-col space-y-2">
                                                     <?php if (($enroll_status === null || $enroll_status === 'failed') && ($enrollment['fee_info']['enrollment_fee'] ?? 0) > 0): ?>
@@ -440,8 +465,9 @@ if ($role === 'student') {
                                                     <?php endif; ?>
                                                     
                                                     <?php if (($enroll_status === 'paid' || $enroll_status === 'pending') && ($monthly_status === 'paid' || $monthly_status === 'pending')): ?>
-                                                        <div class="text-center py-2 bg-green-50 text-green-700 rounded-xl text-xs font-bold">
-                                                            <i class="fas fa-shield-check mr-1"></i> Status Up to Date
+                                                        <div class="mt-4 pt-4 border-t border-gray-50 flex items-center justify-center gap-2 text-green-600 font-black text-[10px] tracking-widest uppercase">
+                                                            <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                                            Status Up to Date
                                                         </div>
                                                     <?php endif; ?>
                                                 </div>
@@ -454,26 +480,28 @@ if ($role === 'student') {
                     </div>
                     
                     <!-- Class Payments History -->
-                    <div class="bg-white rounded-lg shadow border border-red-500 overflow-hidden">
-                        <div class="p-6 border-b border-red-100 bg-red-50">
-                            <h2 class="text-2xl font-bold text-gray-900">Class Payments History</h2>
+                    <?php if (!empty($class_payments)): ?>
+                    <div class="mb-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-gray-900 flex items-center gap-3">
+                                <span class="w-1.5 h-8 bg-blue-600 rounded-full"></span>
+                                Transaction History
+                            </h2>
                         </div>
-                        <div class="p-6">
-                            <?php if (empty($class_payments)): ?>
-                                <p class="text-gray-500 text-center py-8">No class payments found.</p>
-                            <?php else: ?>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                            </tr>
-                                        </thead>
+                        
+                        <div class="premium-card rounded-2xl overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-100">
+                                    <thead>
+                                        <tr class="bg-gray-50/50">
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Period</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                                        </tr>
+                                    </thead>
                                         <tbody class="bg-white divide-y divide-gray-200">
                                             <?php foreach ($class_payments as $payment): ?>
                                                 <tr>
@@ -513,25 +541,27 @@ if ($role === 'student') {
                     </div>
 
                     <!-- Course Payments History -->
-                    <div class="bg-white rounded-lg shadow border border-red-500 overflow-hidden">
-                        <div class="p-6 border-b border-red-100 bg-red-50">
-                            <h2 class="text-2xl font-bold text-gray-900">Course Payments History</h2>
+                    <?php if (!empty($course_payments)): ?>
+                    <div class="mb-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-gray-900 flex items-center gap-3">
+                                <span class="w-1.5 h-8 bg-purple-600 rounded-full"></span>
+                                Course Subscriptions
+                            </h2>
                         </div>
-                        <div class="p-6">
-                            <?php if (empty($course_payments)): ?>
-                                <p class="text-gray-500 text-center py-8">No course payments found.</p>
-                            <?php else: ?>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                            </tr>
-                                        </thead>
+                        
+                        <div class="premium-card rounded-2xl overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-100">
+                                    <thead>
+                                        <tr class="bg-gray-50/50">
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Course</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                                        </tr>
+                                    </thead>
                                         <tbody class="bg-white divide-y divide-gray-200">
                                             <?php foreach ($course_payments as $payment): ?>
                                                 <tr>
@@ -563,9 +593,9 @@ if ($role === 'student') {
                                         </tbody>
                                     </table>
                                 </div>
-                            <?php endif; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
                 
             <?php elseif ($role === 'teacher'): ?>

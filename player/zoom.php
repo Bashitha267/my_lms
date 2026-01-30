@@ -88,17 +88,61 @@ $zoom_embed_url = '';
 if ($current_zoom_class && $can_access) {
     $zoom_link = $current_zoom_class['zoom_meeting_link'];
     
-    // Convert various Zoom URL formats to embed format
+    // Get user's full name for auto-fill
+    $user_name = '';
+    if (!empty($user_id)) {
+        // Fetch current user's name from database
+        $user_query = "SELECT first_name, second_name FROM users WHERE user_id = ? LIMIT 1";
+        $user_stmt = $conn->prepare($user_query);
+        $user_stmt->bind_param("s", $user_id);
+        $user_stmt->execute();
+        $user_result = $user_stmt->get_result();
+        
+        if ($user_result->num_rows > 0) {
+            $user_row = $user_result->fetch_assoc();
+            $user_name = trim(($user_row['first_name'] ?? '') . ' ' . ($user_row['second_name'] ?? ''));
+        }
+        $user_stmt->close();
+    }
+    
+    // Extract meeting ID and passcode from Zoom URL
+    $meeting_id = '';
+    $passcode = '';
+    
+    // Try to extract meeting ID and passcode from URL
     if (preg_match('/zoom\.us\/j\/(\d+)/', $zoom_link, $matches)) {
         $meeting_id = $matches[1];
+        
+        // Try to extract passcode from URL query string
+        $parsed_url = parse_url($zoom_link);
+        if (isset($parsed_url['query'])) {
+            parse_str($parsed_url['query'], $query_params);
+            if (isset($query_params['pwd'])) {
+                $passcode = $query_params['pwd'];
+            }
+        }
+        
+        // If no passcode in URL, use database passcode
+        if (empty($passcode) && !empty($current_zoom_class['zoom_passcode'])) {
+            $passcode = $current_zoom_class['zoom_passcode'];
+        }
+        
+        // Construct embed URL with all parameters
         $zoom_embed_url = "https://zoom.us/wc/join/" . $meeting_id;
         
-        // Add password if available
-        if (!empty($current_zoom_class['zoom_passcode'])) {
-            $zoom_embed_url .= "?pwd=" . urlencode($current_zoom_class['zoom_passcode']);
+        $params = [];
+        if (!empty($passcode)) {
+            $params['pwd'] = $passcode;
+        }
+        if (!empty($user_name)) {
+            $params['uname'] = $user_name;
+        }
+        
+        if (!empty($params)) {
+            $zoom_embed_url .= '?' . http_build_query($params);
         }
     } else {
-        // Use the link as-is
+        // Use the link as-is for non-standard formats
         $zoom_embed_url = $zoom_link;
     }
 }
@@ -135,98 +179,8 @@ if ($current_zoom_class && $can_access) {
             background: #000;
         }
 
-        /* Participants Sidebar */
-        .participants-sidebar {
-            width: 300px;
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid #333;
-            transition: transform 0.3s ease;
-        }
 
-        .participants-sidebar.hidden {
-            transform: translateX(-100%);
-        }
 
-        @media (max-width: 768px) {
-            .participants-sidebar {
-                position: absolute;
-                height: 100%;
-                z-index: 1000;
-                transform: translateX(-100%);
-            }
-            
-            .participants-sidebar.show {
-                transform: translateX(0);
-            }
-        }
-
-        .sidebar-header {
-            padding: 1rem;
-            background: #0f0f0f;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .sidebar-title {
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
-        }
-
-        .participant-item {
-            background: #252525;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .participant-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            background: #dc2626;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-        }
-
-        .participant-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .participant-name {
-            color: white;
-            font-size: 0.875rem;
-            font-weight: 500;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .participant-time {
-            color: #9ca3af;
-            font-size: 0.75rem;
-        }
 
         /* Main Zoom Area */
         .zoom-main {
@@ -349,7 +303,8 @@ if ($current_zoom_class && $can_access) {
             border-left: 1px solid #333;
         }
 
-        @media (max-width: 1024px) {
+
+        @media (max-width: 1024px), (max-height: 600px) and (orientation: landscape) {
             .right-sidebar {
                 position: absolute;
                 right: 0;
@@ -582,22 +537,31 @@ if ($current_zoom_class && $can_access) {
             align-items: center;
             justify-content: center;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 999;
+            z-index: 10000;
             cursor: pointer;
+            pointer-events: auto;
+            touch-action: manipulation;
         }
 
-        @media (max-width: 768px) {
+
+        @media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
             .floating-btn {
                 display: flex;
             }
         }
 
-        .btn-participants {
-            left: 1rem;
-        }
+
 
         .btn-chat {
             right: 1rem;
+        }
+        
+        /* Ensure floating buttons are always on top in mobile */
+        @media (max-width: 768px), (max-height: 500px) and (orientation: landscape) {
+            .btn-chat {
+                z-index: 10001 !important;
+                position: fixed !important;
+            }
         }
 
         .overlay-backdrop {
@@ -608,7 +572,7 @@ if ($current_zoom_class && $can_access) {
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
+            z-index: 9999;
         }
 
         .overlay-backdrop.show {
@@ -702,25 +666,6 @@ if ($current_zoom_class && $can_access) {
                 <span>Back</span>
             </a>
 
-            <!-- Participants Sidebar -->
-            <div class="participants-sidebar" id="participants-sidebar">
-                <div class="sidebar-header">
-                    <div class="sidebar-title">
-                        <i class="fas fa-users text-red-600"></i>
-                        Participants
-                        <span id="participant-count" class="text-sm text-gray-400">(0)</span>
-                    </div>
-                    <button class="control-btn" onclick="toggleParticipants()" style="width: auto; padding: 0.5rem;">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="sidebar-content" id="participants-list">
-                    <div class="empty-state">
-                        <i class="fas fa-user-friends"></i>
-                        <p>No participants yet</p>
-                    </div>
-                </div>
-            </div>
 
             <!-- Main Zoom Area -->
             <div class="zoom-main">
@@ -813,10 +758,6 @@ if ($current_zoom_class && $can_access) {
             </div>
         </div>
 
-        <!-- Floating Buttons (Mobile) -->
-        <button class="floating-btn btn-participants" onclick="toggleParticipants()">
-            <i class="fas fa-users"></i>
-        </button>
         <button class="floating-btn btn-chat" onclick="toggleRightSidebar()">
             <i class="fas fa-comments"></i>
         </button>
@@ -831,7 +772,6 @@ if ($current_zoom_class && $can_access) {
             const isTeacher = <?php echo $is_teacher_owner ? 'true' : 'false'; ?>;
             
             let chatPollInterval;
-            let participantsPollInterval;
             let lastMessageId = 0;
 
             // Initialize
@@ -842,10 +782,6 @@ if ($current_zoom_class && $can_access) {
                 // Load initial chat messages
                 loadChatMessages();
                 chatPollInterval = setInterval(loadChatMessages, 2000);
-                
-                // Load participants
-                loadParticipants();
-                participantsPollInterval = setInterval(loadParticipants, 3000);
                 
                 // Load files
                 loadFiles();
@@ -859,74 +795,7 @@ if ($current_zoom_class && $can_access) {
                 });
             });
 
-            // Leave class on page unload
-            window.addEventListener('beforeunload', function() {
-                leaveZoomClass();
-            });
 
-            function joinZoomClass() {
-                const formData = new FormData();
-                formData.append('zoom_class_id', zoomClassId);
-                
-                fetch('join_zoom_class.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Joined Zoom class');
-                    }
-                })
-                .catch(error => console.error('Error joining class:', error));
-            }
-
-            function leaveZoomClass() {
-                const formData = new FormData();
-                formData.append('zoom_class_id', zoomClassId);
-                navigator.sendBeacon('leave_zoom_class.php', formData);
-            }
-
-            function loadParticipants() {
-                fetch(`get_zoom_participants.php?zoom_class_id=${zoomClassId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            renderParticipants(data.participants);
-                        }
-                    })
-                    .catch(error => console.error('Error loading participants:', error));
-            }
-
-            function renderParticipants(participants) {
-                const list = document.getElementById('participants-list');
-                const count = document.getElementById('participant-count');
-                
-                count.textContent = `(${participants.length})`;
-                
-                if (participants.length === 0) {
-                    list.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-user-friends"></i>
-                            <p>No participants yet</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                list.innerHTML = participants.map(p => `
-                    <div class="participant-item">
-                        <img src="${p.profile_picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(p.name) + '&background=dc2626&color=fff'}" 
-                             alt="${p.name}" 
-                             class="participant-avatar"
-                             onerror="this.src='https://ui-avatars.com/api/?name=' + encodeURIComponent('${p.name}') + '&background=dc2626&color=fff'">
-                        <div class="participant-info">
-                            <div class="participant-name">${escapeHtml(p.name)}</div>
-                            <div class="participant-time">${p.duration}</div>
-                        </div>
-                    </div>
-                `).join('');
-            }
 
             function loadChatMessages() {
                 fetch(`get_zoom_messages.php?zoom_class_id=${zoomClassId}&last_id=${lastMessageId}`)
@@ -1018,20 +887,26 @@ if ($current_zoom_class && $can_access) {
                     return;
                 }
                 
-                container.innerHTML = files.map(file => `
-                    <div class="file-item">
-                        <div class="file-icon">
-                            <i class="fas fa-file"></i>
+                container.innerHTML = files.map(file => {
+                    const isOwnFile = file.uploader_id === userId;
+                    return `
+                        <div class="file-item">
+                            <div class="file-icon">
+                                <i class="fas fa-file"></i>
+                            </div>
+                            <div class="file-info">
+                                <div class="uploader-name text-[11px] font-black uppercase tracking-wider mb-0.5 ${isOwnFile ? 'text-red-500' : 'text-gray-100'}">
+                                    ${escapeHtml(file.uploader_name)} ${isOwnFile ? '(You)' : ''}
+                                </div>
+                                <div class="file-name text-white font-semibold text-[13px] leading-tight mb-1">${escapeHtml(file.file_name)}</div>
+                                <div class="file-meta text-[10px] text-gray-500 font-medium">${file.file_size} • Just now</div>
+                            </div>
+                            <a href="../uploads/zoom/${file.file_path}" download class="file-download-btn">
+                                <i class="fas fa-download"></i>
+                            </a>
                         </div>
-                        <div class="file-info">
-                            <div class="file-name">${escapeHtml(file.file_name)}</div>
-                            <div class="file-meta">${file.file_size} • ${file.uploader_name}</div>
-                        </div>
-                        <a href="../uploads/zoom/${file.file_path}" download class="file-download-btn">
-                            <i class="fas fa-download"></i>
-                        </a>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             function uploadFile() {
@@ -1105,14 +980,6 @@ if ($current_zoom_class && $can_access) {
                 document.getElementById(tab + '-content').classList.add('active');
             }
 
-            function toggleParticipants() {
-                const sidebar = document.getElementById('participants-sidebar');
-                const backdrop = document.getElementById('overlay-backdrop');
-                
-                sidebar.classList.toggle('show');
-                backdrop.classList.toggle('show');
-            }
-
             function toggleRightSidebar() {
                 const sidebar = document.getElementById('right-sidebar');
                 const backdrop = document.getElementById('overlay-backdrop');
@@ -1122,7 +989,6 @@ if ($current_zoom_class && $can_access) {
             }
 
             function closeAllSidebars() {
-                document.getElementById('participants-sidebar').classList.remove('show');
                 document.getElementById('right-sidebar').classList.remove('show');
                 document.getElementById('overlay-backdrop').classList.remove('show');
             }

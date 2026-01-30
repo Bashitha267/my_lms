@@ -5,8 +5,8 @@ require_once '../config.php';
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
-// Only students can access
-if ($role !== 'student') {
+// Only students and teachers can access
+if ($role !== 'student' && $role !== 'teacher') {
     header('Location: exam_center.php');
     exit;
 }
@@ -22,8 +22,8 @@ $exam_stmt = $conn->prepare("SELECT e.*, sub.name as subject_name, u.first_name,
                               FROM exams e
                               INNER JOIN subjects sub ON e.subject_id = sub.id
                               INNER JOIN users u ON e.teacher_id = u.user_id
-                              WHERE e.id = ? AND e.is_published = 1 AND e.status = 'active'");
-$exam_stmt->bind_param("i", $exam_id);
+                              WHERE e.id = ? AND (e.is_published = 1 OR e.teacher_id = ?) AND e.status = 'active'");
+$exam_stmt->bind_param("is", $exam_id, $user_id);
 $exam_stmt->execute();
 $exam_result = $exam_stmt->get_result();
 
@@ -35,45 +35,52 @@ if ($exam_result->num_rows === 0) {
 $exam = $exam_result->fetch_assoc();
 $exam_stmt->close();
 
-// Check if deadline passed
-if (strtotime($exam['deadline']) < time()) {
+// Check if deadline passed (Only for students)
+if ($role === 'student' && strtotime($exam['deadline']) < time()) {
     header('Location: exam_center.php?error=Exam deadline has passed');
     exit;
 }
 
 // Check if student already completed this exam
-$attempt_stmt = $conn->prepare("SELECT * FROM exam_attempts WHERE exam_id = ? AND student_id = ?");
-$attempt_stmt->bind_param("is", $exam_id, $user_id);
-$attempt_stmt->execute();
-$attempt_result = $attempt_stmt->get_result();
-$existing_attempt = $attempt_result->fetch_assoc();
-$attempt_stmt->close();
-
-// If completed, show results
-if ($existing_attempt && $existing_attempt['status'] === 'completed') {
-    $show_results = true;
-} else {
-    $show_results = false;
+if ($role === 'student') {
+    $attempt_stmt = $conn->prepare("SELECT * FROM exam_attempts WHERE exam_id = ? AND student_id = ?");
+    $attempt_stmt->bind_param("is", $exam_id, $user_id);
+    $attempt_stmt->execute();
+    $attempt_result = $attempt_stmt->get_result();
+    $existing_attempt = $attempt_result->fetch_assoc();
+    $attempt_stmt->close();
     
-    // Create or get attempt
-    if (!$existing_attempt) {
-        // Create new attempt
-        $start_time = date('Y-m-d H:i:s');
-        $create_attempt = $conn->prepare("INSERT INTO exam_attempts (exam_id, student_id, start_time, status) VALUES (?, ?, ?, 'in_progress')");
-        $create_attempt->bind_param("iss", $exam_id, $user_id, $start_time);
-        $create_attempt->execute();
-        $attempt_id = $conn->insert_id;
-        $create_attempt->close();
-        
-        $attempt = [
-            'id' => $attempt_id,
-            'start_time' => $start_time,
-            'status' => 'in_progress'
-        ];
+    // If completed, show results
+    if ($existing_attempt && $existing_attempt['status'] === 'completed') {
+        $show_results = true;
     } else {
-        $attempt = $existing_attempt;
-        $attempt_id = $attempt['id'];
+        $show_results = false;
+        
+        // Create or get attempt
+        if (!$existing_attempt) {
+            // Create new attempt
+            $start_time = date('Y-m-d H:i:s');
+            $create_attempt = $conn->prepare("INSERT INTO exam_attempts (exam_id, student_id, start_time, status) VALUES (?, ?, ?, 'in_progress')");
+            $create_attempt->bind_param("iss", $exam_id, $user_id, $start_time);
+            $create_attempt->execute();
+            $attempt_id = $conn->insert_id;
+            $create_attempt->close();
+            
+            $attempt = [
+                'id' => $attempt_id,
+                'start_time' => $start_time,
+                'status' => 'in_progress'
+            ];
+        } else {
+            $attempt = $existing_attempt;
+            $attempt_id = $attempt['id'];
+        }
     }
+} else {
+    // Teacher preview mode
+    $show_results = false;
+    $attempt_id = null;
+    $attempt = null;
 }
 
 // Handle answer submission via AJAX
@@ -157,8 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $score = $total_questions > 0 ? ($correct_count / $total_questions) * 100 : 0;
         
         // Update attempt as completed
-        $update_stmt = $conn->prepare("UPDATE exam_attempts SET end_time = NOW(), score = ?, correct_count = ?, total_questions = ?, status = 'completed' WHERE id = ?");
-        $update_stmt->bind_param("diii", $score, $correct_count, $total_questions, $attempt_id);
+        $end_time = date('Y-m-d H:i:s');
+        $update_stmt = $conn->prepare("UPDATE exam_attempts SET end_time = ?, score = ?, correct_count = ?, total_questions = ?, status = 'completed' WHERE id = ?");
+        $update_stmt->bind_param("sdiii", $end_time, $score, $correct_count, $total_questions, $attempt_id);
         $update_stmt->execute();
         $update_stmt->close();
         
@@ -216,9 +224,11 @@ while ($row = $questions_result->fetch_assoc()) {
 $questions_stmt->close();
 
 // Calculate end time
-if (!$show_results) {
+if (!$show_results && $role === 'student') {
     $start_timestamp = strtotime($attempt['start_time']);
     $end_timestamp = $start_timestamp + ($exam['duration_minutes'] * 60);
+} else {
+    $end_timestamp = time() + (3600 * 24); // Far in the future for preview
 }
 
 // Get dashboard background
@@ -256,14 +266,17 @@ if ($bg_stmt) {
             backdrop-filter: blur(8px);
             <?php endif; ?>
             min-height: 100vh;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
         }
         .exam-container {
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
             padding: 1rem;
+            width: 100%;
         }
         .glass-card {
             background: rgba(255, 255, 255, 0.98);
@@ -274,11 +287,13 @@ if ($bg_stmt) {
             flex: 1;
             overflow-y: auto;
             min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 2rem;
         }
         .question-slide {
-            height: 100%;
             display: flex;
             flex-direction: column;
+            min-height: min-content;
         }
         .answers-section {
             flex: 1;
@@ -296,8 +311,23 @@ if ($bg_stmt) {
         }
         /* Mobile scaling */
         @media (max-width: 640px) {
+            body {
+                overflow: auto !important;
+            }
+            .content-overlay {
+                height: auto;
+                min-height: 100dvh;
+                overflow: visible;
+            }
             .exam-container {
+                height: auto;
+                min-height: 100dvh;
                 padding: 0.5rem;
+                overflow: visible;
+            }
+            .question-container {
+                flex: none;
+                overflow: visible;
             }
             .glass-card {
                 padding: 0.75rem !important;
@@ -314,7 +344,7 @@ if ($bg_stmt) {
         }
     </style>
 </head>
-<body class="bg-gray-100 overflow-hidden">
+<body class="bg-gray-100 sm:overflow-hidden">
     <div class="content-overlay">
         <div class="max-w-6xl mx-auto exam-container">
             <?php if ($show_results): ?>
@@ -346,13 +376,32 @@ if ($bg_stmt) {
             <?php else: ?>
                 <!-- Exam Header -->
                 <div class="glass-card rounded-xl p-3 mb-2 flex items-center justify-between flex-shrink-0">
-                    <div>
-                        <h1 class="text-base sm:text-lg font-bold text-gray-900"><?php echo htmlspecialchars($exam['title']); ?></h1>
-                        <p class="text-xs sm:text-sm text-gray-500"><?php echo htmlspecialchars($exam['subject_name']); ?></p>
+                    <div class="flex items-center gap-3">
+                        <?php if ($role === 'teacher'): ?>
+                            <a href="exam_center.php" class="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-arrow-left text-gray-600"></i>
+                            </a>
+                        <?php endif; ?>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-base sm:text-lg font-bold text-gray-900"><?php echo htmlspecialchars($exam['title']); ?></h1>
+                                <?php if ($role === 'teacher'): ?>
+                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">Admin Preview</span>
+                                <?php endif; ?>
+                            </div>
+                            <p class="text-xs sm:text-sm text-gray-500"><?php echo htmlspecialchars($exam['subject_name']); ?></p>
+                        </div>
                     </div>
-                    <div id="timer" class="text-right">
-                        <div class="text-xl sm:text-2xl font-bold text-red-600" id="time-display">--:--</div>
-                        <p class="text-xs text-gray-500">Time Left</p>
+                    <div class="flex items-center gap-4">
+                        <?php if ($role === 'teacher'): ?>
+                            <button onclick="deleteExam(<?php echo $exam['id']; ?>)" class="text-red-500 hover:text-red-700 p-2" title="Delete Exam">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        <?php endif; ?>
+                        <div id="timer" class="text-right">
+                            <div class="text-xl sm:text-2xl font-bold text-red-600" id="time-display">--:--</div>
+                            <p class="text-xs text-gray-500">Time Left</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -382,26 +431,26 @@ if ($bg_stmt) {
                             
                             <!-- Question Images -->
                             <?php if (!empty($question['images'])): ?>
-                                <div class="flex flex-wrap gap-2 mb-3 flex-shrink-0">
+                                <div class="flex flex-wrap gap-3 mb-4 flex-shrink-0">
                                     <?php foreach ($question['images'] as $image): ?>
                                         <img src="../<?php echo htmlspecialchars($image['image_path']); ?>" 
-                                             class="h-20 sm:h-32 rounded-lg border cursor-pointer hover:opacity-90 object-cover"
+                                             class="h-56 sm:h-64 rounded-xl border-2 border-gray-100 cursor-pointer hover:opacity-90 object-contain bg-gray-50/50 p-1 shadow-sm"
                                              onclick="openImage(this.src)" alt="Question image">
                                     <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
                             
                             <!-- Answer Options -->
-                            <div class="answers-section space-y-2">
+                            <div class="answers-section grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <?php foreach ($question['answers'] as $answerIndex => $answer): ?>
                                     <?php 
                                     $is_saved = isset($question['saved_answers']) && in_array($answer['id'], $question['saved_answers']);
-                                    $letter = chr(65 + $answerIndex); // A, B, C, D...
+                                    $number = ($answerIndex + 1) . ")";
                                     ?>
                                     <label class="option-card block p-3 border-2 rounded-lg cursor-pointer <?php echo $is_saved ? 'selected border-red-500' : 'border-gray-200 hover:border-gray-300'; ?>"
                                            data-answer-id="<?php echo $answer['id']; ?>">
                                         <div class="flex items-center">
-                                            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs sm:text-sm font-semibold text-gray-600 mr-3 flex-shrink-0"><?php echo $letter; ?></span>
+                                            <span class="w-8 h-6 sm:w-10 sm:h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs sm:text-sm font-bold text-gray-700 mr-3 flex-shrink-0"><?php echo $number; ?></span>
                                             <input type="<?php echo $question['question_type'] === 'single' ? 'radio' : 'checkbox'; ?>"
                                                    name="question-<?php echo $question['id']; ?>"
                                                    value="<?php echo $answer['id']; ?>"
@@ -606,6 +655,11 @@ if ($bg_stmt) {
         }
         
         function submitExam() {
+            if ("<?php echo $role; ?>" === "teacher") {
+                alert("This is a preview mode. Teachers cannot submit exams.");
+                location.href = 'exam_center.php';
+                return;
+            }
             const btn = document.getElementById('confirm-submit-btn');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
             btn.disabled = true;
@@ -646,6 +700,23 @@ if ($bg_stmt) {
         
         function closeImage() {
             document.getElementById('image-modal').classList.add('hidden');
+        }
+
+        function deleteExam(examId) {
+            if (!confirm('Are you sure you want to delete this entire exam? This action cannot be undone.')) return;
+            const formData = new FormData();
+            formData.append('delete_exam', '1');
+            formData.append('exam_id', examId);
+            
+            fetch('exam_center.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.href = 'exam_center.php';
+                else alert('Delete failed: ' + data.error);
+            });
         }
         
         // Initialize

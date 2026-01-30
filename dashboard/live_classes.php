@@ -249,6 +249,36 @@ if (empty($role)) {
         }
         $live_stmt->close();
         
+        // Get Zoom classes for this enrollment
+        $zoom_query = "SELECT zc.id, zc.title, zc.description, zc.status, zc.scheduled_start_time, 
+                              zc.actual_start_time, zc.end_time, zc.created_at, zc.free_class, zc.zoom_meeting_link,
+                              ta.teacher_id, u.first_name, u.second_name
+                       FROM zoom_classes zc
+                       INNER JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
+                       INNER JOIN users u ON ta.teacher_id = u.user_id
+                       WHERE ta.stream_subject_id = ? 
+                         AND ta.academic_year = ?
+                         AND zc.status != 'cancelled'
+                       ORDER BY 
+                         CASE zc.status
+                           WHEN 'ongoing' THEN 1
+                           WHEN 'scheduled' THEN 2
+                           WHEN 'ended' THEN 3
+                           ELSE 4
+                         END,
+                         zc.scheduled_start_time DESC, zc.created_at DESC";
+        
+        $zoom_stmt = $conn->prepare($zoom_query);
+        $zoom_stmt->bind_param("ii", $stream_subject_id, $academic_year);
+        $zoom_stmt->execute();
+        $zoom_result = $zoom_stmt->get_result();
+        
+        while ($zoom_row = $zoom_result->fetch_assoc()) {
+            $zoom_row['is_zoom'] = true; // Mark as Zoom class
+            $live_classes[] = $zoom_row; // Add to live classes array for unified display
+        }
+        $zoom_stmt->close();
+        
         if (!empty($live_classes)) {
             $live_classes_by_enrollment[$enrollment_id] = $live_classes;
         }
@@ -359,33 +389,56 @@ if (empty($role)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Classes - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
+            font-family: 'Inter', sans-serif;
             <?php if (!empty($live_classes_background)): ?>
             background-image: url('../<?php echo htmlspecialchars($live_classes_background); ?>');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
+            background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat;
             <?php endif; ?>
         }
         .content-overlay {
-            background-color: rgba(243, 244, 246, 0.15);
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            background: linear-gradient(to bottom, rgba(243, 244, 246, 0.4), rgba(243, 244, 246, 0.6));
+            backdrop-filter: blur(8px);
             min-height: 100vh;
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 1);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        .glass-card-light {
-            background: rgba(255, 255, 255, 1);
+        .premium-card {
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .premium-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            background: rgba(255, 255, 255, 1);
+        }
+        .zoom-placeholder {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            position: relative; overflow: hidden;
+        }
+        .zoom-placeholder::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .live-pulse {
+            position: relative; display: flex; align-items: center; gap: 4px;
+            background: rgba(220, 38, 38, 0.9); color: white; padding: 2px 8px; border-radius: 9999px;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
+        }
+        .live-pulse::before {
+            content: ''; width: 6px; height: 6px; background: white; border-radius: 50%;
+            animation: pulse-dot 1.5s infinite;
+        }
+        @keyframes pulse-dot { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+        .glass-card-header {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
     </style>
 </head>
@@ -451,7 +504,7 @@ if (empty($role)) {
                                 $status_color = $status_colors[$live_class['status']] ?? 'bg-gray-100 text-gray-800';
                                 
                                 // Get thumbnail URL
-                                $thumb_url = $live_class['thumbnail_url'];
+                                $thumb_url = $live_class['thumbnail_url'] ?? null;
                                 if (empty($thumb_url) && !empty($live_class['youtube_video_id'])) {
                                     $thumb_url = "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/maxresdefault.jpg";
                                 }
@@ -550,138 +603,155 @@ if (empty($role)) {
 
             <!-- My Live Classes Section (for both students and teachers) -->
             <?php if ($role === 'student'): ?>
-                <?php if (empty($live_classes_by_enrollment)): ?>
+                <?php 
+                // Collect all live classes from all enrollments for a unified view
+                $all_student_live_classes = [];
+                foreach ($student_enrollments as $enrollment) {
+                    if (isset($live_classes_by_enrollment[$enrollment['id']])) {
+                        foreach ($live_classes_by_enrollment[$enrollment['id']] as $class) {
+                            $class['subject_name'] = $enrollment['subject_name'];
+                            $class['subject_code'] = $enrollment['subject_code'];
+                            $class['enrollment_data'] = $enrollment;
+                            $all_student_live_classes[] = $class;
+                        }
+                    }
+                }
+
+                // Sort unified list: ongoing -> scheduled -> ended -> cancelled
+                usort($all_student_live_classes, function($a, $b) {
+                    $priority = ['ongoing' => 1, 'scheduled' => 2, 'ended' => 3, 'cancelled' => 4];
+                    $p1 = $priority[$a['status']] ?? 9;
+                    $p2 = $priority[$b['status']] ?? 9;
+                    if ($p1 !== $p2) return $p1 - $p2;
+                    return strtotime($b['scheduled_start_time'] ?? $b['created_at']) - strtotime($a['scheduled_start_time'] ?? $a['created_at']);
+                });
+                ?>
+
+                <?php if (empty($all_student_live_classes)): ?>
                     <div class="mb-8">
-                        <h2 class="text-2xl font-bold text-white mb-4 bg-red-700 p-3">My Live Classes</h2>
-                        <div class="bg-white rounded-lg shadow p-8 text-center">
-                            <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                            </svg>
-                            <p class="text-gray-500 text-lg">No live classes available for your enrollments.</p>
+                        <div class="glass-card-header rounded-3xl p-16 text-center shadow-xl border border-white/40">
+                            <div class="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <h3 class="text-2xl font-black text-gray-900 mb-2">No Live Classes Right Now</h3>
+                            <p class="text-gray-500 max-w-sm mx-auto">We couldn't find any ongoing or scheduled sessions for your current enrollments.</p>
                         </div>
                     </div>
                 <?php else: ?>
                     <div class="mb-8">
-                        <h2 class="text-2xl font-bold text-white mb-4 bg-red-700 p-3">My Live Classes</h2>
-                        <?php foreach ($student_enrollments as $enrollment): ?>
-                            <?php if (isset($live_classes_by_enrollment[$enrollment['id']])): ?>
-                                <div class="mb-8">
-                                    <!-- Enrollment Header -->
-                                    <div class="bg-white rounded-lg shadow p-6 mb-4">
-                                        <div class="flex items-center justify-between">
-                                            <div>
-                                                <h2 class="text-2xl font-bold text-white mb-4 bg-red-700 p-3">
-                                                    <?php echo htmlspecialchars($enrollment['subject_name']); ?>
-                                                    <?php if ($enrollment['subject_code']): ?>
-                                                        <span class="text-gray-500 text-lg">(<?php echo htmlspecialchars($enrollment['subject_code']); ?>)</span>
-                                                    <?php endif; ?>
-                                                </h2>
-                                                <p class="text-gray-600">
-                                                    <span class="font-medium">Stream:</span> <?php echo htmlspecialchars($enrollment['stream_name']); ?>
-                                                    | <span class="font-medium">Academic Year:</span> <?php echo htmlspecialchars($enrollment['academic_year']); ?>
-                                                </p>
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Live Classes</h1>
+                                <p class="text-white font-medium">Ongoing and upcoming sessions from your enrollments</p>
+                            </div>
+                        </div>
+
+                        <!-- Unified Live Classes Grid -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            <?php foreach ($all_student_live_classes as $live_class): ?>
+                                <?php
+                                $status_colors = [
+                                    'scheduled' => 'bg-yellow-100 text-yellow-800',
+                                    'ongoing' => 'bg-green-100 text-green-800',
+                                    'ended' => 'bg-gray-100 text-gray-800',
+                                    'cancelled' => 'bg-red-100 text-red-800'
+                                ];
+                                $status_color = $status_colors[$live_class['status']] ?? 'bg-gray-100 text-gray-800';
+                                $can_join = ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
+                                $enrollment_data = $live_class['enrollment_data'];
+                                
+                                // Get thumbnail URL
+                                $thumb_url = $live_class['thumbnail_url'] ?? null;
+                                if (empty($thumb_url) && !empty($live_class['youtube_video_id'])) {
+                                    $thumb_url = "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/maxresdefault.jpg";
+                                }
+                                ?>
+                                <div class="premium-card rounded-2xl shadow-sm overflow-hidden border-t-4 <?php echo $live_class['status'] === 'ongoing' ? 'border-red-600' : 'border-blue-600'; ?> max-w-[360px] mx-auto w-full flex flex-col">
+                                    <!-- Thumbnail or Live Badge -->
+                                    <div class="relative aspect-video bg-gray-100">
+                                        <?php if ($thumb_url): ?>
+                                            <img src="<?php echo htmlspecialchars($thumb_url); ?>" 
+                                                 alt="<?php echo htmlspecialchars($live_class['title']); ?>"
+                                                 class="w-full h-full object-cover">
+                                        <?php else: ?>
+                                            <div class="w-full h-full flex items-center justify-center zoom-placeholder">
+                                                <svg class="w-12 h-12 text-white/90 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                                </svg>
                                             </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Status Badge -->
+                                        <div class="absolute top-3 left-3">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-tight uppercase <?php echo $status_color; ?> shadow-sm">
+                                                <?php echo ucfirst($live_class['status']); ?>
+                                            </span>
                                         </div>
+                                        
+                                        <!-- Live Indicator -->
+                                        <?php if ($live_class['status'] === 'ongoing'): ?>
+                                            <div class="absolute top-3 right-3">
+                                                <div class="live-pulse shadow-lg">LIVE</div>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
                                     
-                                    <!-- Live Classes Grid -->
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <?php foreach ($live_classes_by_enrollment[$enrollment['id']] as $live_class): ?>
-                                            <?php
-                                            $status_colors = [
-                                                'scheduled' => 'bg-yellow-100 text-yellow-800',
-                                                'ongoing' => 'bg-green-100 text-green-800',
-                                                'ended' => 'bg-gray-100 text-gray-800',
-                                                'cancelled' => 'bg-red-100 text-red-800'
-                                            ];
-                                            $status_color = $status_colors[$live_class['status']] ?? 'bg-gray-100 text-gray-800';
-                                            $can_join = ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
+                                    <!-- Live Class Info -->
+                                    <div class="p-5 flex-1 flex flex-col">
+                                        <div class="mb-3">
+                                            <span class="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 block">
+                                                <?php echo htmlspecialchars($live_class['subject_name']); ?>
+                                            </span>
+                                            <h3 class="text-base font-bold text-gray-900 line-clamp-2 leading-snug" title="<?php echo htmlspecialchars($live_class['title']); ?>">
+                                                <?php echo htmlspecialchars($live_class['title']); ?>
+                                            </h3>
+                                        </div>
+                                        
+                                        <div class="flex flex-wrap items-center gap-2 text-gray-500 mb-4 mt-auto">
+                                            <?php if ($live_class['scheduled_start_time']): ?>
+                                                <div class="flex items-center text-[11px] font-semibold bg-gray-50 px-2 py-1 rounded-md">
+                                                    <svg class="w-3.5 h-3.5 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    <?php echo date('M d, H:i', strtotime($live_class['scheduled_start_time'])); ?>
+                                                </div>
+                                            <?php endif; ?>
                                             
-                                            // Get thumbnail URL
-                                            $thumb_url = $live_class['thumbnail_url'];
-                                            if (empty($thumb_url) && !empty($live_class['youtube_video_id'])) {
-                                                $thumb_url = "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/maxresdefault.jpg";
-                                            }
-                                            ?>
-                                            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border-l-4 border-blue-500">
-                                                <!-- Thumbnail or Live Badge -->
-                                                <div class="relative aspect-video bg-gray-200">
-                                                    <?php if ($thumb_url): ?>
-                                                        <img src="<?php echo htmlspecialchars($thumb_url); ?>" 
-                                                             alt="<?php echo htmlspecialchars($live_class['title']); ?>"
-                                                             class="w-full h-full object-cover"
-                                                             onerror="this.src='<?php echo !empty($live_class['youtube_video_id']) ? "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/hqdefault.jpg" : ""; ?>'; this.onerror=null;">
-                                                    <?php else: ?>
-                                                        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
-                                                            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                                                            </svg>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                    <!-- Status Badge -->
-                                                    <div class="absolute top-2 left-2">
-                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php echo $status_color; ?>">
-                                                            <?php echo ucfirst($live_class['status']); ?>
-                                                        </span>
-                                                    </div>
-                                                    <!-- Live Indicator -->
-                                                    <?php if ($live_class['status'] === 'ongoing'): ?>
-                                                        <div class="absolute top-2 right-2">
-                                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-600 text-white animate-pulse">
-                                                                <span class="w-2 h-2 bg-white rounded-full mr-1"></span>
-                                                                LIVE
-                                                            </span>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                
-                                                <!-- Live Class Info -->
-                                                <div class="p-4">
-                                                    <h3 class="font-semibold text-gray-900 line-clamp-2 mb-2" title="<?php echo htmlspecialchars($live_class['title']); ?>">
-                                                        <?php echo htmlspecialchars($live_class['title']); ?>
-                                                    </h3>
-                                                    
-                                                    <?php if ($live_class['scheduled_start_time']): ?>
-                                                        <p class="text-xs text-gray-600 mb-2">
-                                                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                            </svg>
-                                                            <?php echo date('M d, Y H:i', strtotime($live_class['scheduled_start_time'])); ?>
-                                                        </p>
-                                                    <?php endif; ?>
-                                                    
-                                                    <?php if ($live_class['description']): ?>
-                                                        <p class="text-sm text-gray-600 mb-3 line-clamp-2">
-                                                            <?php echo htmlspecialchars(substr($live_class['description'], 0, 100)); ?>
-                                                            <?php echo strlen($live_class['description']) > 100 ? '...' : ''; ?>
-                                                        </p>
-                                                    <?php endif; ?>
-                                                    
-                                                    <div class="flex items-center justify-between">
-                                                        <?php if ($can_join): ?>
-                                                            <a href="../player/player.php?id=<?php echo $live_class['id']; ?>&stream_subject_id=<?php echo $enrollment['stream_subject_id']; ?>&academic_year=<?php echo $enrollment['academic_year']; ?>" 
-                                                               class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                                                                <?php echo $live_class['status'] === 'ongoing' ? 'Join Live' : 'View'; ?>
-                                                            </a>
-                                                        <?php else: ?>
-                                                            <span class="text-sm text-gray-500">
-                                                                <?php echo $live_class['status'] === 'ended' ? 'Class Ended' : 'Class Cancelled'; ?>
-                                                            </span>
-                                                        <?php endif; ?>
-                                                        
-                                                        <?php if (isset($live_class['first_name']) || isset($live_class['second_name'])): ?>
-                                                            <p class="text-xs text-gray-500">
-                                                                By: <?php echo htmlspecialchars(trim(($live_class['first_name'] ?? '') . ' ' . ($live_class['second_name'] ?? ''))); ?>
-                                                            </p>
-                                                        <?php endif; ?>
+                                            <?php if (isset($live_class['is_zoom']) && $live_class['is_zoom']): ?>
+                                                <span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-[10px] rounded-md font-bold uppercase border border-indigo-100">
+                                                    Zoom
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                            <?php if ($can_join): ?>
+                                                <?php 
+                                                $player_url = isset($live_class['is_zoom']) && $live_class['is_zoom'] 
+                                                    ? "../player/zoom.php?id=" . $live_class['id']
+                                                    : "../player/player.php?id=" . $live_class['id'] . "&stream_subject_id=" . $enrollment_data['stream_subject_id'] . "&academic_year=" . $enrollment_data['academic_year'];
+                                                ?>
+                                                <a href="<?php echo $player_url; ?>" 
+                                                   class="flex items-center px-5 py-2 <?php echo $live_class['status'] === 'ongoing' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-900 hover:bg-black'; ?> text-white text-[11px] rounded-xl font-bold transition-all shadow-md active:scale-95">
+                                                    <?php echo $live_class['status'] === 'ongoing' ? 'Join Now' : 'Enter Class'; ?>
+                                                    <svg class="w-3.5 h-3.5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="text-xs font-semibold text-gray-400">
+                                                    <?php echo $live_class['status'] === 'ended' ? 'Session Ended' : 'Cancelled'; ?>
+                                                </span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (isset($live_class['first_name'])): ?>
+                                                <div class="flex items-center gap-2" title="<?php echo htmlspecialchars($live_class['first_name']); ?>">
+                                                    <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white">
+                                                        <?php echo substr($live_class['first_name'], 0, 1); ?>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 <?php endif; ?>
             <?php elseif ($role === 'teacher'): ?>
@@ -693,22 +763,31 @@ if (empty($role)) {
                     <?php if (isset($live_classes_by_assignment[$assignment['id']])): ?>
                         <div class="mb-8">
                             <!-- Assignment Header -->
-                            <div class="bg-white rounded-lg shadow p-6 mb-4">
-                                <div>
-                                    <h2 class="text-2xl font-bold text-gray-900 mb-2">
-                                        <?php echo htmlspecialchars($assignment['subject_name']); ?>
-                                        <?php if ($assignment['subject_code']): ?>
-                                            <span class="text-gray-500 text-lg">(<?php echo htmlspecialchars($assignment['subject_code']); ?>)</span>
-                                        <?php endif; ?>
-                                    </h2>
-                                    <p class="text-gray-600">
-                                        <span class="font-medium">Stream:</span> <?php echo htmlspecialchars($assignment['stream_name']); ?>
-                                        | <span class="font-medium">Academic Year:</span> <?php echo htmlspecialchars($assignment['academic_year']); ?>
-                                    </p>
+                            <div class="glass-card-header rounded-2xl p-6 mb-6">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h2 class="text-2xl font-black text-gray-900 flex items-center gap-3 mb-2">
+                                            <span class="w-2 h-8 bg-blue-600 rounded-full shadow-sm"></span>
+                                            <?php echo htmlspecialchars($assignment['subject_name']); ?>
+                                            <?php if ($assignment['subject_code']): ?>
+                                                <span class="text-gray-400 font-bold text-lg tracking-tight">(<?php echo htmlspecialchars($assignment['subject_code']); ?>)</span>
+                                            <?php endif; ?>
+                                        </h2>
+                                        <div class="flex items-center gap-4 text-sm font-medium text-gray-500">
+                                            <span class="flex items-center px-3 py-1 bg-white/50 rounded-full border border-gray-100 shadow-sm">
+                                                <svg class="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                                <?php echo htmlspecialchars($assignment['stream_name']); ?>
+                                            </span>
+                                            <span class="flex items-center px-3 py-1 bg-white/50 rounded-full border border-gray-100 shadow-sm">
+                                                <svg class="w-4 h-4 mr-1.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                <?php echo htmlspecialchars($assignment['academic_year']); ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <!-- Live Classes Grid -->
+                       <!-- Live Classes Grid -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <?php 
                                 // Sort live classes: ongoing first, then by status priority
@@ -735,66 +814,62 @@ if (empty($role)) {
                                     $can_join = ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
                                     
                                     // Get thumbnail URL
-                                    $thumb_url = $live_class['thumbnail_url'];
+                                    $thumb_url = $live_class['thumbnail_url'] ?? null;
                                     if (empty($thumb_url) && !empty($live_class['youtube_video_id'])) {
                                         $thumb_url = "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/maxresdefault.jpg";
                                     }
                                     ?>
-                                    <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden border-l-4 <?php echo $live_class['status'] === 'ongoing' ? 'border-red-500' : 'border-blue-500'; ?>">
+                                    <div class="premium-card rounded-2xl shadow-sm overflow-hidden border-t-4 <?php echo $live_class['status'] === 'ongoing' ? 'border-red-600' : 'border-blue-600'; ?> max-w-[360px] mx-auto w-full">
                                         <!-- Thumbnail or Live Badge -->
-                                        <div class="relative aspect-video bg-gray-200">
+                                        <div class="relative aspect-video bg-gray-100">
                                             <?php if ($thumb_url): ?>
                                                 <img src="<?php echo htmlspecialchars($thumb_url); ?>" 
                                                      alt="<?php echo htmlspecialchars($live_class['title']); ?>"
                                                      class="w-full h-full object-cover"
                                                      onerror="this.src='<?php echo !empty($live_class['youtube_video_id']) ? "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/hqdefault.jpg" : ""; ?>'; this.onerror=null;">
                                             <?php else: ?>
-                                                <div class="w-full h-full flex items-center justify-center bg-gradient-to-br <?php echo $live_class['status'] === 'ongoing' ? 'from-red-500 to-red-700' : 'from-blue-500 to-blue-700'; ?>">
-                                                    <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div class="w-full h-full flex items-center justify-center <?php echo isset($live_class['is_zoom']) ? 'zoom-placeholder' : 'bg-gradient-to-br from-blue-600 to-blue-800'; ?>">
+                                                    <svg class="w-12 h-12 text-white/90 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                                     </svg>
                                                 </div>
                                             <?php endif; ?>
                                             <!-- Status Badge -->
-                                            <div class="absolute top-2 left-2">
-                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <?php echo $status_color; ?>">
+                                            <div class="absolute top-3 left-3">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-tight uppercase <?php echo $status_color; ?> shadow-sm">
                                                     <?php echo ucfirst($live_class['status']); ?>
                                                 </span>
                                             </div>
                                             <!-- Live Indicator -->
                                             <?php if ($live_class['status'] === 'ongoing'): ?>
-                                                <div class="absolute top-2 right-2">
-                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-red-600 text-white animate-pulse">
-                                                        <span class="w-2 h-2 bg-white rounded-full mr-1"></span>
-                                                        LIVE
-                                                    </span>
+                                                <div class="absolute top-3 right-3">
+                                                    <div class="live-pulse shadow-lg">LIVE</div>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
                                         
                                         <!-- Live Class Info -->
-                                        <div class="p-4">
-                                            <h3 class="font-semibold text-gray-900 line-clamp-2 mb-2" title="<?php echo htmlspecialchars($live_class['title']); ?>">
+                                        <div class="p-5">
+                                            <h3 class="text-lg font-bold text-gray-900 line-clamp-2 mb-2 leading-snug" title="<?php echo htmlspecialchars($live_class['title']); ?>">
                                                 <?php echo htmlspecialchars($live_class['title']); ?>
                                             </h3>
                                             
-                                            <?php if ($live_class['scheduled_start_time']): ?>
-                                                <p class="text-xs text-gray-600 mb-2">
-                                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                    </svg>
-                                                    <?php echo date('M d, Y H:i', strtotime($live_class['scheduled_start_time'])); ?>
-                                                </p>
-                                            <?php endif; ?>
+                                            <div class="flex flex-wrap items-center gap-3 text-gray-500 mb-4">
+                                                <?php if ($live_class['scheduled_start_time']): ?>
+                                                    <div class="flex items-center text-[11px] font-medium">
+                                                        <svg class="w-3.5 h-3.5 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                        <?php echo date('M d, H:i', strtotime($live_class['scheduled_start_time'])); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                
+                                                <?php if (isset($live_class['is_zoom']) && $live_class['is_zoom']): ?>
+                                                    <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] rounded-md font-bold uppercase border border-indigo-100">
+                                                        Zoom
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                             
-                                            <?php if ($live_class['description']): ?>
-                                                <p class="text-sm text-gray-600 mb-3 line-clamp-2">
-                                                    <?php echo htmlspecialchars(substr($live_class['description'], 0, 100)); ?>
-                                                    <?php echo strlen($live_class['description']) > 100 ? '...' : ''; ?>
-                                                </p>
-                                            <?php endif; ?>
-                                            
-                                            <div class="flex items-center justify-between">
+                                            <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-50">
                                                 <?php if ($can_join): ?>
                                                     <?php 
                                                     $player_url = isset($live_class['is_zoom']) && $live_class['is_zoom'] 
@@ -802,12 +877,13 @@ if (empty($role)) {
                                                         : "../player/player.php?id=" . $live_class['id'] . "&stream_subject_id=" . $assignment['stream_subject_id'] . "&academic_year=" . $assignment['academic_year'];
                                                     ?>
                                                     <a href="<?php echo $player_url; ?>" 
-                                                       class="px-4 py-2 <?php echo $live_class['status'] === 'ongoing' ? 'bg-red-600 hover:bg-red-700' : (isset($live_class['is_zoom']) ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'); ?> text-white text-sm rounded font-semibold">
-                                                        <?php echo $live_class['status'] === 'ongoing' ? 'Join Live' : 'View'; ?>
+                                                       class="flex items-center px-5 py-2 <?php echo $live_class['status'] === 'ongoing' ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-900 hover:bg-black'; ?> text-white text-xs rounded-xl font-bold transition-all shadow-md active:scale-95">
+                                                        <?php echo $live_class['status'] === 'ongoing' ? 'Join Now' : 'Enter Class'; ?>
+                                                        <svg class="w-3.5 h-3.5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                                     </a>
                                                 <?php else: ?>
-                                                    <span class="text-sm text-gray-500">
-                                                        <?php echo $live_class['status'] === 'ended' ? 'Class Ended' : 'Class Cancelled'; ?>
+                                                    <span class="text-xs font-semibold text-gray-400">
+                                                        <?php echo $live_class['status'] === 'ended' ? 'Session Ended' : 'Cancelled'; ?>
                                                     </span>
                                                 <?php endif; ?>
                                                 

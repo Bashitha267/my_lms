@@ -68,6 +68,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_publish']) && 
     exit;
 }
 
+// Handle delete exam via AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_exam']) && $role === 'teacher') {
+    $exam_id = intval($_POST['exam_id'] ?? 0);
+    
+    $delete_stmt = $conn->prepare("DELETE FROM exams WHERE id = ? AND teacher_id = ?");
+    $delete_stmt->bind_param("is", $exam_id, $user_id);
+    
+    if ($delete_stmt->execute()) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'error' => $conn->error]);
+    }
+    $delete_stmt->close();
+    exit;
+}
+
 // Handle fetch exam results via AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_exam_results']) && $role === 'teacher') {
     $exam_id = intval($_POST['exam_id'] ?? 0);
@@ -108,10 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_exam_results']) &
         
         $h = floor($duration_seconds / 3600);
         $m = floor(($duration_seconds % 3600) / 60);
+        $s = $duration_seconds % 60;
         
         $duration_text = "";
         if ($h > 0) $duration_text .= $h . "h ";
-        $duration_text .= $m . "m";
+        if ($m > 0 || $h > 0) $duration_text .= $m . "m ";
+        $duration_text .= $s . "s";
         
         $row['duration_text'] = $duration_text;
         
@@ -181,18 +199,22 @@ if ($role === 'teacher') {
     }
     $stmt->close();
 } elseif ($role === 'student') {
-    // Get published exams for student with attempt status
-    $exams_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+    // Get published exams for student based on their enrollment
+    $exams_query = "SELECT DISTINCT e.*, sub.name as subject_name, sub.code as subject_code,
                            u.first_name, u.second_name,
                            ea.id as attempt_id, ea.status as attempt_status, ea.score, ea.correct_count, ea.total_questions
                     FROM exams e
                     INNER JOIN subjects sub ON e.subject_id = sub.id
                     INNER JOIN users u ON e.teacher_id = u.user_id
+                    INNER JOIN stream_subjects ss ON sub.id = ss.subject_id
+                    INNER JOIN student_enrollment se ON ss.id = se.stream_subject_id 
+                                                     AND se.student_id = ? 
+                                                     AND se.status = 'active'
                     LEFT JOIN exam_attempts ea ON e.id = ea.exam_id AND ea.student_id = ?
-                    WHERE e.is_published = 1 AND e.status = 'active' AND e.deadline >= NOW()
-                    ORDER BY e.deadline ASC";
+                    WHERE e.is_published = 1 AND e.status = 'active'
+                    ORDER BY e.deadline DESC";
     $stmt = $conn->prepare($exams_query);
-    $stmt->bind_param("s", $user_id);
+    $stmt->bind_param("ss", $user_id, $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -367,9 +389,15 @@ if ($role === 'teacher') {
                                                     class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
                                                 <i class="fas fa-chart-bar mr-2"></i>View Results
                                             </button>
-                                            <div class="flex items-center text-gray-400 group-hover:text-red-500 transition-colors">
-                                                <span class="text-[10px] mr-2 uppercase tracking-widest font-bold">Manage</span>
-                                                <i class="fas fa-arrow-right text-xs"></i>
+                                            <div class="flex items-center gap-2">
+                                                <button onclick="event.preventDefault(); event.stopPropagation(); deleteExam(<?php echo $exam['id']; ?>)" 
+                                                        class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Delete Exam">
+                                                    <i class="fas fa-trash-alt text-sm"></i>
+                                                </button>
+                                                <div class="flex items-center text-gray-400 group-hover:text-red-500 transition-colors">
+                                                    <span class="text-[10px] mr-2 uppercase tracking-widest font-bold">Manage</span>
+                                                    <i class="fas fa-arrow-right text-xs"></i>
+                                                </div>
                                             </div>
                                         </div>
                                     <?php else: ?>
@@ -676,6 +704,28 @@ if ($role === 'teacher') {
                 alert('Error updating publish status');
                 document.getElementById('toggle-' + examId).checked = !isPublished;
             });
+        }
+
+        function deleteExam(examId) {
+            if (!confirm('Are you sure you want to delete this entire exam? All questions and student results will be permanently removed.')) return;
+            
+            const formData = new FormData();
+            formData.append('delete_exam', '1');
+            formData.append('exam_id', examId);
+            
+            fetch('exam_center.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to delete exam'));
+                }
+            })
+            .catch(error => console.error('Error:', error));
         }
         
         // Close modal when clicking outside

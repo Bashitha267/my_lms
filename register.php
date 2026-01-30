@@ -21,7 +21,6 @@ $error_message = '';
     $dob = '';
     $school_name = '';
     $exam_year = '';
-    $closest_town = '';
     $district = '';
     $address = '';
     $gender = '';
@@ -61,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $dob = !empty($_POST['dob']) ? trim($_POST['dob']) : null;
     $school_name = !empty($_POST['school_name']) ? trim($_POST['school_name']) : null;
     $exam_year = !empty($_POST['exam_year']) ? intval($_POST['exam_year']) : null;
-    $closest_town = !empty($_POST['closest_town']) ? trim($_POST['closest_town']) : null;
     $district = !empty($_POST['district']) ? trim($_POST['district']) : null;
     $address = !empty($_POST['address']) ? trim($_POST['address']) : null;
     $gender = !empty($_POST['gender']) ? trim($_POST['gender']) : null;
@@ -186,19 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 $nic_no_value = ($verification_method === 'nic' && !empty($nic_number)) ? $nic_number : null;
                 $verification_method_value = ($verification_method !== 'none') ? $verification_method : 'none';
                 
-                $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, closest_town, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                // 20 placeholders in VALUES + types
-                // user_id(s), email(s), password(s), role(s), first_name(s), second_name(s), mobile(s), whatsapp(s), pic(s), approved(i) -> handled in query, nic(s/null), ver_method(s), dob(s), school(s), exam(i), town(s), district(s), address(s), gender(s)
-                // Wait, in previous code approved was a param. My SQL above has `approved` hardcoded? "approved, registering_date, status" -> "VALUES ..., ?, CURDATE(), 1, ..." 
-                // Ah, the original code had `approved` as a variable. I should probably keep it.
-                // Re-checking original: `VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ...)`
-                // The original had `username` too.
-                // New has: user_id, email, password, role, first_name, second_name, mobile, whatsapp, pic, approved (variable), nic, ver_method, dob, school, exam(i), town, district, address, gender
-                // Total params: 19.
-                // sssssssssissssissss => 19 types.
-                // Parameters: $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $closest_town, $district, $address, $gender
-                $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, closest_town, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssssssissssissss", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $closest_town, $district, $address, $gender);
+                $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssssssssissssisss", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $district, $address, $gender);
                 
                 if ($stmt->execute()) {
                     // Handle student-specific data
@@ -497,14 +484,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                 </div>
                             </div>
 
-                            <!-- Closest Town -->
-                            <div>
-                                <label for="closest_town" class="block text-sm font-medium text-gray-700 mb-1">Closest Town *</label>
-                                <input type="text" id="closest_town" name="closest_town" required
-                                       placeholder="Enter your closest town"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                       value="<?php echo htmlspecialchars($_POST['closest_town'] ?? ''); ?>">
-                            </div>
+
 
                             <!-- Address (Full width) -->
                             <div class="md:col-span-2">
@@ -631,7 +611,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                             <p class="text-gray-500">No online courses available at the moment.</p>
                                         </div>
                                     <?php else: ?>
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             <?php foreach ($courses as $course): ?>
                                                 <?php 
                                                     $isSelected = (intval($course_id_selected) === intval($course['id'])); 
@@ -709,14 +689,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             </div>
                         </div>
                         
-                        <!-- Academic Year -->
-                        <div>
-                            <label for="academic_year" class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
-                            <input type="number" id="academic_year" name="academic_year" 
-                                   value="<?php echo date('Y'); ?>" min="2020" max="2100"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                   required>
-                        </div>
+
 
                         <!-- Education Details -->
                         <div>
@@ -1354,24 +1327,13 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 educationHTML += '</div>';
             }
             
-            // Academic year - left aligned at bottom
-            const academicYearHTML = teacher.academic_year 
-                ? `<div class="text-left mt-auto pt-4 border-t border-gray-200">
-                     <div class="flex items-center">
-                       <svg class="w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                       </svg>
-                       <span class="text-gray-700 font-medium">Academic Year: ${teacher.academic_year}</span>
-                     </div>
-                   </div>`
-                : '';
+
             
             card.innerHTML = `
                 ${profilePic}
                 ${nameHTML}
                 ${whatsappHTML}
                 ${educationHTML}
-                ${academicYearHTML}
                 <div class="mt-4 pt-4 border-t border-gray-200 text-center">
                     <span class="inline-flex items-center px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

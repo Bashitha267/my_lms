@@ -177,76 +177,88 @@ if ($is_logged_in && $role === 'student') {
                 </div>
 
                 <!-- Right Side: Login Form -->
-                <div id="login-section" class="h-auto lg:h-[600px] lg:col-span-2">
-                    <div class="bg-white rounded-2xl shadow-xl p-4 lg:p-5 h-full flex flex-col justify-center border border-gray-100 mb-4 lg:mb-0">
-                        <div class="text-center mb-3">
-                            <h2 class="text-xl lg:text-2xl font-bold text-gray-800">ආයුබෝවන්!!</h2>
+                <div id="login-section" class="lg:h-[600px] lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-xl px-5 py-6 lg:px-6 lg:py-8 h-full flex flex-col justify-between border border-gray-100 mb-4 lg:mb-0">
+                        <!-- Header Section -->
+                        <div class="text-center">
+                            <div class="mb-4">
+                                <h2 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">ආයුබෝවන්!!</h2>
+                                <div class="h-1 w-16 bg-gradient-to-r from-red-600 to-red-700 mx-auto rounded-full"></div>
+                            </div>
                             <p class="text-xs lg:text-[13px] text-gray-500 mt-1 leading-relaxed">
                                 ලංකාවේ සාර්ථකම ඔන්ලිනෙ ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සදහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා  Password  නිවැරදිව ලබා දී Login වෙන්න.
                             </p>
                             <p class="mt-2 pt-2 text-gray-500 font-semibold text-[10px] lg:text-[11px] border-t border-gray-100">
                                 අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක ක්ලික් කරන්න.
-                            </p>
                         </div>
                         
-                        <?php if ($error_message): ?>
-                            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-2 rounded-lg mb-3 text-xs">
-                                <?php echo htmlspecialchars($error_message); ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if ($success_message): ?>
-                            <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-2 rounded-lg mb-3 text-xs">
-                                <?php echo htmlspecialchars($success_message); ?>
-                            </div>
-                        <?php endif; ?>
+                        <!-- Messages -->
+                        <div class="flex-shrink-0">
+                            <?php if ($error_message): ?>
+                                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-2.5 rounded-lg mb-2 text-xs">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    <?php echo htmlspecialchars($error_message); ?>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($success_message): ?>
+                                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-2.5 rounded-lg mb-2 text-xs">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    <?php echo htmlspecialchars($success_message); ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
 
-                        <form action="../auth.php" method="POST" class="space-y-3">
+                        <!-- Login Form -->
+                        <form action="../auth.php" method="POST" class="space-y-4">
                             <div>
-                                <label for="identifier" class="block text-[11px] font-semibold text-gray-700 mb-0.5">Mobile number</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                        <i class="fas fa-user text-xs"></i>
-                                    </span>
+                                <label for="identifier" class="block text-xs font-semibold text-gray-700 mb-1.5">Mobile Number</label>
+                                <div class="relative group">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-mobile-alt text-sm text-gray-400 group-focus-within:text-red-500 transition-colors"></i>
+                                    </div>
                                     <input type="text" id="identifier" name="identifier" required
-                                           class="w-full pl-10 pr-4 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
-                                           placeholder="Enter Mobile number">
+                                           class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all bg-gray-50 focus:bg-white"
+                                           placeholder="0XX XXX XXXX">
                                 </div>
                             </div>
 
                             <div>
-                                <label for="password" class="block text-[11px] font-semibold text-gray-700 mb-0.5">Password</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
-                                        <i class="fas fa-lock text-xs"></i>
-                                    </span>
+                                <label for="password" class="block text-xs font-semibold text-gray-700 mb-1.5">Password</label>
+                                <div class="relative group">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-lock text-sm text-gray-400 group-focus-within:text-red-500 transition-colors"></i>
+                                    </div>
                                     <input type="password" id="password" name="password" required
-                                           class="w-full pl-10 pr-4 py-2 text-xs border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition bg-gray-50 focus:bg-white"
-                                           placeholder="••••••••">
+                                           class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all bg-gray-50 focus:bg-white"
+                                           placeholder="Enter your password">
                                 </div>
                             </div>
                             
-                            <div class="flex items-center justify-between text-[10px]">
-                                <label class="flex items-center text-gray-500 cursor-pointer">
-                                    <input type="checkbox" class="form-checkbox text-red-600 rounded w-3 h-3">
-                                    <span class="ml-1.5">Remember Me</span>
+                            <div class="flex items-center justify-between text-xs">
+                                <label class="flex items-center text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
+                                    <input type="checkbox" class="form-checkbox text-red-600 rounded border-gray-300 w-3.5 h-3.5 focus:ring-2 focus:ring-red-500">
+                                    <span class="ml-2">Remember Me</span>
                                 </label>
-                                <a href="#" class="text-red-600 hover:text-red-700 font-medium">Forgot Password?</a>
+                                <a href="#" class="text-red-600 hover:text-red-700 font-medium hover:underline transition-all">Forgot Password?</a>
                             </div>
 
                             <button type="submit" name="login"
-                                    class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2.5 px-6 rounded-xl hover:from-red-700 hover:to-red-800 font-bold text-xs shadow-lg hover:shadow-red-500/30 transition transform hover:-translate-y-0.5">
-                                Sign In
+                                    class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-6 rounded-xl hover:from-red-700 hover:to-red-800 font-bold text-sm shadow-lg hover:shadow-xl hover:shadow-red-500/30 transition-all transform hover:-translate-y-0.5 active:scale-95">
+                                <i class="fas fa-sign-in-alt mr-2"></i>Sign In
                             </button>
                         </form>
 
-                        <div class="mt-3 text-center pt-3 border-t border-gray-100">
-                            <p class="text-[10px] text-gray-500">
-                                New here? 
-                                <a href="../register.php" class="text-red-600 hover:text-red-700 font-bold ml-1 hover:underline">
+                        <!-- Footer -->
+                        <div class="text-center pt-4 border-t border-gray-200">
+                            <p class="text-xs text-gray-600">
+                                New to our platform? 
+                                <a href="../register.php" class="text-red-600 hover:text-red-700 font-bold ml-1 hover:underline transition-colors inline-flex items-center">
                                     Register
+                                    <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
                                 </a>
                             </p>
+                           
                         </div>
                     </div>
                 </div>
