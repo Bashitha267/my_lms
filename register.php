@@ -409,7 +409,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
                                 <input type="text" id="first_name" name="first_name" required
-                                       placeholder="Enter your first name"
+                                       placeholder="Enter your first name / පළමු නම ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
                             </div>
@@ -417,7 +417,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="second_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
                                 <input type="text" id="second_name" name="second_name" required
-                                       placeholder="Enter your last name"
+                                       placeholder="Enter your last name / දෙවන නම ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
                             </div>
@@ -445,14 +445,14 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                                 <input type="password" id="password" name="password" required
-                                       placeholder="Enter a strong password"
+                                       placeholder="Enter a strong password / ශක්තිමත් මුරපදයක් ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             </div>
 
                             <div>
                                 <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
                                 <input type="password" id="confirm_password" name="confirm_password" required
-                                       placeholder="Re-enter your password"
+                                       placeholder="Re-enter your password / මුරපදය නැවත ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             </div>
 
@@ -460,7 +460,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="school_name" class="block text-sm font-medium text-gray-700 mb-1">School Name</label>
                                 <input type="text" id="school_name" name="school_name"
-                                       placeholder="Enter your school name"
+                                       placeholder="Enter your school name / පාසලේ නම ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
                             </div>
@@ -470,7 +470,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                 <label for="district" class="block text-sm font-medium text-gray-700 mb-1">District *</label>
                                 <div class="relative">
                                     <input type="text" id="district_search" 
-                                           placeholder="Search or select your district"
+                                           placeholder="Search or select your district / ඔබේ දිස්ත්‍රික්කය සොයන්න හෝ තෝරන්න"
                                            class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                            autocomplete="off"
                                            value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>"
@@ -490,7 +490,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div class="md:col-span-2">
                                 <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address *</label>
                                 <textarea id="address" name="address" rows="3" required
-                                          placeholder="Enter your full address"
+                                          placeholder="Enter your full address / සම්පූර්ණ ලිපිනය ඇතුළත් කරන්න"
                                           class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
                             </div>
                         </div>
@@ -505,7 +505,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="whatsapp_number" class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number *</label>
                                 <input type="text" id="whatsapp_number" name="whatsapp_number" required
-                                       placeholder="Enter WhatsApp number (e.g., 0771234567)"
+                                       placeholder="Enter WhatsApp number (e.g., 0771234567) / වට්ස්ඇප් අංකය ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
                             </div>
@@ -514,7 +514,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div>
                                 <label for="mobile_number" class="block text-sm font-medium text-gray-700 mb-1">Contact Number (Mobile) *</label>
                                 <input type="text" id="mobile_number" name="mobile_number" required
-                                       placeholder="Enter mobile number (e.g., 0771234567)"
+                                       placeholder="Enter mobile number (e.g., 0771234567) / ජංගම දුරකථන අංකය ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
                             </div>
@@ -523,7 +523,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <div class="md:col-span-2">
                                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
                                 <input type="email" id="email" name="email" required
-                                       placeholder="Enter your email address (e.g., student@example.com)"
+                                       placeholder="Enter your email address (e.g., student@example.com) / ඊමේල් ලිපිනය ඇතුළත් කරන්න"
                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                             </div>
@@ -783,7 +783,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <label for="nic_number" class="block text-sm font-medium text-gray-700 mb-1">NIC Number *</label>
                             <div class="flex space-x-2">
                                 <input type="text" id="nic_number" name="nic_number" 
-                                       placeholder="Enter NIC (e.g., 123456789V or 199512345678)"
+                                       placeholder="Enter NIC (e.g., 123456789V) / හැඳුනුම්පත් අංකය ඇතුළත් කරන්න"
                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        maxlength="12">
                                 <button type="button" onclick="verifyNIC()" 
@@ -816,7 +816,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                 <label for="otp_code" class="block text-sm font-medium text-gray-700 mb-1">Enter OTP Code *</label>
                                 <div class="flex space-x-2">
                                     <input type="text" id="otp_code" name="otp_code" 
-                                           placeholder="Enter 6-digit OTP"
+                                           placeholder="Enter 6-digit OTP / ඉලක්කම් 6ක OTP කේතය ඇතුළත් කරන්න"
                                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                            maxlength="6">
                                     <button type="button" onclick="verifyOTP()" 

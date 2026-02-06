@@ -212,6 +212,43 @@ if ($role === 'student') {
     }
     $stmt->close();
 
+    // Get teacher wallet balance
+    $teacher_points = 0;
+    $teacher_earnings = 0;
+    $wallet_query = "SELECT total_points, total_earned FROM teacher_wallet WHERE teacher_id = ?";
+    $wallet_stmt = $conn->prepare($wallet_query);
+    if ($wallet_stmt) {
+        $wallet_stmt->bind_param("s", $user_id);
+        $wallet_stmt->execute();
+        $wallet_result = $wallet_stmt->get_result();
+        if ($wallet_result->num_rows > 0) {
+            $wallet_row = $wallet_result->fetch_assoc();
+            $teacher_points = $wallet_row['total_points'];
+            $teacher_earnings = $wallet_row['total_earned'];
+        }
+        $wallet_stmt->close();
+    }
+
+    // Get recent transactions
+    $transactions = [];
+    $trans_query = "SELECT pt.*, u.first_name, u.second_name 
+                    FROM payment_transactions pt
+                    JOIN users u ON pt.student_id = u.user_id
+                    WHERE pt.teacher_id = ?
+                    ORDER BY pt.created_at DESC
+                    LIMIT 50";
+    $trans_stmt = $conn->prepare($trans_query);
+    if ($trans_stmt) {
+        $trans_stmt->bind_param("s", $user_id);
+        $trans_stmt->execute();
+        $trans_result = $trans_stmt->get_result();
+        while ($row = $trans_result->fetch_assoc()) {
+            $transactions[] = $row;
+        }
+        $trans_stmt->close();
+    }
+
+
     // Handle Assignment Selection (Teacher View)
     $selected_assignment = null;
     $enrolled_students = [];
@@ -601,6 +638,85 @@ if ($role === 'student') {
             <?php elseif ($role === 'teacher'): ?>
                 <!-- Teacher View -->
                 <div class="space-y-6">
+                    <!-- Active Points Header (Teacher Only) -->
+                    <div class="premium-card rounded-3xl p-8 mb-8 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-semibold text-green-600 uppercase tracking-wider mb-1">Your Wallet</p>
+                                <h2 class="text-4xl font-black text-gray-900 mb-2">
+                                    <?php echo number_format($teacher_points, 2); ?> <span class="text-2xl text-gray-500">Points</span>
+                                </h2>
+                                <p class="text-sm text-gray-600">
+                                    Total Earned: <span class="font-bold text-green-700">Rs. <?php echo number_format($teacher_earnings, 2); ?></span>
+                                    <span class="text-xs text-gray-400 ml-2">(1 Point = 1 Rs)</span>
+                                </p>
+                            </div>
+                            <div class="p-6 bg-white rounded-2xl shadow-lg">
+                                <i class="fas fa-wallet text-5xl text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction History Section -->
+                    <?php if (!empty($transactions)): ?>
+                    <div class="mb-10">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-black text-gray-900 flex items-center gap-3">
+                                <span class="w-1.5 h-8 bg-green-600 rounded-full"></span>
+                                Point Transactions
+                            </h2>
+                        </div>
+                        
+                        <div class="premium-card rounded-2xl overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-100">
+                                    <thead>
+                                        <tr class="bg-gray-50/50">
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Your Share (75%)</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <?php foreach ($transactions as $trans): ?>
+                                            <tr>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <?php echo date('M d, Y', strtotime($trans['created_at'])); ?>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                    <?php echo htmlspecialchars(trim(($trans['first_name'] ?? '') . ' ' . ($trans['second_name'] ?? ''))); ?>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full <?php echo $trans['payment_type'] === 'enrollment' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'; ?>">
+                                                        <?php echo ucfirst($trans['payment_type']); ?>
+                                                    </span>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                                    Rs. <?php echo number_format($trans['total_amount'], 2); ?>
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
+                                                    +<?php echo number_format($trans['teacher_points'], 2); ?> pts
+                                                </td>
+                                                <td class="px-6 py-4 whitespace-nowrap">
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full <?php 
+                                                        echo $trans['transaction_status'] === 'completed' ? 'bg-green-100 text-green-800' : 
+                                                            ($trans['transaction_status'] === 'reversed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800');
+                                                    ?>">
+                                                        <?php echo ucfirst($trans['transaction_status']); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                     <?php if ($selected_assignment): ?>
                         <!-- Subject Detail View -->
                         <div class="bg-white rounded-lg shadow border border-red-500 overflow-hidden">

@@ -4,12 +4,12 @@
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
-<header class="bg-red-600 shadow-lg sticky top-0 z-50">
+<header class="bg-blue-600 shadow-lg sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <!-- Logo/Brand -->
             <div class="flex items-center flex-shrink-0">
-                <a href="dashboard.php" class="text-white text-2xl font-bold hover:text-red-100 transition-colors tracking-tight">
+                <a href="dashboard.php" class="text-white text-2xl font-bold hover:text-blue-100 transition-colors tracking-tight">
                     LMS ADMIN
                 </a>
             </div>

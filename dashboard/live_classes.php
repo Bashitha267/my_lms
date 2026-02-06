@@ -149,6 +149,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) 
     }
 }
 
+// Handle Physical class creation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_physical_class']) && $role === 'teacher') {
+    $stream_subject_id = isset($_POST['stream_subject_id']) ? intval($_POST['stream_subject_id']) : 0;
+    $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+    $title = trim($_POST['title'] ?? '');
+    $description = trim($_POST['description'] ?? '');
+    $class_date = trim($_POST['class_date'] ?? '');
+    $start_time = trim($_POST['start_time'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    
+    if (empty($title)) {
+        $error_message = 'Title is required.';
+    } elseif (empty($class_date)) {
+        $error_message = 'Date is required.';
+    } elseif ($stream_subject_id <= 0) {
+        $error_message = 'Please select a subject.';
+    } else {
+        $assign_query = "SELECT id FROM teacher_assignments WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active' LIMIT 1";
+        $assign_stmt = $conn->prepare($assign_query);
+        $assign_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+        $assign_stmt->execute();
+        $assign_result = $assign_stmt->get_result();
+        
+        if ($assign_result->num_rows > 0) {
+            $assign_row = $assign_result->fetch_assoc();
+            $teacher_assignment_id = $assign_row['id'];
+            
+            $insert_query = "INSERT INTO physical_classes (teacher_assignment_id, teacher_id, title, description, class_date, start_time, location, status) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled')";
+            $insert_stmt = $conn->prepare($insert_query);
+            $insert_stmt->bind_param("issssss", $teacher_assignment_id, $user_id, $title, $description, $class_date, $start_time, $location);
+            
+            if ($insert_stmt->execute()) {
+                header('Location: live_classes.php?success=' . urlencode('Physical class created successfully!'));
+                exit;
+            } else {
+                $error_message = 'Error creating physical class: ' . $conn->error;
+            }
+        } else {
+            $error_message = 'You do not have an active assignment for this subject.';
+        }
+    }
+}
+
 // Get live classes based on role
 $student_enrollments = [];
 $teacher_assignments = [];
@@ -227,14 +271,11 @@ if (empty($role)) {
                        WHERE ta.stream_subject_id = ? 
                          AND ta.academic_year = ?
                          AND r.is_live = 1 
-                         AND r.status != 'inactive'
+                         AND r.status IN ('ongoing', 'scheduled')
                        ORDER BY 
                          CASE r.status
                            WHEN 'ongoing' THEN 1
                            WHEN 'scheduled' THEN 2
-                           WHEN 'ended' THEN 3
-                           WHEN 'cancelled' THEN 4
-                           ELSE 5
                          END,
                          r.scheduled_start_time DESC, r.created_at DESC";
         
@@ -258,13 +299,11 @@ if (empty($role)) {
                        INNER JOIN users u ON ta.teacher_id = u.user_id
                        WHERE ta.stream_subject_id = ? 
                          AND ta.academic_year = ?
-                         AND zc.status != 'cancelled'
+                         AND zc.status IN ('ongoing', 'scheduled')
                        ORDER BY 
                          CASE zc.status
                            WHEN 'ongoing' THEN 1
                            WHEN 'scheduled' THEN 2
-                           WHEN 'ended' THEN 3
-                           ELSE 4
                          END,
                          zc.scheduled_start_time DESC, zc.created_at DESC";
         
@@ -314,14 +353,11 @@ if (empty($role)) {
                        FROM recordings r
                        WHERE r.teacher_assignment_id = ? 
                          AND r.is_live = 1 
-                         AND r.status != 'inactive'
+                         AND r.status IN ('ongoing', 'scheduled')
                        ORDER BY 
                          CASE r.status
                            WHEN 'ongoing' THEN 1
                            WHEN 'scheduled' THEN 2
-                           WHEN 'ended' THEN 3
-                           WHEN 'cancelled' THEN 4
-                           ELSE 5
                          END,
                          r.scheduled_start_time DESC, r.created_at DESC";
         
@@ -345,13 +381,11 @@ if (empty($role)) {
                               zc.actual_start_time, zc.end_time, zc.created_at, zc.free_class, zc.zoom_meeting_link
                        FROM zoom_classes zc
                        WHERE zc.teacher_assignment_id = ? 
-                         AND zc.status != 'cancelled'
+                         AND zc.status IN ('ongoing', 'scheduled')
                        ORDER BY 
                          CASE zc.status
                            WHEN 'ongoing' THEN 1
                            WHEN 'scheduled' THEN 2
-                           WHEN 'ended' THEN 3
-                           ELSE 4
                          END,
                          zc.scheduled_start_time DESC, zc.created_at DESC";
         
@@ -373,6 +407,19 @@ if (empty($role)) {
         if (!empty($live_classes)) {
             $live_classes_by_assignment[$assignment_id] = $live_classes;
         }
+
+        // Get Physical classes for this assignment
+        $physical_query = "SELECT pc.* FROM physical_classes pc WHERE pc.teacher_assignment_id = ? AND pc.status IN ('scheduled', 'ongoing') ORDER BY pc.class_date DESC, pc.start_time DESC";
+        $physical_stmt = $conn->prepare($physical_query);
+        $physical_stmt->bind_param("i", $assignment_id);
+        $physical_stmt->execute();
+        $physical_result = $physical_stmt->get_result();
+        while ($physical_row = $physical_result->fetch_assoc()) {
+            $physical_row['is_physical'] = true;
+            $live_classes_by_assignment[$assignment_id][] = $physical_row;
+        }
+        $physical_stmt->close();
+
         if (!empty($ongoing_classes)) {
             $ongoing_live_classes_by_assignment[$assignment_id] = $ongoing_classes;
         }
@@ -617,9 +664,9 @@ if (empty($role)) {
                     }
                 }
 
-                // Sort unified list: ongoing -> scheduled -> ended -> cancelled
+                // Sort unified list: ongoing -> scheduled
                 usort($all_student_live_classes, function($a, $b) {
-                    $priority = ['ongoing' => 1, 'scheduled' => 2, 'ended' => 3, 'cancelled' => 4];
+                    $priority = ['ongoing' => 1, 'scheduled' => 2];
                     $p1 = $priority[$a['status']] ?? 9;
                     $p2 = $priority[$b['status']] ?? 9;
                     if ($p1 !== $p2) return $p1 - $p2;
@@ -790,10 +837,10 @@ if (empty($role)) {
                        <!-- Live Classes Grid -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <?php 
-                                // Sort live classes: ongoing first, then by status priority
+                                // Sort live classes: ongoing first, then scheduled
                                 $sorted_classes = $live_classes_by_assignment[$assignment['id']];
                                 usort($sorted_classes, function($a, $b) {
-                                    $status_priority = ['ongoing' => 1, 'scheduled' => 2, 'ended' => 3, 'cancelled' => 4];
+                                    $status_priority = ['ongoing' => 1, 'scheduled' => 2];
                                     $a_priority = $status_priority[$a['status']] ?? 5;
                                     $b_priority = $status_priority[$b['status']] ?? 5;
                                     if ($a_priority !== $b_priority) {
@@ -810,8 +857,9 @@ if (empty($role)) {
                                         'ended' => 'bg-gray-100 text-gray-800',
                                         'cancelled' => 'bg-red-100 text-red-800'
                                     ];
+                                    $is_physical = isset($live_class['is_physical']) && $live_class['is_physical'];
                                     $status_color = $status_colors[$live_class['status']] ?? 'bg-gray-100 text-gray-800';
-                                    $can_join = ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
+                                    $can_join = !$is_physical && ($live_class['status'] === 'ongoing' || $live_class['status'] === 'scheduled');
                                     
                                     // Get thumbnail URL
                                     $thumb_url = $live_class['thumbnail_url'] ?? null;
@@ -819,7 +867,7 @@ if (empty($role)) {
                                         $thumb_url = "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/maxresdefault.jpg";
                                     }
                                     ?>
-                                    <div class="premium-card rounded-2xl shadow-sm overflow-hidden border-t-4 <?php echo $live_class['status'] === 'ongoing' ? 'border-red-600' : 'border-blue-600'; ?> max-w-[360px] mx-auto w-full">
+                                    <div class="premium-card rounded-2xl shadow-sm overflow-hidden border-t-4 <?php echo $is_physical ? 'border-orange-600' : ($live_class['status'] === 'ongoing' ? 'border-red-600' : 'border-blue-600'); ?> max-w-[360px] mx-auto w-full">
                                         <!-- Thumbnail or Live Badge -->
                                         <div class="relative aspect-video bg-gray-100">
                                             <?php if ($thumb_url): ?>
@@ -827,6 +875,14 @@ if (empty($role)) {
                                                      alt="<?php echo htmlspecialchars($live_class['title']); ?>"
                                                      class="w-full h-full object-cover"
                                                      onerror="this.src='<?php echo !empty($live_class['youtube_video_id']) ? "https://img.youtube.com/vi/{$live_class['youtube_video_id']}/hqdefault.jpg" : ""; ?>'; this.onerror=null;">
+                                            <?php elseif ($is_physical): ?>
+                                                <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-500 to-orange-600 relative overflow-hidden">
+                                                    <div class="absolute inset-0 bg-black/10"></div>
+                                                    <svg class="w-16 h-16 text-white/90 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                                    </svg>
+                                                    <span class="text-white font-black text-xs uppercase tracking-tighter mt-2 relative z-10">Physical Class</span>
+                                                </div>
                                             <?php else: ?>
                                                 <div class="w-full h-full flex items-center justify-center <?php echo isset($live_class['is_zoom']) ? 'zoom-placeholder' : 'bg-gradient-to-br from-blue-600 to-blue-800'; ?>">
                                                     <svg class="w-12 h-12 text-white/90 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -855,10 +911,23 @@ if (empty($role)) {
                                             </h3>
                                             
                                             <div class="flex flex-wrap items-center gap-3 text-gray-500 mb-4">
-                                                <?php if ($live_class['scheduled_start_time']): ?>
+                                                 <?php if (($is_physical && !empty($live_class['class_date'])) || (!$is_physical && !empty($live_class['scheduled_start_time']))): ?>
                                                     <div class="flex items-center text-[11px] font-medium">
                                                         <svg class="w-3.5 h-3.5 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                        <?php echo date('M d, H:i', strtotime($live_class['scheduled_start_time'])); ?>
+                                                        <?php 
+                                                        if ($is_physical) {
+                                                            echo date('M d', strtotime($live_class['class_date'])) . ($live_class['start_time'] ? ', ' . date('H:i', strtotime($live_class['start_time'])) : '');
+                                                        } else {
+                                                            echo date('M d, H:i', strtotime($live_class['scheduled_start_time'])); 
+                                                        }
+                                                        ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($is_physical && $live_class['location']): ?>
+                                                    <div class="flex items-center text-[11px] font-medium text-orange-600">
+                                                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
+                                                        <?php echo htmlspecialchars($live_class['location']); ?>
                                                     </div>
                                                 <?php endif; ?>
                                                 
@@ -869,8 +938,14 @@ if (empty($role)) {
                                                 <?php endif; ?>
                                             </div>
                                             
-                                            <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-50">
-                                                <?php if ($can_join): ?>
+                                             <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-50 w-full">
+                                                <?php if ($is_physical): ?>
+                                                    <a href="add_attendance.php?id=<?php echo $live_class['id']; ?>" 
+                                                       class="flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-[11px] rounded-xl font-bold transition-all shadow-md active:scale-95">
+                                                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                                                        Take Attendance
+                                                    </a>
+                                                <?php elseif ($can_join): ?>
                                                     <?php 
                                                     $player_url = isset($live_class['is_zoom']) && $live_class['is_zoom'] 
                                                         ? "../player/zoom.php?id=" . $live_class['id']
@@ -893,18 +968,30 @@ if (empty($role)) {
                                                             <i class="fas fa-video mr-1"></i>Zoom
                                                         </span>
                                                     <?php endif; ?>
-                                                    <?php if ($live_class['status'] === 'scheduled' && (!isset($live_class['is_zoom']) || !$live_class['is_zoom'])): ?>
-                                                        <button onclick="startLiveClass(<?php echo $live_class['id']; ?>)" 
-                                                                class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
-                                                            Start
-                                                        </button>
-                                                    <?php endif; ?>
-                                                    <?php if ($live_class['status'] === 'scheduled' || $live_class['status'] === 'cancelled'): ?>
-                                                        <button onclick="<?php echo isset($live_class['is_zoom']) && $live_class['is_zoom'] ? 'deleteZoomClass' : 'deleteLiveClass'; ?>(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
-                                                                class="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
-                                                            Delete
-                                                        </button>
-                                                    <?php endif; ?>
+                                                     <?php if (!$is_physical && $live_class['status'] === 'scheduled' && (!isset($live_class['is_zoom']) || !$live_class['is_zoom'])): ?>
+                                                         <button onclick="startLiveClass(<?php echo $live_class['id']; ?>)" 
+                                                                 class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                                                             Start
+                                                         </button>
+                                                     <?php endif; ?>
+                                                     <?php if ($is_physical && $live_class['status'] === 'scheduled'): ?>
+                                                         <button onclick="startPhysicalClass(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
+                                                                 class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                                                             Start
+                                                         </button>
+                                                     <?php endif; ?>
+                                                     <?php if ($is_physical && $live_class['status'] === 'ongoing'): ?>
+                                                         <button onclick="endPhysicalClass(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
+                                                                 class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                                                             End
+                                                         </button>
+                                                     <?php endif; ?>
+                                                     <?php if ($live_class['status'] === 'scheduled' || $live_class['status'] === 'cancelled' || ($is_physical && $live_class['status'] === 'ongoing')): ?>
+                                                         <button onclick="<?php echo $is_physical ? 'deletePhysicalClass' : (isset($live_class['is_zoom']) && $live_class['is_zoom'] ? 'deleteZoomClass' : 'deleteLiveClass'); ?>(<?php echo $live_class['id']; ?>, '<?php echo htmlspecialchars(addslashes($live_class['title'])); ?>')" 
+                                                                 class="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700">
+                                                             Delete
+                                                         </button>
+                                                     <?php endif; ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -981,20 +1068,27 @@ if (empty($role)) {
                                         <?php endif; ?>
                                     </div>
                                     
-                                    <div class="mt-4 flex gap-2">
+                                    <div class="mt-4 flex flex-col gap-2">
                                         <button onclick="openCreateLiveClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
-                                                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm">
+                                                class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center text-sm transition-colors shadow-sm">
                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                             </svg>
                                             Create Live Class
                                         </button>
-                                        <button onclick="openCreateZoomClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
-                                                class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center text-sm">
+                                         <button onclick="openCreateZoomClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
+                                                class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center justify-center text-sm transition-colors shadow-sm">
                                             <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                                 <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
                                             </svg>
-                                            Create Zoom Class
+                                            Zoom Class
+                                        </button>
+                                        <button onclick="openCreatePhysicalClassModal(<?php echo $assignment['stream_subject_id']; ?>, <?php echo $assignment['academic_year']; ?>, '<?php echo htmlspecialchars(addslashes($assignment['subject_name'])); ?>', '<?php echo htmlspecialchars(addslashes($assignment['stream_name'])); ?>')" 
+                                                class="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 flex items-center justify-center text-sm transition-colors shadow-sm">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                            </svg>
+                                            Physical Class
                                         </button>
                                     </div>
                                 </div>
@@ -1210,6 +1304,89 @@ if (empty($role)) {
                 </form>
             </div>
         </div>
+
+        <!-- Create Physical Class Modal (Teachers Only) -->
+        <div id="createPhysicalClassModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-900">Create Physical Class</h3>
+                    <button onclick="closeCreatePhysicalClassModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <form method="POST" action="" id="createPhysicalClassForm" class="space-y-4">
+                    <input type="hidden" name="create_physical_class" value="1">
+                    <input type="hidden" id="phys_stream_subject_id" name="stream_subject_id" value="">
+                    <input type="hidden" id="phys_academic_year" name="academic_year" value="">
+                    
+                    <!-- Selected Subject Info -->
+                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-orange-900 mb-2">Selected Subject:</h4>
+                        <p class="text-orange-800" id="phys_selected_subject_info">-</p>
+                    </div>
+                    
+                    <!-- Title -->
+                    <div>
+                        <label for="phys_title" class="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                        <input type="text" id="phys_title" name="title" required
+                               placeholder="e.g., Physical Class: Chemistry Lab Session"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="phys_description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="phys_description" name="description" rows="3"
+                                  placeholder="Describe what will be covered in this physical class..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"></textarea>
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label for="phys_location" class="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                        <input type="text" id="phys_location" name="location" required
+                               placeholder="e.g., Science Lab 3, Main Campus"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- Class Date -->
+                        <div>
+                            <label for="phys_class_date" class="block text-sm font-medium text-gray-700 mb-1">Class Date *</label>
+                            <input type="date" id="phys_class_date" name="class_date" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                        </div>
+                        <!-- Start Time -->
+                        <div>
+                            <label for="phys_start_time" class="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                            <input type="time" id="phys_start_time" name="start_time" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                        </div>
+                    </div>
+                    
+                    <!-- End Time -->
+                    <div>
+                        <label for="phys_end_time" class="block text-sm font-medium text-gray-700 mb-1">End Time (Optional)</label>
+                        <input type="time" id="phys_end_time" name="end_time"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onclick="closeCreatePhysicalClassModal()" 
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                            Create Physical Class
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     <?php endif; ?>
 
     <!-- Login/Register Popup for Guests -->
@@ -1411,14 +1588,112 @@ if (empty($role)) {
             });
         }
 
+         // Physical Class Modal Functions
+        function openCreatePhysicalClassModal(streamSubjectId, academicYear, subjectName, streamName) {
+            document.getElementById('phys_stream_subject_id').value = streamSubjectId;
+            document.getElementById('phys_academic_year').value = academicYear;
+            document.getElementById('phys_selected_subject_info').textContent = subjectName + ' - ' + streamName + ' (' + academicYear + ')';
+            document.getElementById('createPhysicalClassModal').classList.remove('hidden');
+        }
+
+        function closeCreatePhysicalClassModal() {
+            document.getElementById('createPhysicalClassModal').classList.add('hidden');
+            document.getElementById('createPhysicalClassForm').reset();
+        }
+
+         function deletePhysicalClass(classId, title) {
+            if (!confirm(`Are you sure you want to delete physical class "${title}"?`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', 'delete_physical');
+            formData.append('class_id', classId);
+            
+            fetch('manage_physical_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.message || 'Error deleting physical class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting physical class.', 'error');
+            });
+        }
+
+        function startPhysicalClass(classId, title) {
+            if (!confirm(`Start physical class "${title}"?`)) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'start_physical');
+            formData.append('class_id', classId);
+            
+            fetch('manage_physical_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.message || 'Error starting class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error starting class.', 'error');
+            });
+        }
+
+        function endPhysicalClass(classId, title) {
+            if (!confirm(`Are you sure you want to end physical class "${title}"?`)) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'end_physical');
+            formData.append('class_id', classId);
+            
+            fetch('manage_physical_class.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    showToast(data.message || 'Error ending class', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error ending class.', 'error');
+            });
+        }
+
         // Close modal on outside click
         document.getElementById('createLiveClassModal')?.addEventListener('click', function(e) {
             if (e.target === this) {
                 closeCreateLiveClassModal();
             }
         });
+        document.getElementById('createPhysicalClassModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCreatePhysicalClassModal();
+            }
+        });
         <?php endif; ?>
     </script>
 </body>
 </html>
-
+```
