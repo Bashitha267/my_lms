@@ -32,6 +32,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                      // Update Enrollment
                      $conn->query("UPDATE course_enrollments SET payment_status = 'paid' WHERE id = (SELECT course_enrollment_id FROM course_payments WHERE id = $payment_id)");
                 }
+                
+                // WhatsApp Notification
+                if (file_exists('../whatsapp_config.php')) {
+                    require_once '../whatsapp_config.php';
+                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                        $info_q = "SELECT u.first_name, u.whatsapp_number, c.title as course_title, cp.amount
+                                  FROM course_payments cp
+                                  JOIN course_enrollments ce ON cp.course_enrollment_id = ce.id
+                                  JOIN users u ON ce.student_id = u.user_id
+                                  JOIN courses c ON ce.course_id = c.id
+                                  WHERE cp.id = ?";
+                        $i_stmt = $conn->prepare($info_q);
+                        $i_stmt->bind_param("i", $payment_id);
+                        $i_stmt->execute();
+                        $i_res = $i_stmt->get_result();
+                        if ($i_row = $i_res->fetch_assoc()) {
+                            $s_name = $i_row['first_name'];
+                            $s_wa = $i_row['whatsapp_number'];
+                            $c_title = $i_row['course_title'];
+                            $amt = number_format($i_row['amount'], 2);
+                            
+                            if ($action === 'approve') {
+                                $s_msg = "✅ *Payment Approved / ගෙවීම් තහවුරු කරන ලදී*\n\n" .
+                                       "Hello {$s_name},\n" .
+                                       "Your payment of *Rs. {$amt}* for the course *{$c_title}* has been *Approved*.\n" .
+                                       "You can now access the course content.\n\n" .
+                                       "--------------------------\n\n" .
+                                       "ඔබේ *{$c_title}* පාඨමාලාව සඳහා වූ රු. {$amt} ක ගෙවීම සාර්ථකව තහවුරු කරන ලදී. ඔබට දැන් පාඩම් නැරඹිය හැකිය.\n\n" .
+                                       "Thank you, LearnerX Team";
+                            } else {
+                                $s_msg = "❌ *Payment Rejected / ගෙවීම් ප්‍රතික්ෂේප කරන ලදී*\n\n" .
+                                       "Hello {$s_name},\n" .
+                                       "Your payment for the course *{$c_title}* has been *Rejected*.\n" .
+                                       "Please contact support for more information.\n\n" .
+                                       "--------------------------\n\n" .
+                                       "ඔබේ *{$c_title}* පාඨමාලාව සඳහා වූ ගෙවීම ප්‍රතික්ෂේප කර ඇත. වැඩි විස්තර සඳහා අපව අමතන්න.\n\n" .
+                                       "Thank you, LearnerX Team";
+                            }
+                            sendWhatsAppMessage($s_wa, $s_msg);
+                        }
+                        $i_stmt->close();
+                    }
+                }
+                
                 $conn->commit();
                 $success_message = "Payment {$action}d successfully!";
             } catch (Exception $e) {
@@ -42,13 +86,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
             $table = $payment_type === 'enrollment' ? 'enrollment_payments' : 'monthly_payments';
             $status = $action === 'approve' ? 'paid' : 'failed';
             
-            // Removed verified_at/verified_by to ensure SQL safety if columns don't exist
+            // Fetch info BEFORE update for notification
+            $student_info = null;
+            $info_query = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, p.amount,
+                                  st.name as stream_name, t.first_name as teacher_name
+                          FROM {$table} p
+                          JOIN student_enrollment se ON p.student_enrollment_id = se.id
+                          JOIN users u ON se.student_id = u.user_id
+                          JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                          JOIN subjects s ON ss.subject_id = s.id
+                          JOIN streams st ON ss.stream_id = st.id
+                          LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
+                          LEFT JOIN users t ON ta.teacher_id = t.user_id
+                          WHERE p.id = ?";
+            $info_stmt = $conn->prepare($info_query);
+            $info_stmt->bind_param("i", $payment_id);
+            $info_stmt->execute();
+            $student_info = $info_stmt->get_result()->fetch_assoc();
+            $info_stmt->close();
+
+            // Perform Update
             $query = "UPDATE {$table} SET payment_status = ? WHERE id = ?";
             $stmt = $conn->prepare($query);
             $stmt->bind_param("si", $status, $payment_id);
             
             if ($stmt->execute()) {
                 $success_message = "Payment {$action}d successfully!";
+                
+                // WhatsApp Notification
+                if ($student_info && file_exists('../whatsapp_config.php')) {
+                    require_once '../whatsapp_config.php';
+                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                        $s_name = $student_info['first_name'];
+                        $s_wa = $student_info['whatsapp_number'];
+                        $subj = $student_info['subject_name'];
+                        $stream = $student_info['stream_name'];
+                        $teacher = $student_info['teacher_name'] ?? 'Teacher';
+                        $amt = number_format($student_info['amount'], 2);
+                        $p_label = $payment_type === 'enrollment' ? 'Enrollment' : 'Monthly';
+                        // $p_label_si = $payment_type === 'enrollment' ? 'බඳවා ගැනීමේ' : 'මාසික'; // Unused in new format if we simplify
+                        
+                        if ($action === 'approve') {
+                            $s_msg = "✅ *Payment Approved / ගෙවීම් තහවුරු කරන ලදී*\n\n" .
+                                   "Hello {$s_name},\n" .
+                                   "Your {$p_label} payment has been approved.\n\n" .
+                                   "Teacher: *{$teacher}*\n" .
+                                   "Stream: *{$stream}*\n" .
+                                   "Subject: *{$subj}*\n" .
+                                   "Amount: *Rs. {$amt}*\n\n" .
+                                   "You can now access the content.\n" .
+                                   "ඔබට දැන් පන්ති සදහා සහභාගී විය හැක.\n\n" .
+                                   "--------------------------\n\n" .
+                                   "";
+                        } else {
+                            $s_msg = "❌ *Payment Rejected / ගෙවීම් ප්‍රතික්ෂේප කරන ලදී*\n\n" .
+                                   "Hello {$s_name},\n" .
+                                   "Your {$p_label} payment for *{$subj}* has been *Rejected*.\n\n" .
+                                   "Teacher: *{$teacher}*\n" .
+                                   "Stream: *{$stream}*\n\n" .
+                                   "Please contact support or re-upload your receipt.\n" .
+                                   "ඔබේ ගෙවීම ප්‍රතික්ෂේප කර ඇත. කරුණාකර අපව අමතන්න.\n\n" .
+                                   "--------------------------\n\n" .
+                                   "";
+                        }
+                        sendWhatsAppMessage($s_wa, $s_msg);
+                    }
+                }
             } else {
                 $error_message = "Error updating payment: " . $conn->error;
             }
@@ -56,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
         }
     }
 }
+
 
 // --- DATA FETCHING ---
 

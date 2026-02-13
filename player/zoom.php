@@ -797,6 +797,21 @@ if ($current_zoom_class && $can_access) {
 
 
 
+            function joinZoomClass() {
+                const formData = new FormData();
+                formData.append('zoom_class_id', zoomClassId);
+
+                fetch('join_zoom_class.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Join status:', data);
+                })
+                .catch(error => console.error('Error joining Zoom class:', error));
+            }
+
             function loadChatMessages() {
                 fetch(`get_zoom_messages.php?zoom_class_id=${zoomClassId}&last_id=${lastMessageId}`)
                     .then(response => response.json())

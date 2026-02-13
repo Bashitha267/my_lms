@@ -48,6 +48,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $success_message = 'Payment submitted successfully! It will be processed shortly.';
                         // Update enrollment status
                         $conn->query("UPDATE course_enrollments SET payment_status = 'pending' WHERE id = $enrollment_id AND payment_status != 'paid'");
+                        
+                        // WhatsApp Notifications
+                        if (file_exists('../whatsapp_config.php')) {
+                            require_once '../whatsapp_config.php';
+                            if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                                // Fetch Student, Course, and Teacher info
+                                $info_q = "SELECT u.first_name, u.whatsapp_number, c.title as course_title, t.first_name as teacher_name 
+                                          FROM course_enrollments ce
+                                          JOIN users u ON ce.student_id = u.user_id
+                                          JOIN courses c ON ce.course_id = c.id
+                                          LEFT JOIN users t ON c.teacher_id = t.user_id
+                                          WHERE ce.id = ?";
+                                $i_stmt = $conn->prepare($info_q);
+                                $i_stmt->bind_param("i", $enrollment_id);
+                                $i_stmt->execute();
+                                $i_res = $i_stmt->get_result();
+                                if ($i_row = $i_res->fetch_assoc()) {
+                                    $s_name = $i_row['first_name'];
+                                    $s_wa = $i_row['whatsapp_number'];
+                                    $c_title = $i_row['course_title'];
+                                    $teacher = $i_row['teacher_name'] ?? 'Instructor';
+                                    
+                                    // 1. Notify Student
+                                    $s_msg = "💸 *Course Payment Submitted / පාඨමාලා ගෙවීම ඉදිරිපත් කරන ලදී*\n\n" .
+                                           "Hello {$s_name},\n" .
+                                           "Thank you, we received your payment.\n\n" .
+                                           "Course: *{$c_title}*\n" .
+                                           "Instructor: *{$teacher}*\n\n" .
+                                           "Our staff will quickly approve your payment.\n" .
+                                           "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
+                                           "--------------------------\n\n" .
+                                           "Thank you, LearnerX Team";
+                                    sendWhatsAppMessage($s_wa, $s_msg);
+                                    
+                                    // 2. Notify Admin
+                                    if (defined('ADMIN_WHATSAPP')) {
+                                        $a_msg = "🔔 *New Course Payment Pending Approval*\n\n" .
+                                               "Student: *{$s_name}* ({$user_id})\n" .
+                                               "Course: *{$c_title}*\n" .
+                                               "Instructor: *{$teacher}*\n" .
+                                               "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
+                                               "Please check the admin panel to verify.";
+                                        sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);
+                                    }
+                                }
+                                $i_stmt->close();
+                            }
+                        }
                     } else {
                         $error_message = 'Error submitting payment: ' . $conn->error;
                     }
@@ -86,11 +134,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $success_message = 'Payment receipt uploaded successfully! It will be verified by admin shortly.';
                                 // Update enrollment status
                                 $conn->query("UPDATE course_enrollments SET payment_status = 'pending' WHERE id = $enrollment_id AND payment_status != 'paid'");
+                                
+                                // WhatsApp Notifications
+                                if (file_exists('../whatsapp_config.php')) {
+                                    require_once '../whatsapp_config.php';
+                                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                                        // Fetch Student, Course, and Teacher info
+                                        $info_q = "SELECT u.first_name, u.whatsapp_number, c.title as course_title, t.first_name as teacher_name 
+                                                  FROM course_enrollments ce
+                                                  JOIN users u ON ce.student_id = u.user_id
+                                                  JOIN courses c ON ce.course_id = c.id
+                                                  LEFT JOIN users t ON c.teacher_id = t.user_id
+                                                  WHERE ce.id = ?";
+                                        $i_stmt = $conn->prepare($info_q);
+                                        $i_stmt->bind_param("i", $enrollment_id);
+                                        $i_stmt->execute();
+                                        $i_res = $i_stmt->get_result();
+                                        if ($i_row = $i_res->fetch_assoc()) {
+                                            $s_name = $i_row['first_name'];
+                                            $s_wa = $i_row['whatsapp_number'];
+                                            $c_title = $i_row['course_title'];
+                                            $teacher = $i_row['teacher_name'] ?? 'Instructor';
+                                            
+                                            // 1. Notify Student
+                                            $s_msg = "💸 *Course Payment Submitted / පාඨමාලා ගෙවීම ඉදිරිපත් කරන ලදී*\n\n" .
+                                                   "Hello {$s_name},\n" .
+                                                   "Thank you, we received your payment.\n\n" .
+                                                   "Course: *{$c_title}*\n" .
+                                                   "Instructor: *{$teacher}*\n\n" .
+                                                   "Our staff will quickly approve your payment.\n" .
+                                                   "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
+                                                   "--------------------------\n\n" .
+                                                   "Thank you, LearnerX Team";
+                                            sendWhatsAppMessage($s_wa, $s_msg);
+                                            
+                                            // 2. Notify Admin
+                                            if (defined('ADMIN_WHATSAPP')) {
+                                                $a_msg = "🔔 *New Course Bank Payment Pending*\n\n" .
+                                                       "Student: *{$s_name}* ({$user_id})\n" .
+                                                       "Course: *{$c_title}*\n" .
+                                                       "Instructor: *{$teacher}*\n" .
+                                                       "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
+                                                       "Please check the admin panel to verify receipt.";
+                                                sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);
+                                            }
+                                        }
+                                        $i_stmt->close();
+                                    }
+                                }
                             } else {
                                 $error_message = 'Error submitting payment: ' . $conn->error;
                                 @unlink($filepath);
                             }
                         } else {
+
                             $error_message = 'Error uploading file.';
                         }
                     }

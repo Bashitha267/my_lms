@@ -8,6 +8,10 @@ if ($_SESSION['role'] !== 'admin') {
 }
 
 require_once '../config.php';
+if (file_exists('../whatsapp_config.php')) {
+    require_once '../whatsapp_config.php';
+}
+
 
 $success_message = '';
 $error_message = '';
@@ -254,8 +258,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                             
                             if (!$enroll_stmt->execute()) {
                                 $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
+                            } else {
+                                // Enrollment Success - Send WhatsApp
+                                if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
+                                    $sub_stmt = $conn->prepare("SELECT name FROM subjects WHERE id = ?");
+                                    $sub_stmt->bind_param("i", $subject_id);
+                                    $sub_stmt->execute();
+                                    $sub_res = $sub_stmt->get_result();
+                                    if ($sub_row = $sub_res->fetch_assoc()) {
+                                        $subj_name = $sub_row['name'];
+                                        $enroll_msg = "📚 *Enrollment Successful / බඳවා ගැනීම සාර්ථකයි*\n\n" .
+                                                    "Hello {$first_name},\n" .
+                                                    "You have been enrolled in the subject: *{$subj_name}*\n\n" .
+                                                    "--------------------------\n\n" .
+                                                    "ඔබව සාර්ථකව *{$subj_name}* විෂය සඳහා ලියාපදිංචි කර ඇත.";
+                                        sendWhatsAppMessage($whatsapp_number, $enroll_msg);
+                                    }
+                                    $sub_stmt->close();
+                                }
                             }
                             $enroll_stmt->close();
+
                         }
                         }
                     }
@@ -298,10 +321,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     }
                     
                     if (empty($error_message)) {
+                        // Send welcome message via WhatsApp
+                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
+                            try {
+                                if ($role === 'teacher') {
+                                    $welcome_msg = "👨‍🏫 *Formal Welcome to LearnerX* 👨‍🏫\n\n" .
+                                                 "Dear {$first_name},\n\n" .
+                                                 "We are pleased to inform you that your teacher account has been successfully created at LearnerX.\n\n" .
+                                                 "🆔 *User ID:* {$user_id}\n\n" .
+                                                 "You can now access your dashboard to manage recordings and student interactions. We are honored to have you on our team.\n\n" .
+                                                 "Best Regards,\n" .
+                                                 "LearnerX Team";
+                                } else {
+                                    // Default/Student welcome (Bilingual)
+                                    $welcome_msg = "🎓 *Welcome to LearnerX!* 🎓\n\n" .
+                                                 "Hello {$first_name}, your account has been successfully created.\n" .
+                                                 "🆔 *User ID:* {$user_id}\n\n" .
+                                                 "--------------------------\n\n" .
+                                                 "LearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
+                                                 "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
+                                                 "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
+                                                 "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
+                                }
+                                
+                                sendWhatsAppMessage($whatsapp_number, $welcome_msg);
+                            } catch (Exception $e) {
+                                error_log("WhatsApp admin-add welcome message failed: " . $e->getMessage());
+                            }
+                        }
+
                         $success_message = "User has been successfully created with User ID: $user_id";
                         // Clear form data
                         $_POST = array();
                     }
+
                 } else {
                     if ($conn->errno == 1062) {
                         $error_message = 'Email or User ID already exists.';

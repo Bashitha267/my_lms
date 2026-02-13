@@ -62,8 +62,52 @@ $insert_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
 
 if ($insert_stmt->execute()) {
     $insert_stmt->close();
+
+    // Send WhatsApp notification
+    if (file_exists('../whatsapp_config.php')) {
+        require_once '../whatsapp_config.php';
+        
+        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+            // Fetch student whatsapp number, subject name, and teacher name
+            $info_query = "SELECT u.whatsapp_number, u.first_name, s.name as subject_name,
+                                 tu.first_name as t_fname, tu.second_name as t_sname
+                          FROM users u
+                          JOIN stream_subjects ss ON ss.id = ?
+                          JOIN subjects s ON ss.subject_id = s.id
+                          LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id 
+                               AND ta.academic_year = ? AND ta.status = 'active'
+                          LEFT JOIN users tu ON ta.teacher_id = tu.user_id
+                          WHERE u.user_id = ?";
+            $info_stmt = $conn->prepare($info_query);
+            $info_stmt->bind_param("iis", $stream_subject_id, $academic_year, $user_id);
+            $info_stmt->execute();
+            $info_result = $info_stmt->get_result();
+            
+            if ($info_row = $info_result->fetch_assoc()) {
+                $whatsapp_number = $info_row['whatsapp_number'];
+                $first_name = $info_row['first_name'];
+                $subject_name = $info_row['subject_name'];
+                $teacher_name = trim(($info_row['t_fname'] ?? '') . ' ' . ($info_row['t_sname'] ?? ''));
+                $teacher_display = !empty($teacher_name) ? "\n👨‍🏫 *ගුරුතුමා / Teacher:* {$teacher_name}" : "";
+                
+                if (!empty($whatsapp_number)) {
+                    $enroll_msg = "📚 *ඇතුළත් වීම  සාර්ථකයි / Enrollment Successful*\n\n" .
+                                "ඔබ සාර්ථකව *{$subject_name}* විෂය සඳහා ලියාපදිංචි වී ඇත.{$teacher_display}\n" .
+                                "--------------------------\n\n" .
+                                "Hello {$first_name},\n" .
+                                "You have successfully enrolled in the subject: *{$subject_name}*.\n\n" .
+                                "Thank you for choosing LearnerX!";
+
+                    sendWhatsAppMessage($whatsapp_number, $enroll_msg);
+                }
+            }
+            $info_stmt->close();
+        }
+    }
+
     echo json_encode(['success' => true, 'message' => 'Enrollment successful']);
 } else {
+
     $error = $conn->error;
     $insert_stmt->close();
     echo json_encode(['success' => false, 'message' => 'Enrollment failed: ' . $error]);

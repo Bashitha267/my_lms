@@ -68,9 +68,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $update_stmt->bind_param("i", $recording_id);
         
         if ($update_stmt->execute()) {
+            // If saved to recordings, notify students as a new recording
+            if ($save_to_recordings && file_exists('../whatsapp_config.php')) {
+                require_once '../whatsapp_config.php';
+                if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                    // Fetch subject name and assignment info
+                    $info_query = "SELECT r.title, s.name as subject_name, ta.stream_subject_id, ta.academic_year 
+                                  FROM recordings r
+                                  INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                                  INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                                  INNER JOIN subjects s ON ss.subject_id = s.id
+                                  WHERE r.id = ?";
+                    $info_stmt = $conn->prepare($info_query);
+                    $info_stmt->bind_param("i", $recording_id);
+                    $info_stmt->execute();
+                    $info_res = $info_stmt->get_result();
+                    if ($info_row = $info_res->fetch_assoc()) {
+                        $subj_name = $info_row['subject_name'];
+                        $rec_title = $info_row['title'];
+                        $ss_id = $info_row['stream_subject_id'];
+                        $acad_year = $info_row['academic_year'];
+                        
+                        $rec_msg = "📼 *New Recording Added / නව පටිගත කිරීමක්*\n\n" .
+                                 "Subject: *{$subj_name}*\n" .
+                                 "Title: *{$rec_title} (Live Recording)*\n\n" .
+                                 "--------------------------\n\n" .
+                                 "{$subj_name} සඳහා නව පටිගත කිරීමක් එක් කර ඇත.\n" .
+                                 "මාතෘකාව: {$rec_title}\n\n" .
+                                 "බැලීම සඳහා Dashboard එකට පිවිසෙන්න. ස්තුතියි! - LearnerX";
+                        notifyEnrolledStudents($conn, $ss_id, $acad_year, $rec_msg);
+                    }
+                    $info_stmt->close();
+                }
+            }
+
             $message = $save_to_recordings ? 'Live class ended and saved to recordings' : 'Live class cancelled';
             echo json_encode(['success' => true, 'message' => $message]);
         } else {
+
             echo json_encode(['success' => false, 'message' => 'Error ending live class: ' . $conn->error]);
         }
         $update_stmt->close();

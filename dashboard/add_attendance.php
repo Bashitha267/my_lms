@@ -64,6 +64,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_attendance'])) {
     
     if ($i_stmt->execute()) {
         if ($conn->affected_rows > 0) {
+            // WhatsApp Notifications
+            sendPhysicalJoinNotifications($conn, $class_id, $student_id);
+            
             echo json_encode(['success' => true, 'message' => 'Attendance marked for ' . $student_name, 'student_name' => $student_name, 'student_id' => $student_id, 'attended_at' => date('H:i:s')]);
         } else {
             echo json_encode(['success' => false, 'message' => $student_name . ' has already been marked present.']);
@@ -73,6 +76,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mark_attendance'])) {
     }
     exit;
 }
+
+/**
+ * Helper function to send WhatsApp notifications for Physical Class Attendance
+ */
+function sendPhysicalJoinNotifications($conn, $class_id, $student_id) {
+    if (!file_exists('../whatsapp_config.php')) return;
+    require_once '../whatsapp_config.php';
+    if (!defined('WHATSAPP_ENABLED') || !WHATSAPP_ENABLED) return;
+
+    // Fetch Details
+    $query = "SELECT pc.title, s.name as subject_name, pc.location,
+                     stu.first_name as student_name, stu.whatsapp_number as student_wa, stu.mobile_number as student_mob,
+                     tchr.first_name as teacher_first, tchr.second_name as teacher_second, tchr.whatsapp_number as teacher_wa, tchr.mobile_number as teacher_mob
+              FROM physical_classes pc
+              JOIN teacher_assignments ta ON pc.teacher_assignment_id = ta.id
+              JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              JOIN subjects s ON ss.subject_id = s.id
+              JOIN users tchr ON pc.teacher_id = tchr.user_id
+              JOIN users stu ON stu.user_id = ?
+              WHERE pc.id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("si", $student_id, $class_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $subj = $row['subject_name'];
+        $title = $row['title'];
+        $loc = $row['location'];
+        $s_name = $row['student_name'];
+        $s_wa = !empty($row['student_wa']) ? $row['student_wa'] : $row['student_mob'];
+        $t_name = trim($row['teacher_first'] . ' ' . $row['teacher_second']);
+        $t_wa = !empty($row['teacher_wa']) ? $row['teacher_wa'] : $row['teacher_mob'];
+
+        $now = date('h:i A');
+
+        // 1. Notify Teacher
+        if (!empty($t_wa)) {
+            $t_msg = "🏛️ *Student Attended Physical Class*\n\n" .
+                   "Student: *{$s_name}* ({$student_id})\n" .
+                   "Subject: *{$subj}*\n" .
+                   "Class: *{$title}*\n" .
+                   "Time: *{$now}*";
+            sendWhatsAppMessage($t_wa, $t_msg);
+        }
+
+        // 2. Notify Student
+        if (!empty($s_wa)) {
+            $s_msg = "🏛️ *Attendance Marked - Physical Class*\n\n" .
+                   "Hello {$s_name},\n" .
+                   "Your attendance for *{$subj}* by *{$t_name}* at *{$loc}* has been marked successfully.\n\n" .
+                   "--------------------------\n\n" .
+                   "ඔබේ *{$subj}* ({$t_name}) භෞතික පන්තිය සඳහා පැමිණීම සාර්ථකව සටහන් කර ගන්නා ලදී.\n\n" .
+                   "Thank you! - LearnerX Team";
+            sendWhatsAppMessage($s_wa, $s_msg);
+        }
+    }
+    $stmt->close();
+}
+
 
 // Fetch currently attended students
 $attendance_query = "SELECT a.student_id, a.attended_at, u.first_name, u.second_name 

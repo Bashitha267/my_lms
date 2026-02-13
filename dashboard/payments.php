@@ -507,6 +507,42 @@ if ($role === 'student') {
                                                             Status Up to Date
                                                         </div>
                                                     <?php endif; ?>
+
+                                                    <!-- Pay for Specific Month Form -->
+                                                    <?php if (($enrollment['fee_info']['monthly_fee'] ?? 0) > 0): ?>
+                                                        <form action="payments_form.php" method="GET" class="mt-4 pt-4 border-t border-gray-100">
+                                                            <input type="hidden" name="type" value="monthly">
+                                                            <input type="hidden" name="enrollment_id" value="<?php echo $enrollment['id']; ?>">
+                                                            
+                                                            <div class="flex items-center justify-between mb-2">
+                                                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pay for Other Month</label>
+                                                            </div>
+                                                            
+                                                            <div class="flex gap-2">
+                                                                <select name="month" class="flex-1 text-xs font-medium text-gray-700 bg-gray-50 border-gray-200 rounded-lg focus:ring-red-500 focus:border-red-500">
+                                                                    <?php for($m=1; $m<=12; $m++): ?>
+                                                                        <option value="<?php echo $m; ?>" <?php echo $m == date('n') ? 'selected' : ''; ?>>
+                                                                            <?php echo date('F', mktime(0, 0, 0, $m, 1)); ?>
+                                                                        </option>
+                                                                    <?php endfor; ?>
+                                                                </select>
+                                                                
+                                                                <select name="year" class="w-20 text-xs font-medium text-gray-700 bg-gray-50 border-gray-200 rounded-lg focus:ring-red-500 focus:border-red-500">
+                                                                    <?php 
+                                                                    $curr_year = date('Y');
+                                                                    for($y=$curr_year-1; $y<=$curr_year+1; $y++): ?>
+                                                                        <option value="<?php echo $y; ?>" <?php echo $y == $curr_year ? 'selected' : ''; ?>>
+                                                                            <?php echo $y; ?>
+                                                                        </option>
+                                                                    <?php endfor; ?>
+                                                                </select>
+                                                                
+                                                                <button type="submit" class="bg-gray-800 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-gray-900 transition shadow-sm">
+                                                                    PAY
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         </div>

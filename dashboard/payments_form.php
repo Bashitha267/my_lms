@@ -63,6 +63,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!isset($error_message) || empty($error_message)) {
                         if ($insert_stmt->execute()) {
                             $success_message = 'Payment submitted successfully! It will be processed shortly.';
+                            
+                            // WhatsApp Notifications
+                            if (file_exists('../whatsapp_config.php')) {
+                                require_once '../whatsapp_config.php';
+                                if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                                    // Fetch Student, Subject, Stream and Teacher info
+                                    $info_q = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, st.name as stream_name, t.first_name as teacher_name
+                                              FROM student_enrollment se
+                                              JOIN users u ON se.student_id = u.user_id
+                                              JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                                              JOIN subjects s ON ss.subject_id = s.id
+                                              JOIN streams st ON ss.stream_id = st.id
+                                              LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
+                                              LEFT JOIN users t ON ta.teacher_id = t.user_id
+                                              WHERE se.id = ?";
+                                    $i_stmt = $conn->prepare($info_q);
+                                    $i_stmt->bind_param("i", $student_enrollment_id);
+                                    $i_stmt->execute();
+                                    $i_res = $i_stmt->get_result();
+                                    if ($i_row = $i_res->fetch_assoc()) {
+                                        $s_name = $i_row['first_name'];
+                                        $s_wa = $i_row['whatsapp_number'];
+                                        $subj = $i_row['subject_name'];
+                                        $stream = $i_row['stream_name'];
+                                        $teacher = $i_row['teacher_name'] ?? 'Teacher';
+                                        $p_type = ucfirst($payment_type);
+                                        
+                                        // 1. Notify Student
+                                        $s_msg = "💸 *Payment Submitted / ගෙවීම් ඉදිරිපත් කරන ලදී*\n\n" .
+                                               "Hello {$s_name},\n" .
+                                               "Thank you, we received your payment.\n\n" .
+                                               "Teacher: *{$teacher}*\n" .
+                                               "Stream: *{$stream}*\n" .
+                                               "Subject: *{$subj}*\n" .
+                                               "Type: *{$p_type}*\n\n" .
+                                               "Our staff will quickly approve your payment.\n" .
+                                               "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
+                                               "--------------------------\n\n" .
+                                               "Thank you, LearnerX Team";
+                                        sendWhatsAppMessage($s_wa, $s_msg);
+                                        
+                                        // 2. Notify Admin
+                                        if (defined('ADMIN_WHATSAPP')) {
+                                            $a_msg = "🔔 *New Payment Pending Approval*\n\n" .
+                                                   "Student: *{$s_name}* ({$user_id})\n" .
+                                                   "Stream: *{$stream}*\n" .
+                                                   "Subject: *{$subj}*\n" .
+                                                   "Type: *{$p_type}*\n" .
+                                                   "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
+                                                   "Please check the admin panel to verify.";
+                                            sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);
+                                        }
+                                    }
+                                    $i_stmt->close();
+                                }
+                            }
                         } else {
                             $error_message = 'Error submitting payment: ' . $conn->error;
                         }
@@ -118,6 +174,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!isset($error_message) || empty($error_message)) {
                                 if ($insert_stmt->execute()) {
                                     $success_message = 'Payment receipt uploaded successfully! It will be verified by admin shortly.';
+                                    
+                                    // WhatsApp Notifications
+                                    if (file_exists('../whatsapp_config.php')) {
+                                        require_once '../whatsapp_config.php';
+                                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                                            // Fetch Student, Subject, Stream and Teacher info
+                                            $info_q = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, st.name as stream_name, t.first_name as teacher_name
+                                                      FROM student_enrollment se
+                                                      JOIN users u ON se.student_id = u.user_id
+                                                      JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                                                      JOIN subjects s ON ss.subject_id = s.id
+                                                      JOIN streams st ON ss.stream_id = st.id
+                                                      LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
+                                                      LEFT JOIN users t ON ta.teacher_id = t.user_id
+                                                      WHERE se.id = ?";
+                                            $i_stmt = $conn->prepare($info_q);
+                                            $i_stmt->bind_param("i", $student_enrollment_id);
+                                            $i_stmt->execute();
+                                            $i_res = $i_stmt->get_result();
+                                            if ($i_row = $i_res->fetch_assoc()) {
+                                                $s_name = $i_row['first_name'];
+                                                $s_wa = $i_row['whatsapp_number'];
+                                                $subj = $i_row['subject_name'];
+                                                $stream = $i_row['stream_name'];
+                                                $teacher = $i_row['teacher_name'] ?? 'Teacher';
+                                                $p_type = ucfirst($payment_type);
+                                                
+                                                // 1. Notify Student
+                                               $s_msg = "💸 *ඔබගේ මුදල් ගෙවීමට ස්තූතියි!*\n\n" .
+         "ආයුබෝවන් {$s_name},\n\n" .
+         "ඔබ විසින් සිදු කළ ගෙවීම අපගේ ආයතනය වෙත ලැබී ඇති අතර, එය සමාලෝචනය සඳහා යොමු කර ඇත.\n" .
+         "අපගේ ආයතනය විසින් එය කඩිනමින් පරීක්ෂා කර අනුමත කරනු ඇත.\n\n" .
+         "ඔබගේ ගෙවීම අනුමත වූ පසු ඔබට දැනුම් දෙනු ලැබේ.\n\n" .
+         "------------------------------------\n\n" .
+         "💸 *Thank You for Your Payment!*\n\n" .
+         "Hello {$s_name},\n\n" .
+         "Thank you for your payment. It has been received and forwarded to our institution for review.\n" .
+         "Our institution will verify and approve it shortly.\n\n" .
+         "You will be notified once your payment has been approved.\n\n" .
+         "Thank you,\n" .
+         "*LearnerX Team*";
+
+sendWhatsAppMessage($s_wa, $s_msg);
+                                                // 2. Notify Admin
+                                                if (defined('ADMIN_WHATSAPP')) {
+                                                    $a_msg = " *New Bank Transfer Payment Pending*\n\n" .
+                                                           "Student: *{$s_name}* ({$user_id})\n" .
+                                                           "Stream: *{$stream}*\n" .
+                                                           "Subject: *{$subj}*\n" .
+                                                           "Type: *{$p_type}*\n" .
+                                                           "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
+                                                           "Please check the admin panel to verify receipt.";
+                                                    sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);
+                                                }
+                                            }
+                                            $i_stmt->close();
+                                        }
+                                    }
                                 } else {
                                     $error_message = 'Error submitting payment: ' . $conn->error;
                                     // Delete uploaded file on error
@@ -140,6 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $verify_stmt->close();
     }
 }
+
 
 // Get enrollment details for display
 $enrollment_id = isset($_GET['enrollment_id']) ? intval($_GET['enrollment_id']) : 0;

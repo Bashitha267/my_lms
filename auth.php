@@ -22,90 +22,9 @@ if (file_exists(__DIR__ . '/whatsapp_config.php')) {
 }
 
 /**
- * Format mobile number to WhatsApp format (e.g., 0771234567 -> 94771234567@c.us)
+ * WhatsApp functions moved to whatsapp_config.php
  */
-function formatWhatsAppNumber($mobile)
-{
-    // Remove all non-numeric characters
-    $mobile = preg_replace('/\D/', '', $mobile);
 
-    // Remove leading 0 if present
-    if (substr($mobile, 0, 1) === '0') {
-        $mobile = substr($mobile, 1);
-    }
-
-    // Add country code 94 if not present
-    if (substr($mobile, 0, 2) !== '94') {
-        $mobile = '94' . $mobile;
-    }
-
-    // Add WhatsApp suffix
-    return $mobile . '@c.us';
-}
-
-/**
- * Send WhatsApp message via API
- */
-function sendWhatsAppMessage($mobile, $message)
-{
-    // Get configuration from whatsapp_config.php
-    $whatsapp_api_url = WHATSAPP_API_URL;
-    $email = WHATSAPP_API_EMAIL;
-    $api_key = WHATSAPP_API_KEY;
-
-    // Format mobile number for WhatsApp
-    $chatId = formatWhatsAppNumber($mobile);
-
-    // Prepare JSON data
-    $data = [
-        'email' => $email,
-        'api_key' => $api_key,
-        'chatId' => $chatId,
-        'text' => $message
-    ];
-
-    // Initialize cURL
-    $ch = curl_init($whatsapp_api_url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json'
-    ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-
-    // Execute request
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    curl_close($ch);
-
-    // Check for cURL errors
-    if ($curl_error) {
-        return ['success' => false, 'message' => 'Failed to connect to WhatsApp API: ' . $curl_error];
-    }
-
-    // Check HTTP status code
-    if ($http_code !== 200) {
-        return ['success' => false, 'message' => 'WhatsApp API returned error code: ' . $http_code];
-    }
-
-    // Try to decode response
-    $response_data = json_decode($response, true);
-
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return ['success' => false, 'message' => 'Invalid response from WhatsApp API'];
-    }
-
-    // Check response data - API returns status field
-    if (isset($response_data['status']) && $response_data['status'] === 'success') {
-        $message = isset($response_data['message']) ? $response_data['message'] : 'Message sent successfully';
-        return ['success' => true, 'message' => $message];
-    } else {
-        return ['success' => false, 'message' => 'Unable to send the message'];
-    }
-}
 
 if (isset($_POST['login'])) {
 
@@ -181,19 +100,21 @@ if (isset($_POST['login'])) {
 
                 $update_stmt->close();
 
-                // Send welcome message via WhatsApp (non-blocking - don't fail login if this fails)
-                if (WHATSAPP_ENABLED && !empty($user['whatsapp_number']) && !empty(WHATSAPP_API_URL)) {
+                // Send login notification via WhatsApp (non-blocking)
+                if (WHATSAPP_ENABLED && !empty($user['whatsapp_number'])) {
                     try {
-                        $user_name = !empty($user['first_name']) ? $user['first_name'] : $user_id;
-                        $welcome_message = "Welcome back, {$user_name}! You have successfully logged into the LMS system. Your User ID: {$user_id}";
+                        $current_time = date('Y-m-d h:i A');
+                        $login_message = "🔔 *New Login Notification / නව පිවිසීම් දැනුම්දීම*\n\n" .
+                                        "👤 *User ID / පරිශීලක හැඳුනුම්පත:* {$user_id}\n" .
+                                        "⏰ *Time / වේලාව:* {$current_time}\n\n" .
+                                        "Successful login to your LMS account.";
 
-                        // Send message asynchronously (don't wait for response)
-                        sendWhatsAppMessage($user['whatsapp_number'], $welcome_message);
+                        sendWhatsAppMessage($user['whatsapp_number'], $login_message);
                     } catch (Exception $e) {
-                        // Silently fail - don't interrupt login process
-                        error_log("WhatsApp message failed: " . $e->getMessage());
+                        error_log("WhatsApp login message failed: " . $e->getMessage());
                     }
                 }
+
 
                 // Redirect based on role
                 switch ($user['role']) {

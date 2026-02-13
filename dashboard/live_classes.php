@@ -78,6 +78,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
                 $insert_stmt->bind_param("issssssi", $teacher_assignment_id, $title, $description, $scheduled_datetime, $youtube_url, $youtube_video_id, $thumbnail_url, $free_video);
             
                 if ($insert_stmt->execute()) {
+                    // Send WhatsApp Notification to Enrolled Students
+                    if (file_exists('../whatsapp_config.php')) {
+                        require_once '../whatsapp_config.php';
+                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                            $sub_query = "SELECT s.name, st.name as stream_name 
+                                          FROM subjects s 
+                                          JOIN stream_subjects ss ON s.id = ss.subject_id 
+                                          JOIN streams st ON ss.stream_id = st.id 
+                                          WHERE ss.id = ?";
+                            $sub_stmt = $conn->prepare($sub_query);
+                            $sub_stmt->bind_param("i", $stream_subject_id);
+                            $sub_stmt->execute();
+                            $sub_res = $sub_stmt->get_result();
+                            if ($sub_row = $sub_res->fetch_assoc()) {
+                                $subj_name = $sub_row['name'];
+                                $stream_name = $sub_row['stream_name'];
+                                $display_date = !empty($scheduled_start_time) ? date('Y-m-d', strtotime($scheduled_start_time)) : date('Y-m-d');
+                                $display_time = !empty($scheduled_start_time) ? date('h:i A', strtotime($scheduled_start_time)) : "NOW";
+
+                                $live_msg = "🎥 *නව සජීවී පන්තියක් පැවැත්වේ!*\n\n" .
+                                            "Stream: *{$stream_name}*\n" .
+                                            "📘 *විෂය:* {$subj_name}\n" .
+                                            "📖 *මාතෘකාව:* {$title}\n" .
+                                            "🗓 *දිනය:* {$display_date}\n" .
+                                            "⏰ *වේලාව:* {$display_time}\n\n" .
+                                            "------------------------------------\n\n" .
+                                            "{$stream_name} - {$subj_name} විෂයට අදාළ නව සජීවී පන්තියක් පැවැත්වීමට නියමිතයි.\n" .
+                                            "මෙම පන්තිය තුළ \"{$title}\" මාතෘකාව විස්තරාත්මකව ආවරණය කරනු ඇත.\n\n" .
+                                            "සජීවී පන්තියට සහභාගී වීමට කරුණාකර ඔබගේ LMS Dashboard වෙත පිවිසෙන්න.\n\n" .
+                                            "Thank you!\n" .
+                                            "*Team LearnerX*\n\n" .
+                                            "------------------------------------\n\n" .
+                                            "🎥 *New Live Class Scheduled!*\n\n" .
+                                            "Stream: *{$stream_name}*\n" .
+                                            "📘 *Subject:* {$subj_name}\n" .
+                                            "📖 *Topic:* {$title}\n" .
+                                            "🗓 *Date:* {$display_date}\n" .
+                                            "⏰ *Time:* {$display_time}\n\n" .
+                                            "A new live class for {$stream_name} - {$subj_name} has been scheduled.\n" .
+                                            "The session will cover \"{$title}\" in detail.\n\n" .
+                                            "Please log in to your LMS Dashboard to join the live session.\n\n" .
+                                            "*Team LearnerX*";
+
+                                notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
+                            }
+                            $sub_stmt->close();
+                        }
+                    }
+
                     header('Location: live_classes.php?success=' . urlencode('Live class created successfully!'));
                     exit;
                 } else {
@@ -136,6 +185,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) 
             $insert_stmt->bind_param("issssssi", $teacher_assignment_id, $title, $description, $zoom_meeting_link, $zoom_meeting_id, $zoom_passcode, $scheduled_datetime, $free_class);
         
             if ($insert_stmt->execute()) {
+                // Send WhatsApp Notification to Enrolled Students
+                if (file_exists('../whatsapp_config.php')) {
+                    require_once '../whatsapp_config.php';
+                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                        $sub_query = "SELECT s.name, st.name as stream_name 
+                                      FROM subjects s 
+                                      JOIN stream_subjects ss ON s.id = ss.subject_id 
+                                      JOIN streams st ON ss.stream_id = st.id 
+                                      WHERE ss.id = ?";
+                        $sub_stmt = $conn->prepare($sub_query);
+                        $sub_stmt->bind_param("i", $stream_subject_id);
+                        $sub_stmt->execute();
+                        $sub_res = $sub_stmt->get_result();
+                        if ($sub_row = $sub_res->fetch_assoc()) {
+                            $subj_name = $sub_row['name'];
+                            $stream_name = $sub_row['stream_name'];
+                            $display_date = date('Y-m-d', strtotime($scheduled_start_time));
+                            $display_time = date('h:i A', strtotime($scheduled_start_time));
+                            $live_msg = "💻 *New Zoom Live Class Scheduled / නව Zoom පන්තියක්*\n\n" .
+                                      "Stream: *{$stream_name}*\n" .
+                                      "Subject: *{$subj_name}*\n" .
+                                      "Topic: *{$title}*\n" .
+                                      "Date: *{$display_date}*\n" .
+                                      "Time: *{$display_time}*\n\n" .
+                                      "--------------------------\n\n" .
+                                      "ඔබ වෙනුවෙන් {$stream_name} - {$subj_name} සඳහා නව Zoom සජීවී පන්තියක් පවත්වනු ලැබේ.\n" .
+                                      "මාතෘකාව: {$title}\n" .
+                                      "දිනය: {$display_date}\n" .
+                                      "වේලාව: {$display_time}\n\n" .
+                                      "සම්බන්ධ වීමට ඔබගේ Dashboard එකට පිවිසෙන්න. ස්තුතියි! - LearnerX";
+                            notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
+                        }
+                        $sub_stmt->close();
+                    }
+                }
+
                 header('Location: live_classes.php?success=' . urlencode('Zoom class created successfully!'));
                 exit;
             } else {
@@ -182,6 +267,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_physical_class
             $insert_stmt->bind_param("issssss", $teacher_assignment_id, $user_id, $title, $description, $class_date, $start_time, $location);
             
             if ($insert_stmt->execute()) {
+                // Send WhatsApp Notification to Enrolled Students
+                if (file_exists('../whatsapp_config.php')) {
+                    require_once '../whatsapp_config.php';
+                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                            $sub_query = "SELECT s.name, st.name as stream_name 
+                                          FROM subjects s 
+                                          JOIN stream_subjects ss ON s.id = ss.subject_id 
+                                          JOIN streams st ON ss.stream_id = st.id 
+                                          WHERE ss.id = ?";
+                            $sub_stmt = $conn->prepare($sub_query);
+                            $sub_stmt->bind_param("i", $stream_subject_id);
+                            $sub_stmt->execute();
+                            $sub_res = $sub_stmt->get_result();
+                            if ($sub_row = $sub_res->fetch_assoc()) {
+                                $subj_name = $sub_row['name'];
+                                $stream_name = $sub_row['stream_name'];
+                                $formatted_time = date('h:i A', strtotime($start_time));
+                                $live_msg = "🏛️ *New Physical Class Scheduled / නව භෞතික පන්තියක්*\n\n" .
+                                          "Stream: *{$stream_name}*\n" .
+                                          "Subject: *{$subj_name}*\n" .
+                                          "Topic: *{$title}*\n" .
+                                          "Date: *{$class_date}*\n" .
+                                          "Time: *{$formatted_time}*\n" .
+                                          "Location: *{$location}*\n\n" .
+                                          "--------------------------\n\n" .
+                                          "ඔබ වෙනුවෙන් {$stream_name} - {$subj_name} සඳහා නව භෞතික පන්තියක් පවත්වනු ලැබේ.\n" .
+                                          "දිනය: {$class_date}\n" .
+                                          "වේලාව: {$formatted_time}\n" .
+                                          "ස්ථානය: {$location}\n\n" .
+                                          "වැඩි විස්තර සඳහා පිවිසෙන්න.";
+                                notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
+                            }
+                            $sub_stmt->close();
+                    }
+                }
+
                 header('Location: live_classes.php?success=' . urlencode('Physical class created successfully!'));
                 exit;
             } else {
@@ -192,6 +313,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_physical_class
         }
     }
 }
+
 
 // Get live classes based on role
 $student_enrollments = [];

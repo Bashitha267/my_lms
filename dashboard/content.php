@@ -263,10 +263,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                 $stmt->bind_param("isssssiis", $teacher_assignment_id_for_recording, $title, $description, $youtube_video_id, $youtube_url, $thumbnail_url, $free_video, $watch_limit, $recording_datetime);
                 
                 if ($stmt->execute()) {
+                    // Send WhatsApp Notification to Enrolled Students
+                    if (file_exists('../whatsapp_config.php')) {
+                        require_once '../whatsapp_config.php';
+                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                            // Fetch Subject and Stream info to include in notification
+                            $sub_query = "SELECT s.name as subject_name, st.name as stream_name 
+                                        FROM stream_subjects ss 
+                                        JOIN subjects s ON ss.subject_id = s.id 
+                                        JOIN streams st ON ss.stream_id = st.id 
+                                        WHERE ss.id = ?";
+                            $sub_stmt = $conn->prepare($sub_query);
+                            $sub_stmt->bind_param("i", $stream_subject_id);
+                            $sub_stmt->execute();
+                            $sub_res = $sub_stmt->get_result();
+                            
+                            if ($sub_row = $sub_res->fetch_assoc()) {
+                                $subj_name = $sub_row['subject_name'];
+                                $stream_name = $sub_row['stream_name'];
+                                $teacher_name = trim(($first_name ?? '') . ' ' . ($second_name ?? ''));
+                                $formatted_date = date('Y-m-d', strtotime($recording_date));
+                                
+                                $rec_msg = "📼 *New Recording Added / නව පටිගත කිරීමක්*\n\n" .
+                                         "New recording of *{$teacher_name}* for *{$formatted_date}* has been added.\n\n" .
+                                         "Stream: *{$stream_name}*\n" .
+                                         "Subject: *{$subj_name}*\n" .
+                                         "Title: *{$title}*\n\n" .
+                                         "Now you can log in and watch it.\n\n" .
+                                         "--------------------------\n\n" .
+                                         "{$teacher_name} ගුරුවරයාගේ {$formatted_date} දින පැවති පන්තියේ  පටිගත කිරීම එක් කර ඇත.\n" .
+                                         "විෂය: {$subj_name}\n" .
+                                         "මාතෘකාව: {$title}\n\n" .
+                                         "දැන් ඔබට එය අපගේ LMS Dashboard හරහා නරඹිය හැක.\n\n";
+                                         
+                                notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $rec_msg);
+                            }
+                            $sub_stmt->close();
+                        }
+                    }
+
                     // Redirect to prevent form resubmission
                     header('Location: content.php?stream_subject_id=' . $stream_subject_id . '&academic_year=' . $academic_year . '&success=' . urlencode('Recording added successfully!'));
                     exit;
                 } else {
+
                     $error_message = 'Error adding recording: ' . $conn->error;
                 }
                 $stmt->close();
@@ -342,13 +382,9 @@ if (!empty($teacher_assignment_ids)) {
             
             // Get paid months
             $paid_query = "SELECT month, year FROM monthly_payments 
-                          WHERE student_enrollment_id = ? AND payment_status = 'paid'
-                          UNION
-                          SELECT MONTH(payment_date) as month, YEAR(payment_date) as year 
-                          FROM enrollment_payments 
                           WHERE student_enrollment_id = ? AND payment_status = 'paid'";
             $paid_stmt = $conn->prepare($paid_query);
-            $paid_stmt->bind_param("ii", $enrollment_id, $enrollment_id);
+            $paid_stmt->bind_param("i", $enrollment_id);
             $paid_stmt->execute();
             $paid_result = $paid_stmt->get_result();
             

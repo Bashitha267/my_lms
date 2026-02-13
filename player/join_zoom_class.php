@@ -66,6 +66,10 @@ $insert_stmt = $conn->prepare($insert_query);
 $insert_stmt->bind_param("is", $zoom_class_id, $user_id);
 
 if ($insert_stmt->execute()) {
+    // Zoom Notification for Students
+    if ($role === 'student' && !empty($user_id)) {
+        sendZoomJoinNotifications($conn, $zoom_class_id, $user_id);
+    }
     echo json_encode(['success' => true, 'message' => 'Joined successfully']);
 } else {
     echo json_encode(['success' => false, 'message' => 'Error joining class']);
@@ -73,4 +77,62 @@ if ($insert_stmt->execute()) {
 
 $insert_stmt->close();
 $conn->close();
+
+/**
+ * Helper function to send WhatsApp notifications for joining Zoom class
+ */
+function sendZoomJoinNotifications($conn, $zoom_class_id, $student_id) {
+    if (!file_exists('../whatsapp_config.php')) return;
+    require_once '../whatsapp_config.php';
+    if (!defined('WHATSAPP_ENABLED') || !WHATSAPP_ENABLED) return;
+
+    // Fetch Details
+    $query = "SELECT zc.title, s.name as subject_name, 
+                     stu.first_name as student_name, stu.whatsapp_number as student_wa, stu.mobile_number as student_mob,
+                     tchr.first_name as teacher_first, tchr.second_name as teacher_second, tchr.whatsapp_number as teacher_wa, tchr.mobile_number as teacher_mob
+              FROM zoom_classes zc
+              JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
+              JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              JOIN subjects s ON ss.subject_id = s.id
+              JOIN users tchr ON ta.teacher_id = tchr.user_id
+              JOIN users stu ON stu.user_id = ?
+              WHERE zc.id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("si", $student_id, $zoom_class_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $subj = $row['subject_name'];
+        $title = $row['title'];
+        $s_name = $row['student_name'];
+        $s_wa = !empty($row['student_wa']) ? $row['student_wa'] : $row['student_mob'];
+        $t_name = trim($row['teacher_first'] . ' ' . $row['teacher_second']);
+        $t_wa = !empty($row['teacher_wa']) ? $row['teacher_wa'] : $row['teacher_mob'];
+
+        $now = date('h:i A');
+
+        // 1. Notify Teacher
+        if (!empty($t_wa)) {
+            $t_msg = "💻 *Student Joined Zoom Class*\n\n" .
+                   "Student: *{$s_name}* ({$student_id})\n" .
+                   "Subject: *{$subj}*\n" .
+                   "Topic: *{$title}*\n" .
+                   "Time: *{$now}*";
+            sendWhatsAppMessage($t_wa, $t_msg);
+        }
+
+        // 2. Notify Student
+        if (!empty($s_wa)) {
+            $s_msg = "💻 *You Joined a Zoom Class*\n\n" .
+                   "Hello {$s_name},\n" .
+                   "You have successfully joined the Zoom class of *{$subj}* by *{$t_name}*.\n\n" .
+                   "--------------------------\n\n" .
+                   "ඔබ මේ වන විට *{$t_name}* විසින් පවත්වනු ලබන *{$subj}* Zoom සජීවී පන්තිය සමඟ සාර්ථකව සම්බන්ධ වී ඇත.\n\n" .
+                   "Best of luck! - LearnerX Team";
+            sendWhatsAppMessage($s_wa, $s_msg);
+        }
+    }
+    $stmt->close();
+}
+
 ?>
