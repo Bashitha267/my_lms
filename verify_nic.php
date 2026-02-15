@@ -134,32 +134,25 @@ if (empty($nic)) {
 }
 
 // Normalize gender for verification (convert to capitalized form if provided)
-if ($gender !== null) {
+if ($gender !== null && $gender !== '') {
     $gender = ucfirst(strtolower($gender)); // Convert to "Male" or "Female"
+} else {
+    $gender = null; // Ensure null if empty string
+}
+
+if ($dob === '') {
+    $dob = null;
 }
 
 $result = verifySriLankanNIC($nic, $dob, $gender);
 
-if ($result['valid']) {
-    echo json_encode([
-        'success' => true,
-        'valid' => true,
-        'birth_year' => $result['birth_year'],
-        'gender' => $result['gender'],
-        'date_of_birth' => $result['date_of_birth'],
-        'month' => $result['month'],
-        'day' => $result['day'],
-        'format' => $result['format'],
-        'message' => $result['message']
-    ]);
+// If verification requested (DOB/Gender provided), check validity.
+// If just extraction requested, return extraction details.
+if ($result['valid'] === false && isset($result['message']) && strpos($result['message'], 'Invalid') !== false) {
+     // Format invalid
+     echo json_encode($result);
 } else {
-    echo json_encode([
-        'success' => false,
-        'valid' => false,
-        'message' => $result['message'],
-        'birth_year' => isset($result['birth_year']) ? $result['birth_year'] : null,
-        'gender' => isset($result['gender']) ? $result['gender'] : null,
-        'date_of_birth' => isset($result['date_of_birth']) ? $result['date_of_birth'] : null
-    ]);
+    // Valid format, return details
+    echo json_encode(array_merge(['success' => true], $result));
 }
 ?>

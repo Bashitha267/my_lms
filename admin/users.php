@@ -203,14 +203,58 @@ $stats = $stats_result->fetch_assoc();
                         </h1>
                         <p class="text-gray-600 mt-1">View and manage all system users</p>
                     </div>
-                    <a href="add_user.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium flex items-center space-x-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                        </svg>
-                        <span>Add New User</span>
-                    </a>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="copyTeacherLink()" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md font-medium flex items-center space-x-2 transition-colors">
+                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                            <span>Copy Teacher Link</span>
+                        </button>
+                        <a href="add_user.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium flex items-center space-x-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                            </svg>
+                            <span>Add New User</span>
+                        </a>
+                    </div>
                 </div>
             </div>
+
+            <script>
+                function copyTeacherLink() {
+                    // Construct the URL (assuming /lms/teacher_register.php is the path relative to domain root)
+                    // If current path is /lms/admin/users.php, we want /lms/teacher_register.php
+                    const path = window.location.pathname;
+                    // Remove 'admin/users.php' and append 'teacher_register.php'
+                    // Careful with simple replace if 'admin' appears elsewhere.
+                    // Better: resolve relative to current location
+                    const adminIndex = path.indexOf('/admin/');
+                    let rootPath = path;
+                    if (adminIndex !== -1) {
+                         rootPath = path.substring(0, adminIndex);
+                    }
+                    // Handle case where admin is not in path (unlikely given file location)
+                    const link = window.location.origin + rootPath + '/teacher_register.php';
+                    
+                    navigator.clipboard.writeText(link).then(() => {
+                        // Show temporary success feedback
+                        const btn = document.querySelector('button[onclick="copyTeacherLink()"]');
+                        const originalContent = btn.innerHTML;
+                        btn.innerHTML = `
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span class="text-green-600">Copied!</span>
+                        `;
+                        setTimeout(() => {
+                            btn.innerHTML = originalContent;
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy: ', err);
+                        alert('Failed to copy link. Manual link: ' + link);
+                    });
+                }
+            </script>
 
             <!-- Statistics Cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">

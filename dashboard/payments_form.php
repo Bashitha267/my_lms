@@ -89,6 +89,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         $stream = $i_row['stream_name'];
                                         $teacher = $i_row['teacher_name'] ?? 'Teacher';
                                         $p_type = ucfirst($payment_type);
+                                        $month_str = "";
+                                        if ($payment_type === 'monthly' && !empty($month)) {
+                                            $month_name = date("F", mktime(0, 0, 0, $month, 10));
+                                            $month_str = "Month: *{$month_name}*\\n";
+                                        }
                                         
                                         // 1. Notify Student
                                         $s_msg = "💸 *Payment Submitted / ගෙවීම් ඉදිරිපත් කරන ලදී*\n\n" .
@@ -97,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                "Teacher: *{$teacher}*\n" .
                                                "Stream: *{$stream}*\n" .
                                                "Subject: *{$subj}*\n" .
-                                               "Type: *{$p_type}*\n\n" .
+                                               "Type: *{$p_type}*\n" . $month_str . "\n" .
                                                "Our staff will quickly approve your payment.\n" .
                                                "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
                                                "--------------------------\n\n" .
@@ -110,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                    "Student: *{$s_name}* ({$user_id})\n" .
                                                    "Stream: *{$stream}*\n" .
                                                    "Subject: *{$subj}*\n" .
-                                                   "Type: *{$p_type}*\n" .
+                                                   "Type: *{$p_type}*\n" . $month_str .
                                                    "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
                                                    "Please check the admin panel to verify.";
                                             sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);
@@ -200,6 +205,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 $stream = $i_row['stream_name'];
                                                 $teacher = $i_row['teacher_name'] ?? 'Teacher';
                                                 $p_type = ucfirst($payment_type);
+                                                $month_str = "";
+                                                if ($payment_type === 'monthly' && !empty($month)) {
+                                                    $month_name = date("F", mktime(0, 0, 0, $month, 10));
+                                                    $month_str = "Month: *{$month_name}*\\n";
+                                                }
                                                 
                                                 // 1. Notify Student
                                                $s_msg = "💸 *ඔබගේ මුදල් ගෙවීමට ස්තූතියි!*\n\n" .
@@ -209,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          "ඔබගේ ගෙවීම අනුමත වූ පසු ඔබට දැනුම් දෙනු ලැබේ.\n\n" .
          "------------------------------------\n\n" .
          "💸 *Thank You for Your Payment!*\n\n" .
-         "Hello {$s_name},\n\n" .
+         "Hello {$s_name},\n\n" . ($month_str ? $month_str . "\n" : "") .
          "Thank you for your payment. It has been received and forwarded to our institution for review.\n" .
          "Our institution will verify and approve it shortly.\n\n" .
          "You will be notified once your payment has been approved.\n\n" .
@@ -223,7 +233,7 @@ sendWhatsAppMessage($s_wa, $s_msg);
                                                            "Student: *{$s_name}* ({$user_id})\n" .
                                                            "Stream: *{$stream}*\n" .
                                                            "Subject: *{$subj}*\n" .
-                                                           "Type: *{$p_type}*\n" .
+                                                           "Type: *{$p_type}*\n" . $month_str .
                                                            "Amount: *Rs. " . number_format($amount, 2) . "*\n\n" .
                                                            "Please check the admin panel to verify receipt.";
                                                     sendWhatsAppMessage(ADMIN_WHATSAPP, $a_msg);

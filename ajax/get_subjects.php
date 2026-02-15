@@ -6,16 +6,6 @@ ini_set('display_errors', 0);
 // Start buffering
 ob_start();
 
-require_once '../check_session.php';
-
-// Verify user is admin
-if ($_SESSION['role'] !== 'admin') {
-    ob_clean();
-    header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Access denied']);
-    exit();
-}
-
 require_once '../config.php';
 
 header('Content-Type: application/json');
@@ -58,4 +48,3 @@ echo json_encode([
     'subjects' => $subjects
 ]);
 ?>
-

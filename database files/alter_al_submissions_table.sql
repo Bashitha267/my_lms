@@ -1,0 +1,6 @@
+ALTER TABLE `al_exam_submissions`
+ADD COLUMN `result_1` VARCHAR(5) DEFAULT NULL AFTER `subject_1`,
+ADD COLUMN `result_2` VARCHAR(5) DEFAULT NULL AFTER `subject_2`,
+ADD COLUMN `result_3` VARCHAR(5) DEFAULT NULL AFTER `subject_3`,
+ADD COLUMN `agreed_to_publish` TINYINT(1) DEFAULT 0,
+ADD COLUMN `results_submitted_at` TIMESTAMP NULL DEFAULT NULL;

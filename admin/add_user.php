@@ -538,10 +538,26 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                         
                         // Initialize on page load
                         document.addEventListener('DOMContentLoaded', function() {
-                            // Update if role is pre-selected (e.g., after form error)
+                            // Initial UI setup
+                            toggleRoleBasedFields();
+                            
+                            // Update user ID preview
                             const role = document.getElementById('role').value;
                             if (role && role !== 'student') {
                                 updateUserIdPreview();
+                            }
+                            
+                            // For teachers: Load subjects if streams are pre-selected (e.g. after validation error)
+                            if (role === 'teacher') {
+                                const checkedStreams = document.querySelectorAll('.teacher-stream-checkbox:checked');
+                                if (checkedStreams.length > 0) {
+                                    // Make pre-selected subjects available globally
+                                    window.preSelectedSubjects = <?php echo json_encode($_POST['teacher_subjects'] ?? []); ?>;
+                                    // Convert strings to integers for strict comparison if needed, though value is string usually
+                                    window.preSelectedSubjects = window.preSelectedSubjects.map(String);
+                                    
+                                    loadTeacherSubjects();
+                                }
                             }
                         });
                     </script>
@@ -724,7 +740,8 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                                     <label class="flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer">
                                         <input type="checkbox" name="teacher_streams[]" value="<?php echo $stream['id']; ?>" 
                                                class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded teacher-stream-checkbox"
-                                               onchange="loadTeacherSubjects()">
+                                               onchange="loadTeacherSubjects()"
+                                               <?php echo (isset($_POST['teacher_streams']) && in_array($stream['id'], $_POST['teacher_streams'])) ? 'checked' : ''; ?>>
                                         <span class="text-sm text-gray-700"><?php echo htmlspecialchars($stream['name']); ?></span>
                                     </label>
                                 <?php endforeach; ?>
@@ -1007,20 +1024,41 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 for (const { streamId, data } of results) {
                     if (data.success && data.subjects) {
                         for (const subject of data.subjects) {
-                            // Get stream_subject_id
-                            const ssResponse = await fetch(`get_stream_subject_id.php?stream_id=${streamId}&subject_id=${subject.id}`);
-                            const ssData = await ssResponse.json();
+                            // Check if stream_subject_id is available (from updated get_subjects.php)
+                            // Fallback to fetch if not (for backward compatibility if needed, though we just updated the file)
+                            let ssId = subject.stream_subject_id;
                             
-                            if (ssData.success && ssData.stream_subject_id) {
+                            if (ssId) {
                                 const key = `${streamId}_${subject.id}`;
                                 if (!allStreamSubjects.has(key)) {
                                     allStreamSubjects.set(key, {
-                                        stream_subject_id: ssData.stream_subject_id,
+                                        stream_subject_id: ssId,
                                         stream_id: streamId,
                                         subject_id: subject.id,
                                         subject_name: subject.name,
                                         stream_name: streamNames[streamId] || `Stream ${streamId}`
                                     });
+                                }
+                            } else {
+                                // Fallback: try to fetch individually (only if API didn't return it)
+                                try {
+                                    const ssResponse = await fetch(`get_stream_subject_id.php?stream_id=${streamId}&subject_id=${subject.id}`);
+                                    const ssData = await ssResponse.json();
+                                    
+                                    if (ssData.success && ssData.stream_subject_id) {
+                                        const key = `${streamId}_${subject.id}`;
+                                        if (!allStreamSubjects.has(key)) {
+                                            allStreamSubjects.set(key, {
+                                                stream_subject_id: ssData.stream_subject_id,
+                                                stream_id: streamId,
+                                                subject_id: subject.id,
+                                                subject_name: subject.name,
+                                                stream_name: streamNames[streamId] || `Stream ${streamId}`
+                                            });
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('Error fetching stream_subject_id:', e);
                                 }
                             }
                         }
@@ -1046,9 +1084,11 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                 streamSubjectsMap.forEach((item, key) => {
                     const label = document.createElement('label');
                     label.className = 'flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer';
+                    const isChecked = (window.preSelectedSubjects && window.preSelectedSubjects.includes(String(item.stream_subject_id))) ? 'checked' : '';
+                    
                     label.innerHTML = `
                         <input type="checkbox" name="teacher_subjects[]" value="${item.stream_subject_id}" 
-                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded" ${isChecked}>
                         <div class="flex-1">
                             <span class="text-sm font-medium text-gray-900">${item.subject_name}</span>
                             <span class="text-xs text-gray-500 block">${item.stream_name}</span>

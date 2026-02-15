@@ -41,6 +41,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                    class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
                     Settings
                 </a>
+                <a href="../dashboard/request_al_details.php" 
+                   class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                    A/L DETAILS
+                </a>
             </div>
             
             <!-- User Menu / Logout -->

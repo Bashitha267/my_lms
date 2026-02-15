@@ -1,5 +1,6 @@
 <?php
 // Database configuration for LMS system
+date_default_timezone_set('Asia/Colombo');
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -23,6 +24,9 @@ try {
     
     // Set charset to utf8mb4 for proper character encoding
     $conn->set_charset("utf8mb4");
+    
+    // Set MySQL timezone to Sri Lanka (+05:30)
+    $conn->query("SET time_zone = '+05:30'");
     
 } catch (Exception $e) {
     die("Database connection error: " . $e->getMessage());

@@ -170,6 +170,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $update_stmt->execute();
         $update_stmt->close();
         
+        // Send WhatsApp Notification (Exam Completed)
+        if (file_exists(__DIR__ . '/../whatsapp_config.php')) {
+            require_once __DIR__ . '/../whatsapp_config.php';
+        }
+        
+        if (function_exists('sendWhatsAppMessage') && defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+            // Get Student WhatsApp
+            $std_stmt = $conn->prepare("SELECT whatsapp_number, first_name FROM users WHERE user_id = ?");
+            $std_stmt->bind_param("s", $user_id);
+            $std_stmt->execute();
+            $student_res = $std_stmt->get_result()->fetch_assoc();
+            $std_stmt->close();
+            
+            if ($student_res && !empty($student_res['whatsapp_number'])) {
+                $teacher_name = trim($exam['first_name'] . ' ' . $exam['second_name']);
+                $score_formatted = number_format($score, 1);
+                
+              $msg = "🎉 *Congratulations! / උණුසුම් සුභ පැතුම්!*\n\n" .
+       "👤 *Student / ශිෂ්‍යයා:* " . $student_res['first_name'] . "\n" .
+       "📄 *Exam / විභාගය:* " . $exam['title'] . "\n" .
+       "📌 *Subject / විෂය:* " . $exam['subject_name'] . "\n" .
+       "👨‍🏫 *Teacher / ගුරුතුමා:* " . $teacher_name . "\n\n" .
+       "✅ *Your Score / ඔබ ලබාගත් ලකුණු:* " . $score_formatted . "%\n\n" .
+       "🌟 *Excellent Performance!*\n" .
+       "ඔබ මෙම විභාගයේදී ලබාගත් ප්‍රතිඵලය ඉතා ප්‍රශංසනීයයි.\n" .
+       "ඔබගේ කැපවීම, උත්සාහය සහ නියත අධිෂ්ඨානයට අපගේ හෘදයාංගම සුභ පැතුම්.\n\n" .
+                
+                sendWhatsAppMessage($student_res['whatsapp_number'], $msg);
+            }
+        }
+        
         echo json_encode([
             'success' => true,
             'score' => $score,

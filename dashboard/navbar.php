@@ -139,6 +139,10 @@ if (isset($_SESSION['user_id'])) {
                        class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
                         ABOUT US
                     </a>
+                    <a href="request_al_details.php" 
+                       class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                        A/L DETAILS
+                    </a>
                 <?php endif; ?>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
                 <a href="reports.php" 

@@ -60,6 +60,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_publish']) && 
     $update_stmt->bind_param("iis", $is_published, $exam_id, $user_id);
     
     if ($update_stmt->execute()) {
+        
+        // Send WhatsApp Notification if Published
+        if ($is_published == 1) {
+            // Load WhatsApp Config
+            if (file_exists(__DIR__ . '/../whatsapp_config.php')) {
+                require_once __DIR__ . '/../whatsapp_config.php';
+            }
+            
+            if (function_exists('sendWhatsAppMessage') && defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                // 1. Get Exam Details
+                $exam_query = "SELECT e.title, e.duration_minutes, e.deadline, s.name as subject_name, u.first_name, u.second_name, e.subject_id
+                               FROM exams e
+                               INNER JOIN subjects s ON e.subject_id = s.id
+                               INNER JOIN users u ON e.teacher_id = u.user_id
+                               WHERE e.id = ?";
+                $estmt = $conn->prepare($exam_query);
+                $estmt->bind_param("i", $exam_id);
+                $estmt->execute();
+                $exam_details = $estmt->get_result()->fetch_assoc();
+                $estmt->close();
+                
+                if ($exam_details) {
+                    $subject_name = $exam_details['subject_name'];
+                    $teacher_name = trim($exam_details['first_name'] . ' ' . $exam_details['second_name']);
+                    $exam_title = $exam_details['title'];
+                    $duration = $exam_details['duration_minutes'] . " Minutes";
+                    $deadline = date('Y-m-d h:i A', strtotime($exam_details['deadline']));
+                    
+                    // 2. Get Enrolled Students
+                    // Find students enrolled in any stream that has this subject
+                    $std_query = "SELECT DISTINCT u.whatsapp_number, u.first_name 
+                                  FROM users u
+                                  INNER JOIN student_enrollment se ON u.user_id = se.student_id
+                                  INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                                  WHERE ss.subject_id = ? AND se.status = 'active' AND u.status = 1";
+                    
+                    $sstmt = $conn->prepare($std_query);
+                    $sstmt->bind_param("i", $exam_details['subject_id']);
+                    $sstmt->execute();
+                    $students_result = $sstmt->get_result();
+                    
+                    while ($std = $students_result->fetch_assoc()) {
+                        if (!empty($std['whatsapp_number'])) {
+                            // 3. Construct Sinhala Message
+                            $msg = "📢 *New Exam Notification / නව විභාග දැනුම්දීම*\n\n" .
+                                   "📌 *Subject / විෂය:* $subject_name\n" .
+                                   "👨‍🏫 *Teacher / ගුරුතුමා:* $teacher_name\n\n" .
+                                   "📄 *Exam / විභාගය:* $exam_title\n" .
+                                   "⏳ *Duration / කාලය:* $duration\n" .
+                                   "📅 *Deadline / අවසන් දිනය:* $deadline (Before)\n\n" .
+                                   "Please attend and complete the exam before the deadline.\n" .
+                                   "කරුණාකර නියමිත දිනට පෙර විභාගයට පෙනී සිටින්න.";
+                            
+                            sendWhatsAppMessage($std['whatsapp_number'], $msg);
+                        }
+                    }
+                    $sstmt->close();
+                }
+            }
+        }
+        
         echo json_encode(['success' => true]);
     } else {
         echo json_encode(['success' => false, 'error' => $conn->error]);
