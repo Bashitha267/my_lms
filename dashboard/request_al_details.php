@@ -74,6 +74,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
                    "මෙම පෝරමය පුරවන තෙක් ඔබට LMS වෙත පිවිසිය නොහැක.";
             
             sendWhatsAppMessage($student['whatsapp_number'], $msg);
+            
+            // Set flag in database that details have been requested
+            $update_flag = $conn->prepare("UPDATE users SET al_details_requested = 1 WHERE user_id = ?");
+            $update_flag->bind_param("s", $student['user_id']);
+            $update_flag->execute();
+            $update_flag->close();
+
             $count++;
         }
     }

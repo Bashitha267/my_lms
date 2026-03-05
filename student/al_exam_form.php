@@ -73,9 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already_submitted) {
             $stmt->bind_param("sssssss", $user_id, $subject1, $subject2, $subject3, $index_number, $district, $photo_path);
             
             if ($stmt->execute()) {
+                // Clear the requested flag in DB
+                $clear_request = $conn->prepare("UPDATE users SET al_details_requested = 0 WHERE user_id = ?");
+                $clear_request->bind_param("s", $user_id);
+                $clear_request->execute();
+                $clear_request->close();
+
                 $success_message = "Details submitted successfully!";
                 $already_submitted = true;
                 $_SESSION['al_submitted'] = true;
+                $_SESSION['al_requested'] = false; // Also clear session flag
                 // Redirect after 2 seconds
                 header("refresh:2;url=../dashboard/dashboard.php");
             } else {

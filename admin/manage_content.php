@@ -221,8 +221,49 @@ if ($teacher_result) {
     <title>Manage Content - Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Inter', sans-serif; }
+        [data-tooltip] { position: relative; }
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 500;
+            white-space: nowrap;
+            padding: 4px 10px;
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 50;
+        }
+        [data-tooltip]:hover::after { opacity: 1; }
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            transition: all 0.15s;
+            border: none;
+            cursor: pointer;
+        }
+        .action-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+        .btn-disable  { background: #fee2e2; color: #b91c1c; }
+        .btn-enable   { background: #dcfce7; color: #15803d; }
+        .btn-edit     { background: #dbeafe; color: #1d4ed8; }
+        .btn-delete   { background: #f1f5f9; color: #dc2626; }
+        .btn-unassign { background: #fef3c7; color: #b45309; }
+        .subject-row { transition: background 0.15s; }
+        .subject-row:hover { background: #f8fafc; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -249,124 +290,166 @@ if ($teacher_result) {
 
         <!-- Content Grid -->
         <div class="space-y-6">
-            
-            <!-- Streams Section -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Add New Stream Card (Optional, or just list existing) -->
-                
+
                 <?php foreach ($structure as $stream_id => $data): ?>
-                    <?php $stream = $data['info']; ?>
-                    <div class="bg-white rounded-lg shadow-sm border border-red-500 overflow-hidden hover:shadow-md transition-shadow duration-200">
-                        <div class="p-5 border-b border-red-100 flex justify-between items-center bg-red-50">
-                            <h3 class="text-lg font-semibold text-gray-800">
-                                <?php echo htmlspecialchars($stream['name']); ?>
-                            </h3>
-                            <div class="flex space-x-2">
-                                <!-- Enable/Disable Stream -->
-                                <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to change this stream status?');">
-                                    <input type="hidden" name="id" value="<?php echo $stream['id']; ?>">
-                                    <?php if ($stream['status'] == 1): ?>
-                                        <input type="hidden" name="action" value="delete_stream">
-                                        <button type="submit" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">Disable</button>
-                                    <?php else: ?>
-                                        <input type="hidden" name="action" value="enable_stream">
-                                        <button type="submit" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">Enable</button>
+                    <?php $stream = $data['info']; $is_active = $stream['status'] == 1; ?>
+                    <div class="bg-white rounded-xl shadow border <?php echo $is_active ? 'border-red-400' : 'border-gray-300 opacity-75'; ?> overflow-hidden transition-all duration-200 hover:shadow-lg">
+
+                        <!-- Stream Header -->
+                        <div class="px-5 py-4 <?php echo $is_active ? 'bg-gradient-to-r from-red-50 to-pink-50' : 'bg-gray-100'; ?> border-b <?php echo $is_active ? 'border-red-200' : 'border-gray-200'; ?>">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0 <?php echo $is_active ? 'bg-green-500' : 'bg-gray-400'; ?>"></div>
+                                    <h3 class="text-base font-bold text-gray-900 leading-tight truncate">
+                                        <?php echo htmlspecialchars($stream['name']); ?>
+                                    </h3>
+                                    <?php if (!$is_active): ?>
+                                        <span class="text-xs bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Disabled</span>
                                     <?php endif; ?>
-                                </form>
-                                <button onclick="openEditModal('stream', <?php echo $stream['id']; ?>, '<?php echo addslashes($stream['name']); ?>')" class="text-xs text-blue-600 hover:text-blue-800">Edit</button>
-                                <form method="POST" class="inline" onsubmit="return confirm('WARNING: This will permanently delete the stream and all associated data. This action cannot be undone. Are you sure?');">
-                                    <input type="hidden" name="action" value="permanently_delete_stream">
-                                    <input type="hidden" name="id" value="<?php echo $stream['id']; ?>">
-                                    <button type="submit" class="text-xs text-red-600 hover:text-red-900 ml-1" title="Delete Permanently">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </div>
+                                <!-- Stream Action Buttons -->
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <!-- Enable/Disable -->
+                                    <form method="POST" class="inline" onsubmit="return confirm('<?php echo $is_active ? 'Disable' : 'Enable'; ?> this stream?');">
+                                        <input type="hidden" name="id" value="<?php echo $stream['id']; ?>">
+                                        <?php if ($is_active): ?>
+                                            <input type="hidden" name="action" value="delete_stream">
+                                            <button type="submit" class="action-btn btn-disable" data-tooltip="Disable this stream (hides from students)">
+                                                <i class="fas fa-ban text-xs"></i> Disable
+                                            </button>
+                                        <?php else: ?>
+                                            <input type="hidden" name="action" value="enable_stream">
+                                            <button type="submit" class="action-btn btn-enable" data-tooltip="Re-enable this stream">
+                                                <i class="fas fa-check text-xs"></i> Enable
+                                            </button>
+                                        <?php endif; ?>
+                                    </form>
+                                    <!-- Rename -->
+                                    <button onclick="openEditModal('stream', <?php echo $stream['id']; ?>, '<?php echo addslashes($stream['name']); ?>')"
+                                            class="action-btn btn-edit" data-tooltip="Edit stream name">
+                                        <i class="fas fa-pencil-alt text-xs"></i> Edit
                                     </button>
-                                </form>
+                                    <!-- Delete Permanently -->
+                                    <form method="POST" class="inline" onsubmit="return confirm('WARNING: Permanently delete this stream and all its data? This cannot be undone.');">
+                                        <input type="hidden" name="action" value="permanently_delete_stream">
+                                        <input type="hidden" name="id" value="<?php echo $stream['id']; ?>">
+                                        <button type="submit" class="action-btn btn-delete" data-tooltip="Permanently delete stream">
+                                            <i class="fas fa-trash-alt text-xs"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
-                        
-                        <!-- Subjects List inside Stream Card -->
-                        <div class="p-0">
-                            <div class="bg-gray-50 px-5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                                Subjects
+
+                        <!-- Subjects list -->
+                        <div>
+                            <div class="bg-gray-50 px-5 py-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 flex items-center gap-2">
+                                <i class="fas fa-book text-gray-400"></i> Subjects
+                                <span class="ml-auto text-gray-400 font-normal"><?php echo count($data['subjects']); ?> total</span>
                             </div>
+
                             <?php if (empty($data['subjects'])): ?>
-                                <div class="px-5 py-4 text-sm text-gray-500 italic">No subjects assigned.</div>
+                                <div class="px-5 py-5 text-sm text-gray-400 italic text-center">
+                                    <i class="fas fa-folder-open text-gray-300 text-2xl mb-1 block"></i>
+                                    No subjects assigned.
+                                </div>
                             <?php else: ?>
                                 <ul class="divide-y divide-gray-100">
                                     <?php foreach ($data['subjects'] as $ss_id => $subj_data): ?>
-                                        <li class="group">
+                                        <?php $subj_active = $subj_data['info']['subject_status'] == 1; ?>
+                                        <li>
                                             <!-- Subject Row -->
-                                            <div class="px-5 py-3 hover:bg-gray-50 transition-colors cursor-pointer" onclick="toggleTeachers('<?php echo 'teachers-' . $ss_id; ?>')">
-                                                <div class="flex justify-between items-center">
-                                                    <div>
-                                                        <span class="font-medium text-gray-700 <?php echo $subj_data['info']['subject_status'] == 0 ? 'line-through text-gray-400' : ''; ?>">
+                                            <div class="subject-row px-5 py-3 cursor-pointer" onclick="toggleTeachers('teachers-<?php echo $ss_id; ?>')">
+                                                <div class="flex justify-between items-center gap-2">
+                                                    <!-- Subject Name -->
+                                                    <div class="flex items-center gap-2 min-w-0">
+                                                        <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 <?php echo $subj_active ? 'bg-blue-400' : 'bg-gray-300'; ?>"></div>
+                                                        <span class="font-medium <?php echo $subj_active ? 'text-gray-800' : 'line-through text-gray-400'; ?> truncate text-sm">
                                                             <?php echo htmlspecialchars($subj_data['info']['subject_name']); ?>
                                                         </span>
                                                         <?php if ($subj_data['info']['code']): ?>
-                                                            <span class="ml-2 text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                            <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
                                                                 <?php echo htmlspecialchars($subj_data['info']['code']); ?>
                                                             </span>
                                                         <?php endif; ?>
                                                     </div>
-                                                    <div class="flex items-center space-x-2">
-                                                        <span class="text-xs text-gray-400 mr-2">
-                                                            <?php echo count($subj_data['teachers']); ?> Teachers
+
+                                                    <!-- Subject Action Buttons -->
+                                                    <div class="flex items-center gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+                                                        <span class="text-xs text-gray-400 mr-1">
+                                                            <i class="fas fa-chalkboard-teacher"></i> <?php echo count($subj_data['teachers']); ?>
                                                         </span>
-                                                        <!-- Subject Actions -->
-                                                         <button onclick="event.stopPropagation(); openEditModal('subject', <?php echo $subj_data['info']['subject_id']; ?>, '<?php echo addslashes($subj_data['info']['subject_name']); ?>')" class="text-gray-400 hover:text-blue-600">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                                        <!-- Edit name -->
+                                                        <button onclick="openEditModal('subject', <?php echo $subj_data['info']['subject_id']; ?>, '<?php echo addslashes($subj_data['info']['subject_name']); ?>')"
+                                                                class="action-btn btn-edit" data-tooltip="Rename this subject">
+                                                            <i class="fas fa-pencil-alt text-xs"></i>
                                                         </button>
-                                                        <form method="POST" class="inline" onsubmit="event.stopPropagation(); return confirm('Toggle subject status?');">
+                                                        <!-- Enable/Disable subject -->
+                                                        <form method="POST" class="inline" onsubmit="return confirm('<?php echo $subj_active ? 'Disable' : 'Enable'; ?> this subject?');">
                                                             <input type="hidden" name="id" value="<?php echo $subj_data['info']['subject_id']; ?>">
-                                                            <?php if ($subj_data['info']['subject_status'] == 1): ?>
+                                                            <?php if ($subj_active): ?>
                                                                 <input type="hidden" name="action" value="delete_subject">
-                                                                <button type="submit" class="text-gray-400 hover:text-red-600">
-                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                                                                <button type="submit" class="action-btn btn-disable" data-tooltip="Disable subject (hides from students)">
+                                                                    <i class="fas fa-ban text-xs"></i>
                                                                 </button>
                                                             <?php else: ?>
                                                                 <input type="hidden" name="action" value="enable_subject">
-                                                                <button type="submit" class="text-gray-400 hover:text-green-600">
-                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                                <button type="submit" class="action-btn btn-enable" data-tooltip="Re-enable this subject">
+                                                                    <i class="fas fa-check text-xs"></i>
                                                                 </button>
                                                             <?php endif; ?>
                                                         </form>
-                                                        <form method="POST" class="inline" onsubmit="event.stopPropagation(); return confirm('WARNING: This will permanently delete the subject and all associated data. This action cannot be undone. Are you sure?');">
+                                                        <!-- Permanently delete subject -->
+                                                        <form method="POST" class="inline" onsubmit="return confirm('WARNING: Permanently delete this subject and all its data?');">
                                                             <input type="hidden" name="action" value="permanently_delete_subject">
                                                             <input type="hidden" name="id" value="<?php echo $subj_data['info']['subject_id']; ?>">
-                                                            <button type="submit" class="text-gray-400 hover:text-red-800 ml-1" title="Delete Permanently">
-                                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                            <button type="submit" class="action-btn btn-delete" data-tooltip="Permanently delete subject">
+                                                                <i class="fas fa-trash-alt text-xs"></i>
                                                             </button>
                                                         </form>
-                                                        <svg class="w-4 h-4 text-gray-400 transform transition-transform duration-200" id="arrow-<?php echo 'teachers-' . $ss_id; ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                                        <!-- Expand arrow -->
+                                                        <span class="ml-1 text-gray-400 text-xs transition-transform duration-200" id="arrow-teachers-<?php echo $ss_id; ?>">
+                                                            <i class="fas fa-chevron-down"></i>
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <!-- Teachers List (Hidden by default) -->
-                                            <div id="<?php echo 'teachers-' . $ss_id; ?>" class="hidden bg-gray-50 border-t border-gray-100 px-5 py-3 space-y-2">
-                                                <?php if (empty($subj_data['teachers'])): ?>
-                                                    <div class="text-xs text-gray-500">No teachers assigned.</div>
-                                                <?php else: ?>
-                                                    <?php foreach ($subj_data['teachers'] as $teacher): ?>
-                                                        <div class="flex justify-between items-center text-sm bg-white p-2 rounded border border-gray-200">
-                                                            <div class="flex items-center space-x-2">
-                                                                <?php if ($teacher['profile_picture']): ?>
-                                                                    <img src="../<?php echo htmlspecialchars($teacher['profile_picture']); ?>" class="w-6 h-6 rounded-full object-cover">
-                                                                <?php else: ?>
-                                                                    <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                                                                        <?php echo strtoupper(substr($teacher['first_name'], 0, 1)); ?>
-                                                                    </div>
-                                                                <?php endif; ?>
-                                                                <span class="text-gray-700"><?php echo htmlspecialchars($teacher['first_name'] . ' ' . $teacher['second_name']); ?></span>
+                                            <div id="teachers-<?php echo $ss_id; ?>" class="hidden bg-gray-50 border-t border-gray-100">
+                                                <div class="px-5 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                                    <i class="fas fa-user-tie"></i> Assigned Teachers
+                                                </div>
+                                                <div class="px-4 pb-3 space-y-2">
+                                                    <?php if (empty($subj_data['teachers'])): ?>
+                                                        <div class="text-xs text-gray-400 italic py-2 text-center">No teachers assigned to this subject.</div>
+                                                    <?php else: ?>
+                                                        <?php foreach ($subj_data['teachers'] as $teacher): ?>
+                                                            <div class="flex justify-between items-center bg-white rounded-lg px-3 py-2 border border-gray-200 shadow-sm">
+                                                                <div class="flex items-center gap-2">
+                                                                    <?php if ($teacher['profile_picture']): ?>
+                                                                        <img src="../<?php echo htmlspecialchars($teacher['profile_picture']); ?>" class="w-7 h-7 rounded-full object-cover border border-gray-200">
+                                                                    <?php else: ?>
+                                                                        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-xs text-white font-bold">
+                                                                            <?php echo strtoupper(substr($teacher['first_name'], 0, 1)); ?>
+                                                                        </div>
+                                                                    <?php endif; ?>
+                                                                    <span class="text-sm font-medium text-gray-800">
+                                                                        <?php echo htmlspecialchars($teacher['first_name'] . ' ' . $teacher['second_name']); ?>
+                                                                    </span>
+                                                                </div>
+                                                                <form method="POST" onsubmit="return confirm('Remove this teacher from the subject?');">
+                                                                    <input type="hidden" name="action" value="remove_teacher_assignment">
+                                                                    <input type="hidden" name="id" value="<?php echo $teacher['assignment_id']; ?>">
+                                                                    <button type="submit" class="action-btn btn-unassign" data-tooltip="Remove teacher from this subject">
+                                                                        <i class="fas fa-user-minus text-xs"></i> Unassign
+                                                                    </button>
+                                                                </form>
                                                             </div>
-                                                            <form method="POST" onsubmit="return confirm('Unassign this teacher?');">
-                                                                <input type="hidden" name="action" value="remove_teacher_assignment">
-                                                                <input type="hidden" name="id" value="<?php echo $teacher['assignment_id']; ?>">
-                                                                <button type="submit" class="text-xs text-red-500 hover:text-red-700 hover:underline">Unassign</button>
-                                                            </form>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </div>
                                             </div>
                                         </li>
                                     <?php endforeach; ?>
@@ -405,14 +488,15 @@ if ($teacher_result) {
     <script>
         function toggleTeachers(id) {
             const element = document.getElementById(id);
-            const arrow = document.getElementById('arrow-' + id);
-            
-            if (element.classList.contains('hidden')) {
+            const arrowEl = document.getElementById('arrow-' + id);
+            const isHidden = element.classList.contains('hidden');
+
+            if (isHidden) {
                 element.classList.remove('hidden');
-                if(arrow) arrow.style.transform = 'rotate(180deg)';
+                if (arrowEl) arrowEl.style.transform = 'rotate(180deg)';
             } else {
                 element.classList.add('hidden');
-                if(arrow) arrow.style.transform = 'rotate(0deg)';
+                if (arrowEl) arrowEl.style.transform = 'rotate(0deg)';
             }
         }
 

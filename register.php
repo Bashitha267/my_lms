@@ -307,12 +307,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                             }
                         }
 
-                        if ($approved == 1) {
+                        $ui_welcome_msg = "Welcome to LearnerX! 🎓\n\nHello $first_name, your account has been successfully created.\nYour User ID is: $user_id.\n\nLearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nඔබේ ලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
 
-                            header("Location: login.php?success=" . urlencode("Student registered successfully. Your User ID is $user_id. You can now login."));
+                        if ($approved == 1) {
+                            header("Location: login.php?success=" . urlencode($ui_welcome_msg));
                             exit;
                         } else {
-                            $success_message = "Student registered successfully with User ID: $user_id. Your account is pending admin approval. You will be able to login once approved.";
+                            $success_message = $ui_welcome_msg . "\n\nYour account is pending admin approval. You will be able to login once approved.";
                         }
                         // Clear form data
                         $_POST = array();
@@ -421,10 +422,15 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 <?php if (!empty($success_message)): ?>
                     <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded mb-6" role="alert">
                         <div class="flex">
-                            <svg class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                            <svg class="h-5 w-5 text-green-500 mt-1" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                             </svg>
-                            <p class="ml-3 text-sm font-medium"><?php echo htmlspecialchars($success_message); ?></p>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium whitespace-pre-line"><?php echo htmlspecialchars($success_message); ?></p>
+                                <div class="mt-4">
+                                    <a href="login.php" class="text-sm font-bold text-green-800 hover:text-green-900 underline">Click here to Login now / දැන් ඇතුළු වීමට මෙතන ක්ලික් කරන්න</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>

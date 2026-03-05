@@ -40,8 +40,8 @@ if (isset($_SESSION['user_id'])) {
         <div class="flex justify-between items-center h-14 sm:h-16">
             <!-- Logo/Brand - Left Side -->
             <div class="flex items-center flex-shrink-0">
-                <a href="dashboard.php" class="text-white text-lg sm:text-xl font-bold hover:text-red-200 transition-colors">
-                    LMS
+                <a href="dashboard.php" class="text-white text-base sm:text-lg font-bold hover:text-red-200 transition-colors tracking-wide">
+                    LearnerX
                 </a>
             </div>
             
@@ -51,104 +51,134 @@ if (isset($_SESSION['user_id'])) {
                     <!-- Student Navigation with Sinhala Tooltips -->
                     <div class="nav-item-with-tooltip">
                         <a href="dashboard.php" 
-                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="online_courses.php" 
-                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             ONLINE COURSES
                         </a>
                         <div class="sinhala-tooltip">අන්තර්ජාල පාඨමාලා</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="recordings.php" 
-                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             RECORDINGS
                         </a>
                         <div class="sinhala-tooltip">පටිගත කිරීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="live_classes.php" 
-                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             LIVE CLASSES
                         </a>
                         <div class="sinhala-tooltip">සජීවී පන්ති</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="instructors.php" 
-                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             INSTRUCTORS
                         </a>
                         <div class="sinhala-tooltip">උපදේශකයින්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="payments.php" 
-                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             PAYMENTS
                         </a>
                         <div class="sinhala-tooltip">ගෙවීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="exam_center.php" 
-                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             EXAM CENTER
                         </a>
                         <div class="sinhala-tooltip">විභාග මධ්‍යස්ථානය</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="about_us.php" 
-                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
                             ABOUT US
                         </a>
                         <div class="sinhala-tooltip">අප ගැන</div>
                     </div>
                 <?php else: ?>
-                    <!-- Teacher Navigation without tooltips -->
-                    <a href="dashboard.php" 
-                       class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
-                        HOME
-                    </a>
-                    <a href="online_courses.php" 
-                       class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
-                        ONLINE COURSES
-                    </a>
-                    <a href="recordings.php" 
-                       class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs  font-medium uppercase transition duration-150 ease-in-out">
-                        RECORDINGS
-                    </a>
-                    <a href="live_classes.php" 
-                       class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        LIVE CLASSES
-                    </a>
-                    <a href="instructors.php" 
-                       class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        INSTRUCTORS
-                    </a>
-                    <a href="payments.php" 
-                       class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        PAYMENTS
-                    </a>
-                    <a href="exam_center.php" 
-                       class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        EXAM CENTER
-                    </a>
-                    <a href="about_us.php" 
-                       class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        ABOUT US
-                    </a>
-                    <a href="request_al_details.php" 
-                       class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                        A/L DETAILS
-                    </a>
+                    <!-- Teacher Navigation with Sinhala Tooltips -->
+                    <div class="nav-item-with-tooltip">
+                        <a href="dashboard.php" 
+                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            HOME
+                        </a>
+                        <div class="sinhala-tooltip">මුල් පිටුව</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="online_courses.php" 
+                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            ONLINE COURSES
+                        </a>
+                        <div class="sinhala-tooltip">අන්තර්ජාල පාඨමාලා</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="recordings.php" 
+                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            RECORDINGS
+                        </a>
+                        <div class="sinhala-tooltip">පටිගත කිරීම්</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="live_classes.php" 
+                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            LIVE CLASSES
+                        </a>
+                        <div class="sinhala-tooltip">සජීවී පන්ති</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="instructors.php" 
+                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            INSTRUCTORS
+                        </a>
+                        <div class="sinhala-tooltip">උපදේශකයින්</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="payments.php" 
+                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            PAYMENTS
+                        </a>
+                        <div class="sinhala-tooltip">ගෙවීම්</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="exam_center.php" 
+                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            EXAM CENTER
+                        </a>
+                        <div class="sinhala-tooltip">විභාග මධ්‍යස්ථානය</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="about_us.php" 
+                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            ABOUT US
+                        </a>
+                        <div class="sinhala-tooltip">අප ගැන</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="request_al_details.php" 
+                           class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                            A/L DETAILS
+                        </a>
+                        <div class="sinhala-tooltip">උසස් පෙළ විස්තර</div>
+                    </div>
                 <?php endif; ?>
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
-                <a href="reports.php" 
-                   class="<?php echo ($current_page == 'reports.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-xs xl:text-sm font-medium uppercase transition duration-150 ease-in-out">
-                    REPORTS
-                </a>
+                <div class="nav-item-with-tooltip">
+                    <a href="reports.php" 
+                       class="<?php echo ($current_page == 'reports.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                        REPORTS
+                    </a>
+                    <div class="sinhala-tooltip">වාර්තා</div>
+                </div>
                 <?php endif; ?>
                
             </div>
@@ -175,23 +205,29 @@ if (isset($_SESSION['user_id'])) {
                             </div>
                             
                              <!-- Full Name -->
-                            <button onclick="openProfileModal()" class="flex items-center space-x-2 focus:outline-none group">
-                                <span class="text-white text-xs xl:text-sm font-medium truncate max-w-[150px] xl:max-w-[200px] group-hover:text-red-200 transition-colors">
-                                    <?php echo htmlspecialchars($full_name); ?>
-                                </span>
-                                <svg class="w-4 h-4 text-white group-hover:text-red-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </button>
+                            <div class="nav-item-with-tooltip">
+                                <button onclick="openProfileModal()" class="flex items-center space-x-2 focus:outline-none group">
+                                    <span class="text-white text-xs xl:text-sm font-medium truncate max-w-[150px] xl:max-w-[200px] group-hover:text-red-200 transition-colors">
+                                        <?php echo htmlspecialchars($full_name); ?>
+                                    </span>
+                                    <svg class="w-4 h-4 text-white group-hover:text-red-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div class="sinhala-tooltip">මගේ ගිණුම</div>
+                            </div>
                             
                             <!-- Logout Icon -->
-                            <a href="../auth.php?logout=1" 
-                               class="bg-red-700 hover:bg-red-800 active:bg-red-900 text-white p-2 rounded-md transition duration-150 ease-in-out flex items-center justify-center shadow-md hover:shadow-lg touch-manipulation"
-                               title="Logout">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                                </svg>
-                            </a>
+                            <div class="nav-item-with-tooltip">
+                                <a href="../auth.php?logout=1" 
+                                   class="bg-red-700 hover:bg-red-800 active:bg-red-900 text-white p-2 rounded-md transition duration-150 ease-in-out flex items-center justify-center shadow-md hover:shadow-lg touch-manipulation"
+                                   title="Logout">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                    </svg>
+                                </a>
+                                <div class="sinhala-tooltip">ඉවත් වන්න</div>
+                            </div>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -255,53 +291,65 @@ if (isset($_SESSION['user_id'])) {
     <div class="lg:hidden transition-all duration-300 ease-in-out overflow-hidden" id="mobile-menu">
         <div class="px-2 pt-2 pb-4 space-y-1 bg-red-700 border-t border-red-800 max-h-[calc(100vh-64px)] overflow-y-auto">
             <a href="dashboard.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'dashboard.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                HOME
+               class="mobile-menu-link <?php echo ($current_page == 'dashboard.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>HOME</span>
+                <span class="text-[10px] text-red-100/70 font-normal">මුල් පිටුව</span>
             </a>
             <a href="online_courses.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'online_courses.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                ONLINE COURSES
+               class="mobile-menu-link <?php echo ($current_page == 'online_courses.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>ONLINE COURSES</span>
+                <span class="text-[10px] text-red-100/70 font-normal">අන්තර්ජාල පාඨමාලා</span>
             </a>
             <a href="recordings.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'recordings.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                RECORDINGS
+               class="mobile-menu-link <?php echo ($current_page == 'recordings.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>RECORDINGS</span>
+                <span class="text-[10px] text-red-100/70 font-normal">පටිගත කිරීම්</span>
             </a>
             <a href="live_classes.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'live_classes.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                LIVE CLASSES
+               class="mobile-menu-link <?php echo ($current_page == 'live_classes.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>LIVE CLASSES</span>
+                <span class="text-[10px] text-red-100/70 font-normal">සජීවී පන්ති</span>
             </a>
             <a href="instructors.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'instructors.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                INSTRUCTORS
+               class="mobile-menu-link <?php echo ($current_page == 'instructors.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>INSTRUCTORS</span>
+                <span class="text-[10px] text-red-100/70 font-normal">උපදේශකයින්</span>
             </a>
             <a href="payments.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'payments.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                PAYMENTS
+               class="mobile-menu-link <?php echo ($current_page == 'payments.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>PAYMENTS</span>
+                <span class="text-[10px] text-red-100/70 font-normal">ගෙවීම්</span>
             </a>
             <a href="exam_center.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'exam_center.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                EXAM CENTER
+               class="mobile-menu-link <?php echo ($current_page == 'exam_center.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>EXAM CENTER</span>
+                <span class="text-[10px] text-red-100/70 font-normal">විභාග මධ්‍යස්ථානය</span>
             </a>
             <a href="about_us.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'about_us.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                ABOUT US
+               class="mobile-menu-link <?php echo ($current_page == 'about_us.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>ABOUT US</span>
+                <span class="text-[10px] text-red-100/70 font-normal">අප ගැන</span>
             </a>
             <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
             <a href="reports.php" 
-               class="mobile-menu-link <?php echo ($current_page == 'reports.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center">
-                REPORTS
+               class="mobile-menu-link <?php echo ($current_page == 'reports.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                <span>REPORTS</span>
+                <span class="text-[10px] text-red-100/70 font-normal">වාර්තා</span>
             </a>
             <?php endif; ?>
         
             <?php if (isset($_SESSION['username'])): ?>
                 <div class="border-t border-red-800 mt-2 pt-3">
                     <a href="../auth.php?logout=1" 
-                       class="mobile-menu-link bg-red-800 hover:bg-red-900 active:bg-red-950 text-white block px-4 py-3 rounded-md text-sm font-medium uppercase flex items-center justify-center gap-2 transition duration-150 ease-in-out touch-manipulation min-h-[44px]"
+                       class="mobile-menu-link bg-red-800 hover:bg-red-900 active:bg-red-950 text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between"
                        title="Logout">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                        </svg>
-                        <span>LOGOUT</span>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            <span>LOGOUT</span>
+                        </div>
+                        <span class="text-[10px] text-red-100/70 font-normal">ඉවත් වන්න</span>
                     </a>
                 </div>
             <?php endif; ?>

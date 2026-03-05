@@ -197,14 +197,14 @@ if ($is_logged_in && $role === 'student') {
                             <?php if ($error_message): ?>
                                 <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-2.5 rounded-lg mb-2 text-xs">
                                     <i class="fas fa-exclamation-circle mr-1"></i>
-                                    <?php echo htmlspecialchars($error_message); ?>
+                                    <span class="whitespace-pre-line"><?php echo htmlspecialchars($error_message); ?></span>
                                 </div>
                             <?php endif; ?>
                             
                             <?php if ($success_message): ?>
                                 <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-2.5 rounded-lg mb-2 text-xs">
                                     <i class="fas fa-check-circle mr-1"></i>
-                                    <?php echo htmlspecialchars($success_message); ?>
+                                    <span class="whitespace-pre-line"><?php echo htmlspecialchars($success_message); ?></span>
                                 </div>
                             <?php endif; ?>
                         </div>

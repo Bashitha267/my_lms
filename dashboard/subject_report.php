@@ -84,18 +84,43 @@ while ($row = $res->fetch_assoc()) {
 $stmt->close();
 
 // 3. Live Classes (Recordings where is_live=1)
-$live_query = "SELECT id, title, scheduled_start_time as start_time, 'Live' as type, status 
+// Use COALESCE to handle cases where scheduled_start_time may be NULL
+$live_query = "SELECT id, title, 
+                COALESCE(actual_start_time, scheduled_start_time, created_at) as start_time, 
+                'Live' as type, status 
                FROM recordings 
                WHERE teacher_assignment_id = ? AND is_live = 1
-               AND MONTH(scheduled_start_time) = ? 
-               AND YEAR(scheduled_start_time) = ?
-               ORDER BY scheduled_start_time DESC";
+               AND MONTH(COALESCE(actual_start_time, scheduled_start_time, created_at)) = ? 
+               AND YEAR(COALESCE(actual_start_time, scheduled_start_time, created_at)) = ?
+               ORDER BY COALESCE(actual_start_time, scheduled_start_time, created_at) DESC";
 $stmt = $conn->prepare($live_query);
 $stmt->bind_param("iii", $assignment_id, $selected_month, $selected_year);
 $stmt->execute();
 $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) {
-    // Count attendees (from video_watch_log)
+    // Count attendees from live_class_participants (correct table)
+    $count_stmt = $conn->prepare("SELECT COUNT(DISTINCT student_id) as total FROM live_class_participants WHERE recording_id = ?");
+    $count_stmt->bind_param("i", $row['id']);
+    $count_stmt->execute();
+    $row['attendees_count'] = $count_stmt->get_result()->fetch_assoc()['total'];
+    $count_stmt->close();
+    $classes[] = $row;
+}
+$stmt->close();
+
+// 4. Regular Recordings (is_live=0)
+$rec_query = "SELECT id, title, created_at as start_time, 'Recording' as type, status 
+              FROM recordings 
+              WHERE teacher_assignment_id = ? AND is_live = 0
+              AND MONTH(created_at) = ? 
+              AND YEAR(created_at) = ?
+              ORDER BY created_at DESC";
+$stmt = $conn->prepare($rec_query);
+$stmt->bind_param("iii", $assignment_id, $selected_month, $selected_year);
+$stmt->execute();
+$res = $stmt->get_result();
+while ($row = $res->fetch_assoc()) {
+    // Count unique students who watched this recording
     $count_stmt = $conn->prepare("SELECT COUNT(DISTINCT student_id) as total FROM video_watch_log WHERE recording_id = ?");
     $count_stmt->bind_param("i", $row['id']);
     $count_stmt->execute();
@@ -104,6 +129,16 @@ while ($row = $res->fetch_assoc()) {
     $classes[] = $row;
 }
 $stmt->close();
+
+// Get total enrolled students for this stream_subject + academic_year
+$enrolled_stmt = $conn->prepare(
+    "SELECT COUNT(DISTINCT se.student_id) as total 
+     FROM student_enrollment se 
+     WHERE se.stream_subject_id = ? AND se.academic_year = ? AND se.status = 'active'");
+$enrolled_stmt->bind_param("ii", $assignment['stream_subject_id'], $selected_year);
+$enrolled_stmt->execute();
+$enrolled_total = $enrolled_stmt->get_result()->fetch_assoc()['total'] ?? 0;
+$enrolled_stmt->close();
 
 // Sort unified classes by start time
 usort($classes, function($a, $b) {
@@ -192,37 +227,58 @@ $months = [
         </div>
 
         <!-- Summary section -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <?php
-            $stats = ['Zoom' => 0, 'Physical' => 0, 'Live' => 0];
+            $stats = ['Zoom' => 0, 'Physical' => 0, 'Live' => 0, 'Recording' => 0];
             foreach ($classes as $c) $stats[$c['type']]++;
             ?>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                <div class="w-11 h-11 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
                     <i class="fas fa-video"></i>
                 </div>
                 <div>
                     <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Zoom']; ?></span>
-                    <span class="text-sm text-gray-500 font-medium">Zoom Classes</span>
+                    <span class="text-xs text-gray-500 font-medium">Zoom Classes</span>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-                <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mr-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                <div class="w-11 h-11 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
                     <i class="fas fa-building"></i>
                 </div>
                 <div>
                     <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Physical']; ?></span>
-                    <span class="text-sm text-gray-500 font-medium">Physical Classes</span>
+                    <span class="text-xs text-gray-500 font-medium">Physical Classes</span>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mr-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                <div class="w-11 h-11 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
                     <i class="fas fa-broadcast-tower"></i>
                 </div>
                 <div>
                     <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Live']; ?></span>
-                    <span class="text-sm text-gray-500 font-medium">Live Classes</span>
+                    <span class="text-xs text-gray-500 font-medium">Live Classes</span>
                 </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
+                <div class="w-11 h-11 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div>
+                    <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Recording']; ?></span>
+                    <span class="text-xs text-gray-500 font-medium">Recordings</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrolled students info bar -->
+        <div class="bg-gradient-to-r from-red-50 to-pink-50 border border-red-100 rounded-2xl px-6 py-4 mb-6 flex items-center gap-3">
+            <div class="w-10 h-10 bg-red-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <span class="text-sm font-bold text-gray-700">Total Enrolled Students for this Subject:</span>
+                <span class="ml-2 text-xl font-extrabold text-red-600"><?php echo $enrolled_total; ?></span>
+                <span class="ml-2 text-xs text-gray-500">(Attendance % below is calculated out of this number)</span>
             </div>
         </div>
 
@@ -235,54 +291,84 @@ $months = [
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date & Time</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Class Type</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
-                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Attendees</th>
-                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date &amp; Time</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Rate</th>
+                                <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <?php if (empty($classes)): ?>
                             <tr>
-                                <td colspan="5" class="px-6 py-10 text-center text-gray-500 bg-gray-50 font-medium italic">
+                                <td colspan="6" class="px-6 py-10 text-center text-gray-500 bg-gray-50 font-medium italic">
                                     No classes held in <?php echo $months[$selected_month]; ?> <?php echo $selected_year; ?>.
                                 </td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($classes as $class): ?>
+                            <?php foreach ($classes as $class):
+                                $pct = ($enrolled_total > 0) ? round(($class['attendees_count'] / $enrolled_total) * 100) : 0;
+                                $bar_color = $pct >= 75 ? 'bg-green-500' : ($pct >= 40 ? 'bg-yellow-400' : 'bg-red-400');
+                                $text_color = $pct >= 75 ? 'text-green-700' : ($pct >= 40 ? 'text-yellow-700' : 'text-red-600');
+                            ?>
                                 <tr class="hover:bg-gray-50/50 transition-colors">
                                     <td class="px-6 py-5 whitespace-nowrap text-sm text-gray-700 font-medium">
                                         <?php echo date('M d, Y | H:i', strtotime($class['start_time'])); ?>
                                     </td>
                                     <td class="px-6 py-5 whitespace-nowrap">
-                                        <?php if ($class['type'] === 'Zoom'): ?>
-                                            <span class="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full uppercase tracking-tighter shadow-sm"><?php echo $class['type']; ?></span>
-                                        <?php elseif ($class['type'] === 'Physical'): ?>
-                                            <span class="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full uppercase tracking-tighter shadow-sm"><?php echo $class['type']; ?></span>
-                                        <?php else: ?>
-                                            <span class="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full uppercase tracking-tighter shadow-sm"><?php echo $class['type']; ?></span>
-                                        <?php endif; ?>
+                                        <?php
+                                        $type_styles = [
+                                            'Zoom'      => 'bg-blue-100 text-blue-700',
+                                            'Physical'  => 'bg-orange-100 text-orange-700',
+                                            'Live'      => 'bg-red-100 text-red-700',
+                                            'Recording' => 'bg-purple-100 text-purple-700',
+                                        ];
+                                        $type_icons = [
+                                            'Zoom'      => 'fa-video',
+                                            'Physical'  => 'fa-building',
+                                            'Live'      => 'fa-broadcast-tower',
+                                            'Recording' => 'fa-play-circle',
+                                        ];
+                                        $style = $type_styles[$class['type']] ?? 'bg-gray-100 text-gray-700';
+                                        $icon  = $type_icons[$class['type']] ?? 'fa-circle';
+                                        ?>
+                                        <span class="inline-flex items-center gap-1 px-3 py-1 <?php echo $style; ?> text-xs font-bold rounded-full uppercase">
+                                            <i class="fas <?php echo $icon; ?>"></i> <?php echo $class['type']; ?>
+                                        </span>
                                     </td>
                                     <td class="px-6 py-5">
-                                        <div class="text-sm font-bold text-gray-900 group whitespace-normal line-clamp-1 truncate max-w-xs">
+                                        <div class="text-sm font-bold text-gray-900 line-clamp-1 max-w-xs">
                                             <?php echo htmlspecialchars($class['title']); ?>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-5 whitespace-nowrap text-center">
-                                        <div class="inline-flex items-center text-sm font-extrabold text-gray-900 bg-gray-100 px-3 py-1 rounded-lg">
-                                            <i class="fas fa-users mr-2 text-gray-400"></i> <?php echo $class['attendees_count']; ?>
+                                    <!-- Attendance count + progress bar -->
+                                    <td class="px-6 py-5 text-center">
+                                        <div class="flex flex-col items-center gap-1">
+                                            <span class="text-sm font-extrabold text-gray-800">
+                                                <?php echo $class['attendees_count']; ?>
+                                                <span class="text-gray-400 font-normal"> / <?php echo $enrolled_total; ?></span>
+                                            </span>
+                                            <div class="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="h-full <?php echo $bar_color; ?> rounded-full" style="width: <?php echo min($pct, 100); ?>%"></div>
+                                            </div>
                                         </div>
+                                    </td>
+                                    <!-- Percentage badge -->
+                                    <td class="px-6 py-5 text-center">
+                                        <span class="inline-flex items-center justify-center w-14 h-8 rounded-xl text-sm font-extrabold <?php echo $text_color; ?> bg-opacity-10 <?php echo str_replace('text-', 'bg-', $text_color); ?>/10 border border-current/20">
+                                            <?php echo $pct; ?>%
+                                        </span>
                                     </td>
                                     <td class="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex justify-end space-x-2">
                                             <button onclick="viewAttendance(<?php echo $class['id']; ?>, '<?php echo $class['type']; ?>')" 
-                                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md shadow-indigo-100">
-                                                <i class="fas fa-eye mr-2"></i> View
+                                                    class="inline-flex items-center px-3 py-2 border border-transparent rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md shadow-indigo-100">
+                                                <i class="fas fa-eye mr-1"></i> View
                                             </button>
                                             <button onclick="downloadAttendance(<?php echo $class['id']; ?>, '<?php echo $class['type']; ?>')" 
-                                                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-md shadow-emerald-100">
-                                                <i class="fas fa-file-pdf mr-2"></i> PDF
+                                                    class="inline-flex items-center px-3 py-2 border border-transparent rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition shadow-md shadow-emerald-100">
+                                                <i class="fas fa-file-pdf mr-1"></i> PDF
                                             </button>
                                         </div>
                                     </td>

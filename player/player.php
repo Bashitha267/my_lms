@@ -3657,7 +3657,8 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     setupParticipantsModalClose();
                     <?php endif; ?>
                     initializeFileUpload();
-                    loadFiles();
+                    loadFiles(true);
+                    startFilePolling();
                 });
             } else {
                 initializeChat();
@@ -3666,7 +3667,8 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 setupParticipantsModalClose();
                 <?php endif; ?>
                 initializeFileUpload();
-                loadFiles();
+                loadFiles(true);
+                startFilePolling();
             }
 
             // File Upload and Download functionality
@@ -3825,41 +3827,75 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 xhr.send(formData);
             }
 
-            function loadFiles() {
+            // Track known file IDs to detect new ones without full re-render
+            let knownFileIds = new Set();
+            let filesPollInterval = null;
+
+            function loadFiles(isInitial = true) {
                 const downloadsList = document.getElementById('downloads-list');
                 const uploadsList = document.getElementById('uploads-list');
                 
-                if (downloadsList) {
-                    downloadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
-                }
-                if (uploadsList) {
-                    uploadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
+                if (isInitial) {
+                    if (downloadsList) downloadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
+                    if (uploadsList) uploadsList.innerHTML = '<div class="files-loading">Loading files...</div>';
                 }
 
                 fetch(`get_files.php?recording_id=<?php echo $recording_id; ?>`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.files) {
-                            renderFiles(data.files);
-                        } else {
-                            if (downloadsList) {
-                                downloadsList.innerHTML = '<div class="files-empty">No files available</div>';
+                            // Check for new files since last fetch
+                            const newFiles = data.files.filter(f => !knownFileIds.has(f.id));
+                            const hasNewFiles = newFiles.length > 0;
+
+                            // Update known IDs
+                            data.files.forEach(f => knownFileIds.add(f.id));
+
+                            if (isInitial || hasNewFiles) {
+                                renderFiles(data.files);
+                                // Notify students of new teacher uploads (not on initial load)
+                                if (!isInitial && hasNewFiles) {
+                                    const teacherNewFiles = newFiles.filter(f => f.uploader_role === 'teacher');
+                                    if (teacherNewFiles.length > 0) {
+                                        showToast(`📎 ${teacherNewFiles.length} new file${teacherNewFiles.length > 1 ? 's' : ''} added to downloads!`, 'success');
+                                    }
+                                }
                             }
-                            if (uploadsList) {
-                                uploadsList.innerHTML = '<div class="files-empty">No files uploaded</div>';
-                            }
+                        } else if (isInitial) {
+                            if (downloadsList) downloadsList.innerHTML = '<div class="files-empty">No files available</div>';
+                            if (uploadsList) uploadsList.innerHTML = '<div class="files-empty">No files uploaded</div>';
                         }
                     })
                     .catch(error => {
                         console.error('Error loading files:', error);
-                        if (downloadsList) {
-                            downloadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
-                        }
-                        if (uploadsList) {
-                            uploadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                        if (isInitial) {
+                            if (downloadsList) downloadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
+                            if (uploadsList) uploadsList.innerHTML = '<div class="files-empty">Error loading files</div>';
                         }
                     });
             }
+
+            function startFilePolling() {
+                if (filesPollInterval) return; // already running
+                filesPollInterval = setInterval(() => loadFiles(false), 8000); // poll every 8 seconds
+            }
+
+            function stopFilePolling() {
+                if (filesPollInterval) {
+                    clearInterval(filesPollInterval);
+                    filesPollInterval = null;
+                }
+            }
+
+            // Stop polling when tab is hidden, resume when visible
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    stopFilePolling();
+                } else {
+                    loadFiles(false); // immediate refresh on tab focus
+                    startFilePolling();
+                }
+            });
 
             function renderFiles(files) {
                 const downloadsList = document.getElementById('downloads-list');

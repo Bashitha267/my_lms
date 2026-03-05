@@ -83,21 +83,23 @@ try {
         $response['class_title'] = $class['title'] ?? 'Unknown Live Class';
         $stmt->close();
 
-        $attendee_query = "SELECT u.first_name, u.second_name, u.user_id, MAX(vl.watched_at) as watch_time 
-                          FROM video_watch_log vl
-                          JOIN users u ON vl.student_id = u.user_id
-                          WHERE vl.recording_id = ?
-                          GROUP BY vl.student_id
-                          ORDER BY watch_time ASC";
+        // Fetch attendees from live_class_participants (the correct table for live class attendance)
+        $attendee_query = "SELECT u.first_name, u.second_name, u.user_id, 
+                                  lcp.joined_at, lcp.left_at
+                           FROM live_class_participants lcp
+                           JOIN users u ON lcp.student_id = u.user_id
+                           WHERE lcp.recording_id = ?
+                           ORDER BY lcp.joined_at ASC";
         $stmt = $conn->prepare($attendee_query);
         $stmt->bind_param("i", $class_id);
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
+            $left_info = $row['left_at'] ? ' → ' . date('H:i:s', strtotime($row['left_at'])) : '';
             $response['attendees'][] = [
                 'name' => $row['first_name'] . ' ' . $row['second_name'],
-                'id' => $row['user_id'],
-                'time' => date('H:i:s', strtotime($row['watch_time']))
+                'id'   => $row['user_id'],
+                'time' => date('H:i:s', strtotime($row['joined_at'])) . $left_info
             ];
         }
         $stmt->close();

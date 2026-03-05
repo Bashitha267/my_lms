@@ -383,7 +383,7 @@ if (empty($role)) {
         $stream_subject_id = $row['stream_subject_id'];
         $academic_year = $row['academic_year'];
         
-        // Get live classes for this enrollment
+        // Get live classes for this enrollment - ONLY show 'ongoing' to students
         $live_query = "SELECT r.id, r.title, r.description, r.status, r.scheduled_start_time, 
                               r.actual_start_time, r.end_time, r.created_at, r.thumbnail_url, r.youtube_video_id, r.free_video,
                               ta.teacher_id, u.first_name, u.second_name
@@ -393,13 +393,8 @@ if (empty($role)) {
                        WHERE ta.stream_subject_id = ? 
                          AND ta.academic_year = ?
                          AND r.is_live = 1 
-                         AND r.status IN ('ongoing', 'scheduled')
-                       ORDER BY 
-                         CASE r.status
-                           WHEN 'ongoing' THEN 1
-                           WHEN 'scheduled' THEN 2
-                         END,
-                         r.scheduled_start_time DESC, r.created_at DESC";
+                         AND r.status = 'ongoing'
+                       ORDER BY r.actual_start_time DESC, r.created_at DESC";
         
         $live_stmt = $conn->prepare($live_query);
         $live_stmt->bind_param("ii", $stream_subject_id, $academic_year);
@@ -412,7 +407,7 @@ if (empty($role)) {
         }
         $live_stmt->close();
         
-        // Get Zoom classes for this enrollment
+        // Get Zoom classes for this enrollment - ONLY show 'ongoing' to students
         $zoom_query = "SELECT zc.id, zc.title, zc.description, zc.status, zc.scheduled_start_time, 
                               zc.actual_start_time, zc.end_time, zc.created_at, zc.free_class, zc.zoom_meeting_link,
                               ta.teacher_id, u.first_name, u.second_name
@@ -421,13 +416,8 @@ if (empty($role)) {
                        INNER JOIN users u ON ta.teacher_id = u.user_id
                        WHERE ta.stream_subject_id = ? 
                          AND ta.academic_year = ?
-                         AND zc.status IN ('ongoing', 'scheduled')
-                       ORDER BY 
-                         CASE zc.status
-                           WHEN 'ongoing' THEN 1
-                           WHEN 'scheduled' THEN 2
-                         END,
-                         zc.scheduled_start_time DESC, zc.created_at DESC";
+                         AND zc.status = 'ongoing'
+                       ORDER BY zc.actual_start_time DESC, zc.created_at DESC";
         
         $zoom_stmt = $conn->prepare($zoom_query);
         $zoom_stmt->bind_param("ii", $stream_subject_id, $academic_year);

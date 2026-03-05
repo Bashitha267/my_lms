@@ -90,6 +90,7 @@ if ($user_role === 'instructor') {
         ORDER BY ir.accepted_at DESC
     ";
     $stmt = $conn->prepare($accepted_query);
+    if (!$stmt) { die('DB Error (accepted_query): ' . $conn->error); }
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
     $accepted_requests = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -165,6 +166,7 @@ if ($user_role === 'student') {
         ORDER BY ir.created_at DESC
     ";
     $stmt = $conn->prepare($my_requests_query);
+    if (!$stmt) { die('DB Error (my_requests_query): ' . $conn->error); }
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
     $my_requests = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);

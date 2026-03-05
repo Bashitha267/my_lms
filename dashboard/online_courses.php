@@ -110,6 +110,7 @@ if ($role === 'teacher' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST
     $title = trim($_POST['title']);
     $description = trim($_POST['description']);
     $price = floatval($_POST['price']);
+    $duration = trim($_POST['duration'] ?? '');
     
     // Handle Cover Image Upload
     $cover_image = '';
@@ -133,8 +134,8 @@ if ($role === 'teacher' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST
     if (empty($title)) {
         $error_msg = "Course title is required.";
     } else {
-        $stmt = $conn->prepare("INSERT INTO courses (teacher_id, title, description, price, cover_image, status) VALUES (?, ?, ?, ?, ?, 1)");
-        $stmt->bind_param("sssds", $user_id, $title, $description, $price, $cover_image);
+        $stmt = $conn->prepare("INSERT INTO courses (teacher_id, title, description, price, cover_image, duration, status) VALUES (?, ?, ?, ?, ?, ?, 1)");
+        $stmt->bind_param("sssdss", $user_id, $title, $description, $price, $cover_image, $duration);
         
         if ($stmt->execute()) {
             $success_msg = "Course created successfully!";
@@ -362,9 +363,18 @@ $bg_stmt->close();
                             </div>
                             <div class="p-6">
                                 <h3 class="text-xl font-bold text-gray-900 mb-2 truncate"><?php echo htmlspecialchars($course['title']); ?></h3>
-                                <p class="text-gray-600 text-sm line-clamp-2 mb-4"><?php echo htmlspecialchars($course['description']); ?></p>
-                                <div class="flex justify-between items-center text-sm text-gray-500">
-                                    <span><i class="far fa-clock mr-1"></i> <?php echo date('M d, Y', strtotime($course['created_at'])); ?></span>
+                                <p class="text-gray-600 text-sm line-clamp-2 mb-3"><?php echo htmlspecialchars($course['description']); ?></p>
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <?php if (!empty($course['duration'])): ?>
+                                        <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                                            <i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($course['duration']); ?>
+                                        </span>
+                                    <?php endif; ?>
+                                    <span class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+                                        <i class="far fa-calendar"></i> <?php echo date('M d, Y', strtotime($course['created_at'])); ?>
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center text-sm">
                                     <span class="text-red-600 font-medium">Manage Content <i class="fas fa-arrow-right ml-1"></i></span>
                                 </div>
                             </div>
@@ -401,6 +411,11 @@ $bg_stmt->close();
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-lg font-bold text-gray-900 mb-2 truncate"><?php echo htmlspecialchars($course['title']); ?></h3>
+                                    <?php if (!empty($course['duration'])): ?>
+                                        <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium mb-2">
+                                            <i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($course['duration']); ?>
+                                        </span>
+                                    <?php endif; ?>
                                     <button class="w-full mt-2 py-2 bg-red-50 text-red-600 rounded-lg font-semibold hover:bg-red-100 transition-colors">
                                         Continue Learning
                                     </button>
@@ -441,7 +456,12 @@ $bg_stmt->close();
                                         <span class="px-2 py-1 bg-gray-100 rounded-full mr-2"><i class="fas fa-user mr-1"></i> <?php echo htmlspecialchars($course['first_name'] . ' ' . $course['second_name']); ?></span>
                                     </div>
                                     <h3 class="text-xl font-bold text-gray-900 mb-2"><?php echo htmlspecialchars($course['title']); ?></h3>
-                                    <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-1"><?php echo htmlspecialchars($course['description']); ?></p>
+                                    <p class="text-gray-600 text-sm line-clamp-3 mb-3 flex-1"><?php echo htmlspecialchars($course['description']); ?></p>
+                                    <?php if (!empty($course['duration'])): ?>
+                                        <span class="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium mb-3 w-fit">
+                                            <i class="fas fa-hourglass-half"></i> <?php echo htmlspecialchars($course['duration']); ?>
+                                        </span>
+                                    <?php endif; ?>
                                     
                                     <form method="POST" class="mt-auto">
                                         <input type="hidden" name="course_id" value="<?php echo $course['id']; ?>">
@@ -481,6 +501,10 @@ $bg_stmt->close();
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Price (LKR) - 0 for Free</label>
                     <input type="number" name="price" min="0" step="0.01" value="0" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Duration <span class="text-gray-400 font-normal">(e.g. 8 weeks, 20 hours)</span></label>
+                    <input type="text" name="duration" placeholder="e.g. 6 weeks" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-red-500 focus:border-red-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Cover Image</label>

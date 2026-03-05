@@ -19,20 +19,26 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
         
         // Use a flag in session to avoid DB query on every page load if possible, 
         // but for robustness we check DB or set session flag after first check.
-        if (!isset($_SESSION['al_submitted'])) {
+        // Check both submission status and if specifically requested
+        if (!isset($_SESSION['al_submitted']) || !isset($_SESSION['al_requested'])) {
             require_once __DIR__ . '/config.php';
             
             $uid = $_SESSION['user_id'];
-            $chk = $conn->prepare("SELECT id FROM al_exam_submissions WHERE student_id = ?");
+            $chk = $conn->prepare("SELECT 
+                (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as submitted,
+                al_details_requested 
+                FROM users u WHERE user_id = ?");
             $chk->bind_param("s", $uid);
             $chk->execute();
-            $has_submitted = $chk->get_result()->num_rows > 0;
+            $result = $chk->get_result()->fetch_assoc();
             $chk->close();
             
-            $_SESSION['al_submitted'] = $has_submitted;
+            $_SESSION['al_submitted'] = ($result['submitted'] > 0);
+            $_SESSION['al_requested'] = ($result['al_details_requested'] == 1);
         }
         
-        if (!$_SESSION['al_submitted']) {
+        // ONLY force redirect if NOT submitted AND it HAS been requested
+        if (!$_SESSION['al_submitted'] && $_SESSION['al_requested']) {
             header("Location: /lms/student/al_exam_form.php");
             exit();
         }

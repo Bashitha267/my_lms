@@ -1129,7 +1129,12 @@ END$$
 DELIMITER ;
 
 -- ============================================================
--- End of Schema
+-- DUMMY DATA FOR TESTING
+-- ============================================================
+
+INSERT INTO `users` (`user_id`, `email`, `password`, `role`, `first_name`, `second_name`, `mobile_number`, `whatsapp_number`, `registering_date`, `status`, `approved`) 
+VALUES ('adm_1000', 'admin@lms.com', '$2y$12$vvcpuoPPEE/dyEnn7WI4GuRAWiMyCb77Sbsg.j.h3LOgxGAruiSnO', 'admin', 'Admin', 'User', '0768368202', '0768368202', '2026-03-05', 1, 1);
+
 -- ============================================================
 
 COMMIT;

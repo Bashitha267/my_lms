@@ -350,7 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                             }
                         }
 
-                        $success_message = "User has been successfully created with User ID: $user_id";
+                        $success_message = "Welcome to LearnerX! 🎓\n\nUser has been successfully created.\nUser ID: $user_id.\n\nLearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
                         // Clear form data
                         $_POST = array();
                     }
@@ -409,7 +409,7 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                             <svg class="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                             </svg>
-                            <p class="ml-3 text-sm font-medium"><?php echo htmlspecialchars($success_message); ?></p>
+                            <p class="ml-3 text-sm font-medium whitespace-pre-line"><?php echo htmlspecialchars($success_message); ?></p>
                         </div>
                     </div>
                 <?php endif; ?>

@@ -40,8 +40,8 @@ if (isset($_POST['login'])) {
     }
 
     // 1. Fetch User (using user_id or mobile_number)
-    // Removed 'username' from SELECT as the column no longer exists
-    $stmt = $conn->prepare("SELECT user_id, password, role, approved, status, whatsapp_number, first_name, second_name FROM users WHERE user_id = ? OR mobile_number = ? LIMIT 1");
+    // Included mobile_number in SELECT for WhatsApp fallback
+    $stmt = $conn->prepare("SELECT user_id, password, role, approved, status, mobile_number, whatsapp_number, first_name, second_name FROM users WHERE user_id = ? OR mobile_number = ? LIMIT 1");
     $stmt->bind_param("ss", $identifier, $identifier);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -100,16 +100,19 @@ if (isset($_POST['login'])) {
 
                 $update_stmt->close();
 
+                // Get target number for WhatsApp (fallback to mobile_number)
+                $whatsapp_target = !empty($user['whatsapp_number']) ? $user['whatsapp_number'] : ($user['mobile_number'] ?? '');
+
                 // Send login notification via WhatsApp (non-blocking)
-                if (WHATSAPP_ENABLED && !empty($user['whatsapp_number'])) {
+                if (WHATSAPP_ENABLED && !empty($whatsapp_target)) {
                     try {
                         $current_time = date('Y-m-d h:i A');
                         $login_message = "🔔 *New Login Notification / නව පිවිසීම් දැනුම්දීම*\n\n" .
-                                        "👤 *User ID / පරිශීලක හැඳුනුම්පත:* {$user_id}\n" .
-                                        "⏰ *Time / වේලාව:* {$current_time}\n\n" .
-                                        "Successful login to your LMS account.";
+                                         "👤 *User ID / පරිශීලක හැඳුනුම්පත:* {$user_id}\n" .
+                                         "⏰ *Time / වේලාව:* {$current_time}\n\n" .
+                                         "Successful login to your LMS account.";
 
-                        sendWhatsAppMessage($user['whatsapp_number'], $login_message);
+                        sendWhatsAppMessage($whatsapp_target, $login_message);
                     } catch (Exception $e) {
                         error_log("WhatsApp login message failed: " . $e->getMessage());
                     }
