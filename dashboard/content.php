@@ -633,14 +633,16 @@ ksort($recordings_by_month);
                                             <h3 class="font-semibold text-gray-900 line-clamp-2 flex-1" title="<?php echo htmlspecialchars($recording['title']); ?>">
                                                 <?php echo htmlspecialchars($recording['title']); ?>
                                             </h3>
-                                            <?php if ($role === 'teacher'): ?>
+                                             <?php if ($role === 'teacher' || $role === 'admin'): ?>
                                                 <div class="flex items-center gap-2 ml-2 flex-shrink-0">
                                                     <!-- Free Video Toggle Button -->
+                                                    <?php if ($role === 'teacher'): ?>
                                                     <button onclick="toggleFreeVideo(event, <?php echo $recording['id']; ?>, <?php echo $recording['free_video'] == 1 ? 0 : 1; ?>)" 
                                                             class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 <?php echo $recording['free_video'] == 1 ? 'bg-red-600' : 'bg-gray-300'; ?>"
                                                             title="<?php echo $recording['free_video'] == 1 ? 'Make Paid' : 'Make Free'; ?>">
                                                         <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform <?php echo $recording['free_video'] == 1 ? 'translate-x-6' : 'translate-x-1'; ?>"></span>
                                                     </button>
+                                                    <?php endif; ?>
                                                      <!-- View Participants Report Button -->
                                                      <button onclick="event.stopPropagation(); openParticipantReport(<?php echo $recording['id']; ?>)" 
                                                              class="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
@@ -650,21 +652,23 @@ ksort($recordings_by_month);
                                                          </svg>
                                                      </button>
                                                      <!-- Edit Button -->
+                                                    <?php if ($role === 'teacher'): ?>
                                                     <button onclick="event.stopPropagation(); openEditModal(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>', '<?php echo htmlspecialchars(addslashes($recording['description'] ?? '')); ?>', '<?php echo htmlspecialchars($recording['youtube_url']); ?>', '<?php echo date('Y-m-d', strtotime($recording['created_at'])); ?>', <?php echo $recording['free_video']; ?>, <?php echo intval($recording['watch_limit'] ?? 3); ?>)" 
-                                                            class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                                                            title="Edit Recording">
-                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                                        </svg>
-                                                    </button>
-                                                    <!-- Delete Button -->
-                                                    <button onclick="event.stopPropagation(); confirmDelete(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>')" 
-                                                            class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                                                            title="Delete Recording">
-                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                        </svg>
-                                                    </button>
+                                                             class="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                                             title="Edit Recording">
+                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                         </svg>
+                                                     </button>
+                                                     <!-- Delete Button -->
+                                                     <button onclick="event.stopPropagation(); confirmDelete(<?php echo $recording['id']; ?>, '<?php echo htmlspecialchars(addslashes($recording['title'])); ?>')" 
+                                                             class="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                             title="Delete Recording">
+                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                         </svg>
+                                                     </button>
+                                                     <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
                                         </div>
@@ -880,9 +884,9 @@ ksort($recordings_by_month);
             </div>
         </div>
     <?php endif; ?>
-
-    <!-- Participant Report Modal (Teachers Only) -->
-    <?php if ($role === 'teacher'): ?>
+    
+    <!-- Participant Report Modal (Teachers & Admins Only) -->
+    <?php if ($role === 'teacher' || $role === 'admin'): ?>
         <div id="participantReportModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
                 <div class="flex items-center justify-between mb-4 pb-4 border-b">
@@ -1240,6 +1244,10 @@ ksort($recordings_by_month);
                         totalWatchers.textContent = data.stats.total_watchers;
                         totalViews.textContent = data.stats.total_views;
                         
+                        const watchLimit = data.watch_limit;
+                        const watchLimitDisplay = watchLimit > 0 ? ` (Max: ${watchLimit})` : ' (Unlimited)';
+                        videoTitle.textContent += watchLimitDisplay;
+                        
                         if (data.participants.length === 0) {
                             empty.classList.remove('hidden');
                         } else {
@@ -1249,6 +1257,10 @@ ksort($recordings_by_month);
                                     ? `../${p.profile_picture}` 
                                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random&color=fff`;
                                 
+                                // Check if can increment (+): count < limit or limit == 0
+                                const canIncrement = watchLimit === 0 || p.watch_count < watchLimit;
+                                const canDecrement = p.watch_count > 0;
+
                                 tr.innerHTML = `
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="flex items-center">
@@ -1261,8 +1273,28 @@ ksort($recordings_by_month);
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-gray-900 bg-gray-50/50">
-                                        <span class="px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">${p.watch_count}</span>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-semibold text-gray-900">
+                                        <div class="flex items-center justify-center space-x-3">
+                                            <button onclick="updateWatchCount(${recordingId}, '${p.student_id}', 'decrement')" 
+                                                    class="${canDecrement ? 'text-red-500 hover:text-red-700 bg-red-50' : 'text-gray-300 bg-gray-50 cursor-not-allowed'} w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                                                    ${!canDecrement ? 'disabled' : ''}>
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                                </svg>
+                                            </button>
+                                            
+                                            <span class="inline-flex items-center justify-center min-w-[3rem] px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 text-lg font-bold">
+                                                ${p.watch_count}
+                                            </span>
+                                            
+                                            <button onclick="updateWatchCount(${recordingId}, '${p.student_id}', 'increment')" 
+                                                    class="${canIncrement ? 'text-green-500 hover:text-green-700 bg-green-50' : 'text-gray-300 bg-gray-50 cursor-not-allowed'} w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                                                    ${!canIncrement ? 'disabled' : ''}>
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500 font-mono">
                                         ${p.last_watched}
@@ -1281,6 +1313,32 @@ ksort($recordings_by_month);
                     loading.classList.add('hidden');
                     showToast('Error connecting to server', 'error');
                 });
+        }
+
+        function updateWatchCount(recordingId, studentId, action) {
+            const formData = new FormData();
+            formData.append('recording_id', recordingId);
+            formData.append('student_id', studentId);
+            formData.append('action', action);
+            
+            fetch('update_watch_count.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    // Refresh current report
+                    openParticipantReport(recordingId);
+                } else {
+                    showToast(data.message || 'Error updating watch count', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error connecting to server', 'error');
+            });
         }
 
         function closeParticipantReport() {

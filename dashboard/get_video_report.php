@@ -20,7 +20,7 @@ if ($recording_id <= 0) {
 }
 
 // Verify teacher owns this recording
-$verify_query = "SELECT r.id, r.title FROM recordings r
+$verify_query = "SELECT r.id, r.title, r.watch_limit FROM recordings r
                 INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
                 WHERE r.id = ? AND ta.teacher_id = ?";
 $verify_stmt = $conn->prepare($verify_query);
@@ -71,6 +71,7 @@ $report_stmt->close();
 echo json_encode([
     'success' => true,
     'recording_title' => $recording_info['title'],
+    'watch_limit' => $recording_info['watch_limit'],
     'stats' => [
         'total_watchers' => count($participants),
         'total_views' => $total_views
