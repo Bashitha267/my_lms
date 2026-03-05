@@ -103,6 +103,38 @@ try {
             ];
         }
         $stmt->close();
+
+    } elseif ($type === 'Recording') {
+        $stmt = $conn->prepare("SELECT title FROM recordings WHERE id = ?");
+        $stmt->bind_param("i", $class_id);
+        $stmt->execute();
+        $class = $stmt->get_result()->fetch_assoc();
+        $response['class_title'] = $class['title'] ?? 'Unknown Recording';
+        $stmt->close();
+
+        // Students who watched this recording (from video_watch_log)
+        $attendee_query = "SELECT u.first_name, u.second_name, u.user_id,
+                                  MIN(vl.watched_at) as first_watch,
+                                  MAX(vl.watched_at) as last_watch,
+                                  COUNT(*) as sessions
+                           FROM video_watch_log vl
+                           JOIN users u ON vl.student_id = u.user_id
+                           WHERE vl.recording_id = ?
+                           GROUP BY vl.student_id
+                           ORDER BY first_watch ASC";
+        $stmt = $conn->prepare($attendee_query);
+        $stmt->bind_param("i", $class_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $response['attendees'][] = [
+                'name' => $row['first_name'] . ' ' . $row['second_name'],
+                'id'   => $row['user_id'],
+                'time' => 'First: ' . date('M d H:i', strtotime($row['first_watch']))
+                        . ' · Sessions: ' . $row['sessions']
+            ];
+        }
+        $stmt->close();
     }
 } catch (Exception $e) {
     $response['success'] = false;
