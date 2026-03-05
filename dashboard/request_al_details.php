@@ -16,21 +16,43 @@ $page_title = "Request A/L Details";
 $success_message = '';
 $error_message = '';
 
-// Handle WhatsApp Request (Initial Details)
+// Handle WhatsApp Request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
-    $subject_id = intval($_POST['subject_id']);
-    $subject_name = $_POST['subject_name'];
+    $request_type = $_POST['request_type'] ?? ''; // 'stream' or 'class'
+    $id = intval($_POST['id']);
+    $name = $_POST['name'];
     
-    // Find enrolled students for this subject
-    // We need to join stream_subjects to get the correct enrollment
-    $query = "SELECT DISTINCT u.whatsapp_number, u.first_name, u.user_id 
-              FROM users u
-              INNER JOIN student_enrollment se ON u.user_id = se.student_id
-              INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
-              WHERE ss.subject_id = ? AND se.status = 'active' AND u.status = 1";
+    $query = "";
+    $params = [];
+    $types = "";
+
+    if ($request_type === 'stream' && $role === 'admin') {
+        // Find enrolled students for this STREAM (joined via stream_subjects)
+        $query = "SELECT DISTINCT u.whatsapp_number, u.first_name, u.user_id 
+                  FROM users u
+                  INNER JOIN student_enrollment se ON u.user_id = se.student_id
+                  INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                  WHERE ss.stream_id = ? AND se.status = 'active' AND u.status = 1";
+        $types = "i";
+        $params[] = $id;
+
+    } elseif ($request_type === 'class' && $role === 'teacher') {
+        // Find enrolled students for this CLASS (stream_subject_id from teacher_assignment)
+        // We get teacher_assignment_id or stream_subject_id? Let's use stream_subject_id for consistency if passed.
+        // Actually, let's pass stream_subject_id for 'class' type.
+        $query = "SELECT DISTINCT u.whatsapp_number, u.first_name, u.user_id 
+                  FROM users u
+                  INNER JOIN student_enrollment se ON u.user_id = se.student_id
+                  WHERE se.stream_subject_id = ? AND se.status = 'active' AND u.status = 1";
+        $types = "i";
+        $params[] = $id;
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Invalid request type or permission denied.']);
+        exit;
+    }
               
     $stmt = $conn->prepare($query);
-    $stmt->bind_param("i", $subject_id);
+    $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
     
@@ -39,15 +61,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
     
     while ($student = $result->fetch_assoc()) {
         if (!empty($student['whatsapp_number'])) {
+            $context = ($request_type === 'stream') ? "Stream / ධාරාව: $name" : "Class / පන්තිය: $name";
+            
             $msg = "📢 *Action Required / අනිවාර්යයෙන් පුරවන්න*\n\n" .
                    "🎓 *A/L Exam Details Collection*\n" .
-                   "📌 *Subject / විෂය:* $subject_name\n\n" .
+                   "📌 *$context*\n\n" .
                    "Dear Student,\n" .
                    "Please update your A/L exam details (Subjects, Index Number, District) immediately using the link below.\n\n" .
                    "ඔබගේ උසස් පෙළ විභාග තොරතුරු (විෂයන්, විභාග අංකය, දිස්ත්‍රික්කය) පහත සබැඳිය භාවිතා කර වහාම යාවත්කාලීන කරන්න.\n\n" .
                    "🔗 *Link:* $link\n\n" .
                    "⚠️ *Note:* You will not be able to access the LMS until you complete this form.\n" .
-                   "මිමෙම පෝරමය පුරවන තෙක් ඔබට LMS වෙත පිවිසිය නොහැක.";
+                   "මෙම පෝරමය පුරවන තෙක් ඔබට LMS වෙත පිවිසිය නොහැක.";
             
             sendWhatsAppMessage($student['whatsapp_number'], $msg);
             $count++;
@@ -59,37 +83,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
     exit;
 }
 
-// Fetch Subjects (Grouped by Stream/Teacher if possible, or just unique subjects)
-// For simplicty and as per request: Subject Cards with Teacher Name
-$subjects = [];
+// Fetch Items to Display (Streams for Admin, Classes for Teacher)
+$items = [];
+$card_type = ''; // 'stream' or 'class'
 
 if ($role === 'teacher') {
-    // Show only subjects assigned to this teacher
-    $query = "SELECT DISTINCT s.id, s.name, s.code, u.first_name, u.second_name
-              FROM subjects s
-              INNER JOIN stream_subjects ss ON s.id = ss.subject_id
-              INNER JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id
-              INNER JOIN users u ON ta.teacher_id = u.user_id
+    $card_type = 'class';
+    // Show only classes (assignments) active for this teacher
+    $query = "SELECT ta.stream_subject_id as id, 
+                     CONCAT(s.name, ' - ', sub.name) as name,
+                     sub.code,
+                     s.name as stream_name
+              FROM teacher_assignments ta
+              INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              INNER JOIN streams s ON ss.stream_id = s.id
+              INNER JOIN subjects sub ON ss.subject_id = sub.id
               WHERE ta.teacher_id = ? AND ta.status = 'active'";
+    
     $stmt = $conn->prepare($query);
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
+
 } else {
-    // Admin sees all subjects and their teachers
-    $query = "SELECT DISTINCT s.id, s.name, s.code, u.first_name, u.second_name
-              FROM subjects s
-              INNER JOIN stream_subjects ss ON s.id = ss.subject_id
-              INNER JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id
-              INNER JOIN users u ON ta.teacher_id = u.user_id
-              WHERE ta.status = 'active'";
-    $stmt = $conn->prepare($query);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    $card_type = 'stream';
+    // Admin sees all active STREAMS
+    $query = "SELECT id, name, description FROM streams WHERE status = 1";
+    $result = $conn->query($query);
 }
 
 while ($row = $result->fetch_assoc()) {
-    $subjects[] = $row;
+    $items[] = $row;
 }
 ?>
 
@@ -121,39 +145,44 @@ while ($row = $result->fetch_assoc()) {
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">A/L Exam Details Collection</h1>
-                    <p class="text-gray-500 mt-1">Request exam details from students and view responses.</p>
+                    <p class="text-gray-500 mt-1">
+                        <?php echo $role === 'admin' ? 'Request details from students in specific streams.' : 'Request details from your classes.'; ?>
+                    </p>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <?php foreach ($subjects as $subject): ?>
-                <?php 
-                    $teacher_name = trim($subject['first_name'] . ' ' . $subject['second_name']);
-                ?>
+                <?php foreach ($items as $item): ?>
                 <div class="glass-card rounded-2xl p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 bg-white">
                     <div class="flex justify-between items-start mb-4">
                         <div class="p-3 bg-red-50 rounded-xl">
-                            <i class="fas fa-book text-red-600 text-xl"></i>
+                            <i class="fas fa-<?php echo $card_type === 'stream' ? 'layer-group' : 'chalkboard-teacher'; ?> text-red-600 text-xl"></i>
                         </div>
+                        <?php if (isset($item['code'])): ?>
                         <span class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">
-                            <?php echo htmlspecialchars($subject['code']); ?>
+                            <?php echo htmlspecialchars($item['code']); ?>
                         </span>
+                        <?php endif; ?>
                     </div>
                     
-                    <h3 class="text-xl font-bold text-gray-900 mb-1"><?php echo htmlspecialchars($subject['name']); ?></h3>
-                    <div class="flex items-center text-gray-500 text-sm mb-6">
-                        <i class="fas fa-chalkboard-teacher mr-2"></i>
-                        <?php echo htmlspecialchars($teacher_name); ?>
-                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-1"><?php echo htmlspecialchars($item['name']); ?></h3>
+                    <?php if ($card_type === 'class' && isset($item['stream_name'])): ?>
+                    <!-- <div class="text-sm text-gray-500 mb-6">
+                        <i class="fas fa-layer-group mr-2"></i><?php echo htmlspecialchars($item['stream_name']); ?>
+                    </div> --> 
+                    <div class="mb-6"></div>
+                    <?php else: ?>
+                    <div class="mb-6"></div>
+                    <?php endif; ?>
                     
                     <div class="flex gap-3">
-                        <button onclick="sendRequest(<?php echo $subject['id']; ?>, '<?php echo addslashes($subject['name']); ?>')" 
+                        <button onclick="sendRequest('<?php echo $card_type; ?>', <?php echo $item['id']; ?>, '<?php echo addslashes($item['name']); ?>')" 
                                 class="flex-1 bg-red-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
                             <i class="fab fa-whatsapp text-lg"></i>
                             Request Details
                         </button>
                         
-                        <a href="view_al_responses.php?subject_id=<?php echo $subject['id']; ?>" 
+                        <a href="view_al_responses.php?type=<?php echo $card_type; ?>&id=<?php echo $item['id']; ?>" 
                            class="flex-none bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl hover:bg-gray-200 transition-colors"
                            title="View Responses">
                             <i class="fas fa-eye"></i>
@@ -162,10 +191,10 @@ while ($row = $result->fetch_assoc()) {
                 </div>
                 <?php endforeach; ?>
                 
-                <?php if (empty($subjects)): ?>
+                <?php if (empty($items)): ?>
                 <div class="col-span-full py-12 text-center text-gray-400">
                     <i class="fas fa-folder-open text-4xl mb-3"></i>
-                    <p>No subjects found assigned to you.</p>
+                    <p>No <?php echo $card_type === 'stream' ? 'streams' : 'classes'; ?> found.</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -182,15 +211,16 @@ while ($row = $result->fetch_assoc()) {
     </div>
 
     <script>
-        function sendRequest(subjectId, subjectName) {
-            if (!confirm(`Send WhatsApp request to all students enrolled in ${subjectName}?`)) return;
+        function sendRequest(type, id, name) {
+            if (!confirm(`Send WhatsApp request to all students in ${name}?`)) return;
             
             document.getElementById('loadingModal').classList.remove('hidden');
             
             const formData = new FormData();
             formData.append('send_request', '1');
-            formData.append('subject_id', subjectId);
-            formData.append('subject_name', subjectName);
+            formData.append('request_type', type);
+            formData.append('id', id);
+            formData.append('name', name);
             
             fetch('request_al_details.php', {
                 method: 'POST',
@@ -202,7 +232,7 @@ while ($row = $result->fetch_assoc()) {
                 if (data.success) {
                     alert(`Successfully sent messages to ${data.count} students!`);
                 } else {
-                    alert('Error sending messages.');
+                    alert(data.message || 'Error sending messages.');
                 }
             })
             .catch(err => {

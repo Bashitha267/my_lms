@@ -10,25 +10,61 @@ if ($role !== 'admin' && $role !== 'teacher') {
     exit;
 }
 
-$subject_id = intval($_GET['subject_id'] ?? 0);
-if ($subject_id <= 0) {
+$type = $_GET['type'] ?? ''; // 'stream' or 'class'
+$id = intval($_GET['id'] ?? 0);
+
+if ($id <= 0 || ($type !== 'stream' && $type !== 'class')) {
     header('Location: request_al_details.php');
     exit;
 }
 
-// Get Subject Info
-$stmt = $conn->prepare("SELECT name, code FROM subjects WHERE id = ?");
-$stmt->bind_param("i", $subject_id);
-$stmt->execute();
-$subject = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+$title_name = '';
+$subject_name_for_matching = '';
 
-if (!$subject) {
-    die("Subject not found.");
+// 1. Get Header Info
+if ($type === 'stream') {
+    // Determine Stream Name
+    $stmt = $conn->prepare("SELECT name FROM streams WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    
+    if (!$res) die("Stream not found.");
+    $title_name = $res['name']; // e.g. "2026 Physical Science"
+    
+} else { // class
+    // Determine Class Name (Subject + Stream)
+    // We get stream_subject_id
+    $stmt = $conn->prepare("SELECT s.name as stream_name, sub.name as subject_name 
+                            FROM stream_subjects ss
+                            JOIN streams s ON ss.stream_id = s.id
+                            JOIN subjects sub ON ss.subject_id = sub.id
+                            WHERE ss.id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    $res = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    
+    if (!$res) die("Class not found.");
+    $title_name = $res['subject_name'] . ' (' . $res['stream_name'] . ')';
+    $subject_name_for_matching = strtolower(trim($res['subject_name']));
 }
 
-// Get all enrolled students and their submission status
+// 2. Fetch Enrolled Students
+// Build Query based on type
 $query = "SELECT u.user_id, u.first_name, u.second_name, u.whatsapp_number,
+                 als.id as submission_id, als.subject_1, als.subject_2, als.subject_3, 
+                 als.index_number, als.district, als.photo_path, als.created_at,
+                 als.result_1, als.result_2, als.result_3, als.results_submitted_at
+          FROM users u
+          INNER JOIN student_enrollment se ON u.user_id = se.student_id
+          LEFT JOIN al_exam_submissions als ON u.user_id = als.student_id
+          WHERE se.status = 'active' AND u.status = 1 ";
+
+if ($type === 'stream') {
+    // Join stream_subjects to filter by stream_id
+    $query = "SELECT DISTINCT u.user_id, u.first_name, u.second_name, u.whatsapp_number,
                  als.id as submission_id, als.subject_1, als.subject_2, als.subject_3, 
                  als.index_number, als.district, als.photo_path, als.created_at,
                  als.result_1, als.result_2, als.result_3, als.results_submitted_at
@@ -36,11 +72,15 @@ $query = "SELECT u.user_id, u.first_name, u.second_name, u.whatsapp_number,
           INNER JOIN student_enrollment se ON u.user_id = se.student_id
           INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
           LEFT JOIN al_exam_submissions als ON u.user_id = als.student_id
-          WHERE ss.subject_id = ? AND se.status = 'active' AND u.status = 1
+          WHERE ss.stream_id = ? AND se.status = 'active' AND u.status = 1
           ORDER BY als.id DESC, u.first_name ASC";
+} else {
+    // Filter by stream_subject_id directly
+    $query .= "AND se.stream_subject_id = ? ORDER BY als.id DESC, u.first_name ASC";
+}
 
 $stmt = $conn->prepare($query);
-$stmt->bind_param("i", $subject_id);
+$stmt->bind_param("i", $id);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -56,28 +96,30 @@ while ($row = $result->fetch_assoc()) {
     if (!empty($row['submission_id'])) {
         $responded_count++;
     }
+    
+    // Logic to update grades
     if (!empty($row['results_submitted_at'])) {
         $results_submitted_count++;
-        // Count grades for this specific subject matches
-        // Note: Students submit result_1, result_2, but we don't know which corresponds to current $subject_id
-        // We need to check if subject_1 == current subject name
-        // But here we only have names. A better approach would be to check if the subject name in submission matches the current subject name
         
-        // Let's assume for simplicity we count all 'A's across all students for this subject if they took it.
-        // Actually, the submission has subject_1, subject_2. We need to find which one is THIS subject.
-        
-        $subj_name = strtolower(trim($subject['name']));
         $grade = null;
         
-        if (strtolower(trim($row['subject_1'])) == $subj_name) $grade = $row['result_1'];
-        elseif (strtolower(trim($row['subject_2'])) == $subj_name) $grade = $row['result_2'];
-        elseif (strtolower(trim($row['subject_3'])) == $subj_name) $grade = $row['result_3'];
+        if ($type === 'class') {
+            // If viewing a specific class, try to match ONLY that subject's result
+            if (strtolower(trim($row['subject_1'])) == $subject_name_for_matching) $grade = $row['result_1'];
+            elseif (strtolower(trim($row['subject_2'])) == $subject_name_for_matching) $grade = $row['result_2'];
+            elseif (strtolower(trim($row['subject_3'])) == $subject_name_for_matching) $grade = $row['result_3'];
+        } else {
+             // If viewing a Stream, maybe we don't show specific grade badges in the list? 
+             // Or show "Completed" if results are there.
+             // For now, let's just mark it as "Submitted" in grade logic or skip grade count logic if stream.
+             
+             // Optionally, if we want to count overall As in the stream? Prob not.
+        }
         
         if ($grade && isset($grade_counts[$grade])) {
             $grade_counts[$grade]++;
         }
         
-        // Attach the specific grade for this subject to the student array for display
         $students[count($students)-1]['subject_grade'] = $grade;
     }
 }
@@ -92,7 +134,7 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Responses - <?php echo htmlspecialchars($subject['name']); ?></title>
+    <title>View Responses - <?php echo htmlspecialchars($title_name); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -105,9 +147,9 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <a href="request_al_details.php" class="text-gray-500 hover:text-red-600 mb-2 inline-block">
-                    <i class="fas fa-arrow-left mr-1"></i> Back to Subjects
+                    <i class="fas fa-arrow-left mr-1"></i> Back to List
                 </a>
-                <h1 class="text-3xl font-bold text-gray-900"><?php echo htmlspecialchars($subject['name']); ?></h1>
+                <h1 class="text-3xl font-bold text-gray-900"><?php echo htmlspecialchars($title_name); ?></h1>
                 <p class="text-gray-500">Student Response Report</p>
             </div>
             <div class="flex gap-4">
@@ -126,27 +168,32 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
             </div>
         </div>
 
-        <!-- Grade Stats -->
+        <!-- Grade Stats (Only show for Class view where matching makes sense) -->
+        <?php if ($type === 'class'): ?>
         <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
             <?php foreach ($grade_counts as $grade => $count): ?>
             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                 <span class="block text-xl font-bold text-gray-800"><?php echo $count; ?></span>
-                <span class="text-xs text-gray-500 font-bold uppercase">Average <?php echo $grade; ?></span>
+                <span class="text-xs text-gray-500 font-bold uppercase">Grade <?php echo $grade; ?></span>
             </div>
             <?php endforeach; ?>
         </div>
+        <?php endif; ?>
 
         <!-- Filters -->
         <div class="mb-6 flex justify-end">
             <select id="gradeFilter" onchange="filterTable()" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="all">All Grades</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="S">S</option>
-                <option value="F">F</option>
-                <option value="AB">Absent</option>
-                <option value="pending">Results Pending</option>
+                <option value="all">All Students</option>
+                <?php if ($type === 'class'): ?>
+                    <option value="A">Grade A</option>
+                    <option value="B">Grade B</option>
+                    <option value="C">Grade C</option>
+                    <option value="S">Grade S</option>
+                    <option value="F">Grade F</option>
+                    <option value="AB">Absent</option>
+                <?php endif; ?>
+                <option value="responded">Responded</option>
+                <option value="pending">Pending Response</option>
             </select>
         </div>
 
@@ -159,13 +206,16 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                             <th class="px-6 py-4">Student Name</th>
                             <th class="px-6 py-4">User ID</th>
                             <th class="px-6 py-4">Response Status</th>
-                            <th class="px-6 py-4">Result</th>
+                            <th class="px-6 py-4">Result Status</th>
                             <th class="px-6 py-4 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
                         <?php foreach ($students as $student): ?>
-                        <tr class="hover:bg-gray-50/50 transition-colors student-row" data-grade="<?php echo $student['subject_grade'] ?? 'pending'; ?>">
+                        <tr class="hover:bg-gray-50/50 transition-colors student-row" 
+                            data-grade="<?php echo $student['subject_grade'] ?? ''; ?>"
+                            data-responded="<?php echo !empty($student['submission_id']) ? 'yes' : 'no'; ?>">
+                            
                             <td class="px-6 py-4 font-medium text-gray-900">
                                 <?php echo htmlspecialchars($student['first_name'] . ' ' . $student['second_name']); ?>
                                 <?php if (!empty($student['whatsapp_number'])): ?>
@@ -182,7 +232,7 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                             </td>
                             <td class="px-6 py-4 font-bold text-gray-700">
                                 <?php 
-                                    if (isset($student['subject_grade'])) {
+                                    if ($type === 'class' && isset($student['subject_grade'])) {
                                         $badges = [
                                             'A' => 'bg-green-100 text-green-700',
                                             'B' => 'bg-blue-100 text-blue-700',
@@ -193,6 +243,8 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                                         ];
                                         $cls = $badges[$student['subject_grade']] ?? 'bg-gray-100';
                                         echo "<span class='px-3 py-1 rounded-full text-xs $cls'>{$student['subject_grade']}</span>";
+                                    } elseif (!empty($student['results_submitted_at'])) {
+                                        echo '<span class="text-green-600 text-xs font-semibold"><i class="fas fa-check-circle"></i> Results Submitted</span>';
                                     } else {
                                         echo '<span class="text-gray-400 text-xs italic">Waiting</span>';
                                     }
@@ -215,7 +267,7 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                         <tr>
                             <td colspan="5" class="px-6 py-12 text-center text-gray-400">
                                 <i class="fas fa-users-slash text-4xl mb-3"></i>
-                                <p>No students found for this subject.</p>
+                                <p>No students found.</p>
                             </td>
                         </tr>
                         <?php endif; ?>
@@ -315,21 +367,22 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
             
             for (i = 1; i < tr.length; i++) {
                 var grade = tr[i].getAttribute('data-grade');
+                var responded = tr[i].getAttribute('data-responded');
+                
+                var show = false;
+                
                 if (filter === "all") {
-                    tr[i].style.display = "";
+                    show = true;
+                } else if (filter === "responded") {
+                   if (responded === "yes") show = true;
                 } else if (filter === "pending") {
-                    if (grade === "pending" || grade === "") {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
+                   if (responded === "no") show = true;
                 } else {
-                    if (grade === filter) {
-                        tr[i].style.display = "";
-                    } else {
-                        tr[i].style.display = "none";
-                    }
+                   // Specific grade filter
+                   if (grade === filter) show = true;
                 }
+                
+                tr[i].style.display = show ? "" : "none";
             }
         }
     </script>

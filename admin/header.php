@@ -5,7 +5,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
 <header class="bg-blue-600 shadow-lg sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+    <div class=" mx-auto px-2 sm:px-4 lg:px-8">
         <div class="flex justify-between items-center h-16">
             <!-- Logo/Brand -->
             <div class="flex items-center flex-shrink-0">
@@ -27,6 +27,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 <a href="update_students.php" 
                    class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
                     Update Students
+                </a>
+                <a href="manage_instructors.php" 
+                   class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                    Manage Instructors
                 </a>
                
                 <a href="verify_payments.php" 
@@ -92,6 +96,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <a href="update_students.php" 
                class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
                 Update Students
+            </a>
+            <a href="manage_instructors.php" 
+               class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
+                Manage Instructors
             </a>
            
             <a href="verify_payments.php" 

@@ -1,13 +1,19 @@
 <?php
 require_once 'config.php';
-$res = $conn->query("DESCRIBE users");
-while($row = $res->fetch_assoc()) {
-    echo $row['Field'] . " (" . $row['Type'] . ")\n";
-}
 
-echo "\n--- Sample Data ---\n";
-$res = $conn->query("SELECT user_id, whatsapp_number, mobile_number FROM users LIMIT 5");
-while($row = $res->fetch_assoc()) {
-    print_r($row);
+echo "Checking tables...\n";
+$tables = ['instructor_subjects', 'users', 'subjects'];
+foreach ($tables as $table) {
+    $result = $conn->query("SHOW TABLES LIKE '$table'");
+    if ($result->num_rows > 0) {
+        echo "Table '$table' exists.\n";
+        $columns = $conn->query("DESCRIBE $table");
+        while ($row = $columns->fetch_assoc()) {
+            echo " - " . $row['Field'] . " (" . $row['Type'] . ")\n";
+        }
+    } else {
+        echo "Table '$table' DOES NOT EXIST.\n";
+    }
+    echo "\n";
 }
 ?>
