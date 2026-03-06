@@ -209,7 +209,7 @@ function time_elapsed_string($datetime) {
 </head>
 <body class="bg-gray-50 min-h-screen">
     
-    <?php include '../dashboard/navbar.php'; ?>
+    <?php include 'navbar.php'; ?>
 
     <div class="max-w-7xl mx-auto px-4 py-8">
         
