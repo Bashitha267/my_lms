@@ -1,5 +1,5 @@
 <?php
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
@@ -759,8 +759,8 @@ if ($is_logged_in && $role === 'student') {
                 link.addEventListener('click', function(e) {
                     const href = this.getAttribute('href');
                     
-                    // Only allow live_classes.php, dashboard.php, and about_us.php without login
-                    if (href && !href.includes('live_classes.php') && !href.includes('dashboard.php') && !href.includes('about_us.php')) {
+                    // Only allow live_classes.php, dashboard.php, about_us.php, and publications.php without login
+                    if (href && !href.includes('live_classes.php') && !href.includes('dashboard.php') && !href.includes('about_us.php') && !href.includes('publications.php')) {
                         e.preventDefault();
                         e.stopPropagation();
                         showAuthModal();

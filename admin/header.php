@@ -17,36 +17,44 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <!-- Admin Navigation Links -->
             <div class="hidden md:flex md:items-center md:space-x-1 flex-1 justify-center">
                 <a href="dashboard.php" 
-                   class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Dashboard
                 </a>
                 <a href="users.php" 
-                   class="<?php echo ($current_page == 'users.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'users.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Manage Users
                 </a>
                 <a href="update_students.php" 
-                   class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Update Students
                 </a>
                 <a href="manage_instructors.php" 
-                   class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Manage Instructors
                 </a>
                
                 <a href="verify_payments.php" 
-                   class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Payments
                 </a>
                 <a href="manage_content.php" 
-                   class="<?php echo ($current_page == 'manage_content.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'manage_content.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Manage Content
                 </a>
+                <a href="manage_publications.php" 
+                   class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Publications
+                </a>
+                <a href="manage_orders.php" 
+                   class="<?php echo ($current_page == 'manage_orders.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Orders
+                </a>
                 <a href="settings.php" 
-                   class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Settings
                 </a>
                 <a href="../dashboard/request_al_details.php" 
-                   class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out">
+                   class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     A/L DETAILS
                 </a>
             </div>
@@ -109,6 +117,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
             <a href="manage_content.php" 
                class="<?php echo ($current_page == 'manage_content.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
                 Manage Content
+            </a>
+            <a href="manage_publications.php" 
+               class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
+                Manage Publications
+            </a>
+            <a href="manage_orders.php" 
+               class="<?php echo ($current_page == 'manage_orders.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
+                Publication Orders
             </a>
             <a href="settings.php" 
                class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
