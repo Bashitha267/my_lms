@@ -56,35 +56,35 @@ $root_url = $is_in_dashboard ? '../' : '';
                     <!-- Guest Navigation -->
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>dashboard.php" 
-                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>live_classes.php" 
-                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             LIVE CLASSES
                         </a>
                         <div class="sinhala-tooltip">සජීවී පන්ති</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>publications.php" 
-                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             PUBLICATIONS
                         </a>
                         <div class="sinhala-tooltip">ප්‍රකාශන</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>about_us.php" 
-                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             ABOUT US
                         </a>
                         <div class="sinhala-tooltip">අප ගැන</div>
                     </div>
                     <div class="nav-item-with-tooltip ml-4">
                         <a href="<?php echo $root_url; ?>login.php" 
-                           class="bg-white text-red-600 px-3 xl:px-4 py-1.5 rounded-md text-[10px] xl:text-xs font-bold uppercase transition duration-150 ease-in-out hover:bg-red-50">
+                           class="bg-white text-red-600 px-3 xl:px-4 py-1.5 rounded-md text-[9px] xl:text-[11px] font-bold uppercase transition duration-150 ease-in-out hover:bg-red-50">
                             LOGIN
                         </a>
                     </div>
@@ -92,63 +92,63 @@ $root_url = $is_in_dashboard ? '../' : '';
                     <!-- Student Navigation with Sinhala Tooltips -->
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>dashboard.php" 
-                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>online_courses.php" 
-                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             ONLINE COURSES
                         </a>
                         <div class="sinhala-tooltip">අන්තර්ජාල පාඨමාලා</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>recordings.php" 
-                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             RECORDINGS
                         </a>
                         <div class="sinhala-tooltip">පටිගත කිරීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>live_classes.php" 
-                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             LIVE CLASSES
                         </a>
                         <div class="sinhala-tooltip">සජීවී පන්ති</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>instructors.php" 
-                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             INSTRUCTORS
                         </a>
                         <div class="sinhala-tooltip">උපදේශකයින්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>payments.php" 
-                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             PAYMENTS
                         </a>
                         <div class="sinhala-tooltip">ගෙවීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>exam_center.php" 
-                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             EXAM CENTER
                         </a>
                         <div class="sinhala-tooltip">විභාග මධ්‍යස්ථානය</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>publications.php" 
-                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             PUBLICATIONS
                         </a>
                         <div class="sinhala-tooltip">ප්‍රකාශන</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>about_us.php" 
-                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             ABOUT US
                         </a>
                         <div class="sinhala-tooltip">අප ගැන</div>
@@ -157,63 +157,63 @@ $root_url = $is_in_dashboard ? '../' : '';
                     <!-- Teacher/Admin Navigation with Sinhala Tooltips -->
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>dashboard.php" 
-                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>online_courses.php" 
-                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             ONLINE COURSES
                         </a>
                         <div class="sinhala-tooltip">අන්තර්ජාල පාඨමාලා</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>recordings.php" 
-                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'recordings.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             RECORDINGS
                         </a>
                         <div class="sinhala-tooltip">පටිගත කිරීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>live_classes.php" 
-                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'live_classes.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             LIVE CLASSES
                         </a>
                         <div class="sinhala-tooltip">සජීවී පන්ති</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>instructors.php" 
-                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'instructors.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             INSTRUCTORS
                         </a>
                         <div class="sinhala-tooltip">උපදේශකයින්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>payments.php" 
-                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'payments.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             PAYMENTS
                         </a>
                         <div class="sinhala-tooltip">ගෙවීම්</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>exam_center.php" 
-                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'exam_center.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             EXAM CENTER
                         </a>
                         <div class="sinhala-tooltip">විභාග මධ්‍යස්ථානය</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>publications.php" 
-                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'publications.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             PUBLICATIONS
                         </a>
                         <div class="sinhala-tooltip">ප්‍රකාශන</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>about_us.php" 
-                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'about_us.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             ABOUT US
                         </a>
                         <div class="sinhala-tooltip">අප ගැන</div>
@@ -221,7 +221,7 @@ $root_url = $is_in_dashboard ? '../' : '';
                     <?php if (isset($_SESSION['role']) && ($_SESSION['role'] === 'teacher' || $_SESSION['role'] === 'admin')): ?>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>request_al_details.php" 
-                           class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                           class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                             A/L DETAILS
                         </a>
                         <div class="sinhala-tooltip">උසස් පෙළ විස්තර</div>
@@ -231,7 +231,7 @@ $root_url = $is_in_dashboard ? '../' : '';
                 <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'teacher'): ?>
                 <div class="nav-item-with-tooltip">
                     <a href="<?php echo $base_url; ?>reports.php" 
-                       class="<?php echo ($current_page == 'reports.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[10px] xl:text-xs font-medium uppercase transition duration-150 ease-in-out">
+                       class="<?php echo ($current_page == 'reports.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
                         REPORTS
                     </a>
                     <div class="sinhala-tooltip">වාර්තා</div>
