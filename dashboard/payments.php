@@ -40,6 +40,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_fees']) && $role 
     }
 }
 
+// Handle payment request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_payment']) && $role === 'teacher') {
+    $request_amount = floatval($_POST['request_amount'] ?? 0);
+    
+    // Check points available
+    $wallet_query = "SELECT total_points FROM teacher_wallet WHERE teacher_id = ?";
+    $wallet_stmt = $conn->prepare($wallet_query);
+    $wallet_stmt->bind_param("s", $user_id);
+    $wallet_stmt->execute();
+    $wallet_result = $wallet_stmt->get_result();
+    $current_points = 0;
+    if ($wallet_result->num_rows > 0) {
+        $current_points = $wallet_result->fetch_assoc()['total_points'];
+    }
+    $wallet_stmt->close();
+    
+    // Check if there are active pending requests
+    $pending_query = "SELECT SUM(amount) as pending_amount FROM teacher_payment_requests WHERE teacher_id = ? AND status = 'pending'";
+    $pending_stmt = $conn->prepare($pending_query);
+    $pending_stmt->bind_param("s", $user_id);
+    $pending_stmt->execute();
+    $pending_result = $pending_stmt->get_result();
+    $pending_amount = $pending_result->fetch_assoc()['pending_amount'] ?? 0;
+    $pending_stmt->close();
+
+    $available_to_request = $current_points - $pending_amount;
+
+    if ($request_amount > 0 && $request_amount <= $available_to_request) {
+        $insert_req_query = "INSERT INTO teacher_payment_requests (teacher_id, amount, status) VALUES (?, ?, 'pending')";
+        $insert_req_stmt = $conn->prepare($insert_req_query);
+        $insert_req_stmt->bind_param("sd", $user_id, $request_amount);
+        if ($insert_req_stmt->execute()) {
+            $success_message = 'Payment request submitted successfully!';
+        } else {
+            $error_message = 'Error submitting request: ' . $conn->error;
+        }
+        $insert_req_stmt->close();
+    } else {
+        $error_message = 'Invalid request amount or insufficient points.';
+    }
+}
+
 // Get data based on role
 $enrollments = [];
 $teacher_assignments = [];
@@ -228,6 +270,21 @@ if ($role === 'student') {
         }
         $wallet_stmt->close();
     }
+
+    // Get active pending requests
+    $pending_query = "SELECT SUM(amount) as pending_amount FROM teacher_payment_requests WHERE teacher_id = ? AND status = 'pending'";
+    $pending_stmt = $conn->prepare($pending_query);
+    if ($pending_stmt) {
+        $pending_stmt->bind_param("s", $user_id);
+        $pending_stmt->execute();
+        $pending_result = $pending_stmt->get_result();
+        $pending_amount = $pending_result->fetch_assoc()['pending_amount'] ?? 0;
+        $pending_stmt->close();
+    } else {
+        $pending_amount = 0;
+    }
+    
+    $available_to_request = max(0, $teacher_points - $pending_amount);
 
     // Get recent transactions
     $transactions = [];
@@ -690,6 +747,22 @@ if ($role === 'student') {
                             <div class="p-6 bg-white rounded-2xl shadow-lg">
                                 <i class="fas fa-wallet text-5xl text-green-600"></i>
                             </div>
+                        </div>
+                        <div class="mt-6 pt-6 border-t border-green-200 flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl">
+                            <div class="mb-4 sm:mb-0">
+                                <p class="text-sm text-gray-600">Available to Request:</p>
+                                <p class="text-xl font-bold text-green-700">Rs. <?php echo number_format($available_to_request, 2); ?></p>
+                                <?php if ($pending_amount > 0): ?>
+                                    <p class="text-xs text-orange-500 mt-1"><i class="fas fa-clock"></i> Rs. <?php echo number_format($pending_amount, 2); ?> pending</p>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <form method="POST" class="flex gap-2">
+                                <input type="number" name="request_amount" min="1" max="<?php echo $available_to_request; ?>" step="0.01" class="border border-green-300 rounded-lg px-3 py-2 text-sm focus:ring-green-500 focus:border-green-500 w-32" placeholder="Amount" required <?php echo $available_to_request <= 0 ? 'disabled' : ''; ?>>
+                                <button type="submit" name="request_payment" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition <?php echo $available_to_request <= 0 ? 'opacity-50 cursor-not-allowed' : ''; ?>" <?php echo $available_to_request <= 0 ? 'disabled' : ''; ?>>
+                                    Request Payment
+                                </button>
+                            </form>
                         </div>
                     </div>
 
