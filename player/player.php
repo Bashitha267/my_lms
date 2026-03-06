@@ -1,9 +1,17 @@
 <?php
-require_once '../check_session.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config.php';
 
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
+
+// If not logged in and not a guest who submitted details, redirect to login
+if (empty($user_id) && empty($_SESSION['guest_name'])) {
+    header("Location: /lms/login.php");
+    exit();
+}
 $current_year = date('Y');
 $current_month = date('n');
 
@@ -205,6 +213,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
             $can_watch = false;
         }
         $enroll_stmt->close();
+    } elseif (empty($role) && !empty($_SESSION['guest_name'])) {
+        // Guests can watch if the live class is free
+        $can_watch = ($current_recording['free_video'] == 1);
+    } else {
+        $can_watch = false;
     }
 }
 ?>
@@ -2294,7 +2307,9 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
     </style>
 </head>
 <body >
-    <?php if (!$current_recording || (!$can_watch && !$is_live_class)): ?>
+    <?php 
+    $is_guest_watching_free = (empty($role) && !empty($_SESSION['guest_name']) && $is_live_class && ($current_recording['free_video'] ?? 0) == 1);
+    if (!$current_recording || (!$can_watch && !$is_guest_watching_free)): ?>
         <div class="flex items-center justify-center h-screen bg-black text-white">
             <div class="text-center">
                 <i class="fas fa-exclamation-triangle text-6xl text-red-600 mb-4"></i>

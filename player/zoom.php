@@ -1,9 +1,17 @@
 <?php
-require_once '../check_session.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require_once '../config.php';
 
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
+
+// If not logged in and not a guest who submitted details, redirect to login
+if (empty($user_id) && empty($_SESSION['guest_name'])) {
+    header("Location: /lms/login.php");
+    exit();
+}
 
 // Get Zoom class ID from URL
 $zoom_class_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -103,6 +111,8 @@ if ($current_zoom_class && $can_access) {
             $user_name = trim(($user_row['first_name'] ?? '') . ' ' . ($user_row['second_name'] ?? ''));
         }
         $user_stmt->close();
+    } elseif (!empty($_SESSION['guest_name'])) {
+        $user_name = $_SESSION['guest_name'];
     }
     
     // Extract meeting ID and passcode from Zoom URL

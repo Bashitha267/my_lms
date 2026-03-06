@@ -98,12 +98,31 @@ $stmt->bind_param("iii", $assignment_id, $selected_month, $selected_year);
 $stmt->execute();
 $res = $stmt->get_result();
 while ($row = $res->fetch_assoc()) {
-    // Count attendees from live_class_participants (correct table)
-    $count_stmt = $conn->prepare("SELECT COUNT(DISTINCT student_id) as total FROM live_class_participants WHERE recording_id = ?");
-    $count_stmt->bind_param("i", $row['id']);
-    $count_stmt->execute();
-    $row['attendees_count'] = $count_stmt->get_result()->fetch_assoc()['total'];
-    $count_stmt->close();
+    // Count attendees: check if guest columns exist
+    $col_check = $conn->query("SHOW COLUMNS FROM live_class_participants LIKE 'guest_name'");
+    $has_guest_cols = ($col_check->num_rows > 0);
+
+    if ($has_guest_cols) {
+        $cnt_stmt = $conn->prepare("SELECT 
+            SUM(CASE WHEN student_id IS NOT NULL THEN 1 ELSE 0 END) as reg_count,
+            SUM(CASE WHEN student_id IS NULL THEN 1 ELSE 0 END) as guest_count
+            FROM live_class_participants WHERE recording_id = ?");
+        $cnt_stmt->bind_param("i", $row['id']);
+        $cnt_stmt->execute();
+        $counts = $cnt_stmt->get_result()->fetch_assoc();
+        $row['reg_count']   = intval($counts['reg_count'] ?? 0);
+        $row['guest_count'] = intval($counts['guest_count'] ?? 0);
+        $row['attendees_count'] = $row['reg_count'] + $row['guest_count'];
+        $cnt_stmt->close();
+    } else {
+        $count_stmt = $conn->prepare("SELECT COUNT(DISTINCT student_id) as total FROM live_class_participants WHERE recording_id = ?");
+        $count_stmt->bind_param("i", $row['id']);
+        $count_stmt->execute();
+        $row['attendees_count'] = $count_stmt->get_result()->fetch_assoc()['total'];
+        $row['reg_count']   = $row['attendees_count'];
+        $row['guest_count'] = 0;
+        $count_stmt->close();
+    }
     $classes[] = $row;
 }
 $stmt->close();
@@ -295,6 +314,7 @@ $months = [
                                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
                                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
                                 <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Attendance</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Reg / Guest</th>
                                 <th class="px-6 py-4 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Rate</th>
                                 <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -302,7 +322,7 @@ $months = [
                     <tbody class="bg-white divide-y divide-gray-100">
                         <?php if (empty($classes)): ?>
                             <tr>
-                                <td colspan="6" class="px-6 py-10 text-center text-gray-500 bg-gray-50 font-medium italic">
+                                <td colspan="7" class="px-6 py-10 text-center text-gray-500 bg-gray-50 font-medium italic">
                                     No classes held in <?php echo $months[$selected_month]; ?> <?php echo $selected_year; ?>.
                                 </td>
                             </tr>
@@ -353,6 +373,23 @@ $months = [
                                                 <div class="h-full <?php echo $bar_color; ?> rounded-full" style="width: <?php echo min($pct, 100); ?>%"></div>
                                             </div>
                                         </div>
+                                    </td>
+                                    <!-- Registered / Guest breakdown (only for Live classes) -->
+                                    <td class="px-6 py-5 text-center">
+                                        <?php if ($class['type'] === 'Live'): ?>
+                                            <div class="flex flex-col items-center gap-1">
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold bg-green-100 text-green-700 rounded-full">
+                                                    <i class="fas fa-user-check text-[9px]"></i>
+                                                    Reg: <?php echo $class['reg_count'] ?? 0; ?>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold bg-orange-100 text-orange-700 rounded-full">
+                                                    <i class="fas fa-user text-[9px]"></i>
+                                                    Guest: <?php echo $class['guest_count'] ?? 0; ?>
+                                                </span>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="text-gray-300">—</span>
+                                        <?php endif; ?>
                                     </td>
                                     <!-- Percentage badge -->
                                     <td class="px-6 py-5 text-center">
@@ -433,17 +470,36 @@ $months = [
                                 <p class="text-gray-500 font-bold">No attendees found for this class.</p>
                             </div>`;
                         } else {
-                            let html = `<div class="space-y-3">`;
+                            const regCount   = data.attendees.filter(a => a.is_registered == 1).length;
+                            const guestCount = data.attendees.filter(a => a.is_registered == 0).length;
+
+                            let html = `<div class="flex gap-3 mb-4">
+                                <span class="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                                    <i class="fas fa-user-check mr-1"></i> Registered: ${regCount}
+                                </span>
+                                <span class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">
+                                    <i class="fas fa-user mr-1"></i> Guests: ${guestCount}
+                                </span>
+                            </div>
+                            <div class="space-y-3">`;
                             data.attendees.forEach(student => {
+                                const isReg = student.is_registered == 1;
+                                const badge = isReg
+                                    ? `<span class="text-[10px] px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-bold uppercase tracking-wide">Registered</span>`
+                                    : `<span class="text-[10px] px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full font-bold uppercase tracking-wide">Guest</span>`;
+                                const avatarBg = isReg ? 'bg-indigo-600' : 'bg-orange-400';
                                 html += `
-                                    <div class="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-indigo-200 transition-colors">
+                                    <div class="flex items-center justify-between p-4 rounded-2xl ${isReg ? 'bg-gray-50 border border-gray-100' : 'bg-orange-50 border border-orange-100'} hover:border-indigo-200 transition-colors">
                                         <div class="flex items-center">
-                                            <div class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold mr-4 shadow-md">
+                                            <div class="w-10 h-10 ${avatarBg} text-white rounded-full flex items-center justify-center font-bold mr-4 shadow-md">
                                                 ${student.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <h4 class="font-bold text-gray-900">${student.name}</h4>
-                                                <p class="text-xs text-gray-500 font-semibold tracking-wide uppercase">${student.id}</p>
+                                                <div class="flex items-center gap-2 mb-0.5">
+                                                    <h4 class="font-bold text-gray-900">${student.name}</h4>
+                                                    ${badge}
+                                                </div>
+                                                <p class="text-xs text-gray-500 font-semibold tracking-wide">${student.id}</p>
                                             </div>
                                         </div>
                                         <div class="text-right">

@@ -21,6 +21,37 @@ if ($bg_result && $bg_result->num_rows > 0) {
 $success_message = $_GET['success'] ?? '';
 $error_message = '';
 
+// Handle guest details submission for free classes
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_guest_details']) && empty($role)) {
+    $guest_name = trim($_POST['guest_name'] ?? '');
+    $guest_phone = trim($_POST['guest_phone'] ?? '');
+    $target_id = intval($_POST['target_id'] ?? 0);
+    $target_stream_subject_id = intval($_POST['target_stream_subject_id'] ?? 0);
+    $target_academic_year = intval($_POST['target_academic_year'] ?? 0);
+
+    if (empty($guest_name) || empty($guest_phone)) {
+        $error_message = 'Please provide both name and phone number to watch the class.';
+    } else {
+        // Store guest details in session
+        $_SESSION['guest_name'] = $guest_name;
+        $_SESSION['guest_phone'] = $guest_phone;
+        
+        $is_zoom = intval($_POST['is_zoom'] ?? 0);
+        
+        // Determine player URL
+        if ($is_zoom) {
+            $player_url = "../player/zoom.php?id=" . $target_id;
+        } else {
+            $player_url = "../player/player.php?id=" . $target_id . 
+                          "&stream_subject_id=" . $target_stream_subject_id . 
+                          "&academic_year=" . $target_academic_year;
+        }
+        
+        header("Location: $player_url");
+        exit();
+    }
+}
+
 // Handle live class creation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) && $role === 'teacher') {
     $stream_subject_id = isset($_POST['stream_subject_id']) ? intval($_POST['stream_subject_id']) : 0;
@@ -739,10 +770,11 @@ if (empty($role)) {
                                             <?php if (empty($role)): // Show Login/Join buttons for guest ?>
                                                 <div class="flex gap-2">
                                                     <?php if ($live_class['free_video']): ?>
-                                                        <a href="../player/player.php?id=<?php echo $live_class['id']; ?>&stream_subject_id=<?php echo $live_class['stream_subject_id']; ?>&academic_year=<?php echo $live_class['academic_year']; ?>" 
+                                                        <!-- For guests, prompt for details before watching free video -->
+                                                        <button onclick="showGuestDetailsModal(<?php echo $live_class['id']; ?>, <?php echo $live_class['stream_subject_id']; ?>, <?php echo $live_class['academic_year']; ?>)" 
                                                         class="flex-1 bg-red-600 text-white text-center py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-md hover:shadow-lg">
                                                             Watch Now
-                                                        </a>
+                                                        </button>
                                                     <?php else: ?>
                                                         <button onclick="showAuthModal()" 
                                                                 class="flex-1 bg-gray-800 text-white text-center py-2 rounded-lg font-semibold hover:bg-gray-900 transition-colors shadow-md">
@@ -1805,7 +1837,73 @@ if (empty($role)) {
             }
         });
         <?php endif; ?>
+
+        // Guest Details Modal functionality
+        function showGuestDetailsModal(id, streamSubjectId, academicYear, isZoom = 0) {
+            document.getElementById('guest_target_id').value = id;
+            document.getElementById('guest_target_stream_subject_id').value = streamSubjectId;
+            document.getElementById('guest_target_academic_year').value = academicYear;
+            document.getElementById('guest_is_zoom').value = isZoom;
+            document.getElementById('guestDetailsModal').classList.remove('hidden');
+            document.getElementById('guestDetailsModal').classList.add('flex');
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideGuestDetailsModal() {
+            document.getElementById('guestDetailsModal').classList.add('hidden');
+            document.getElementById('guestDetailsModal').classList.remove('flex');
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+        }
     </script>
+
+    <!-- Guest Details Modal -->
+    <div id="guestDetailsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-md w-full p-6 shadow-xl transform transition-all">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-xl font-bold text-gray-900">Enter Details to Watch</h3>
+                <button onclick="hideGuestDetailsModal()" class="text-gray-400 hover:text-gray-600 transition-colors focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form method="POST" action="" id="guestDetailsForm">
+                <input type="hidden" name="target_id" id="guest_target_id" value="">
+                <input type="hidden" name="target_stream_subject_id" id="guest_target_stream_subject_id" value="">
+                <input type="hidden" name="target_academic_year" id="guest_target_academic_year" value="">
+                <input type="hidden" name="is_zoom" id="guest_is_zoom" value="0">
+                
+                <div class="mb-4">
+                    <label for="guest_name" class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                    <input type="text" id="guest_name" name="guest_name" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 transition-colors text-black"
+                           placeholder="Enter your full name">
+                    <p class="text-xs text-gray-500 mt-1">Please provide your name to join the class.</p>
+                </div>
+                
+                <div class="mb-5">
+                    <label for="guest_phone" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                    <input type="tel" id="guest_phone" name="guest_phone" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500 transition-colors text-black"
+                           placeholder="Enter your phone number">
+                    <p class="text-xs text-gray-500 mt-1">We need this to notify you about future classes.</p>
+                </div>
+                
+                <div class="flex gap-3 justify-end mt-6">
+                    <button type="button" onclick="hideGuestDetailsModal()" 
+                            class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300">
+                        Cancel
+                    </button>
+                    <button type="submit" name="submit_guest_details"
+                            class="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md">
+                        Continue to Class
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
-```

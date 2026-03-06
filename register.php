@@ -861,15 +861,14 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                 <label for="verification_mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile/WhatsApp Number *</label>
                                 <div class="flex space-x-2">
                                     <input type="text" id="verification_mobile" name="verification_mobile" 
-                                           placeholder="Mobile number will be auto-filled"
-                                           readonly
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                                           placeholder="Enter mobile or WhatsApp number"
+                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                                     <button type="button" onclick="sendOTP()" id="sendOtpBtn"
                                             class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
                                         Send OTP
                                     </button>
                                 </div>
-                                <p class="text-xs text-gray-500 mt-1">Using the mobile number from your profile</p>
+                                <p class="text-xs text-gray-500 mt-1">You can change this number if needed</p>
                             </div>
                             
                             <div id="otpInputContainer" class="hidden">
@@ -919,7 +918,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     </div>
                     
                     <div class="mt-4 text-center pb-2">
-                        <a href="client/index.php" class="text-sm font-medium text-gray-500 hover:text-red-600 flex items-center justify-center transition-colors">
+                        <a href="/lms/dashboard/dashboard.php" class="text-sm font-medium text-gray-500 hover:text-red-600 flex items-center justify-center transition-colors">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                             Back to Website
                         </a>
@@ -1630,19 +1629,17 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 
                 if (whatsappNumber) {
                     verificationMobile.value = whatsappNumber;
-                    verificationMobile.readOnly = true;
-                    verificationMobile.classList.add('bg-gray-50');
                 } else if (mobileNumber) {
                     verificationMobile.value = mobileNumber;
-                    verificationMobile.readOnly = true;
-                    verificationMobile.classList.add('bg-gray-50');
                 } else {
-                    // If no number found, make field editable
                     verificationMobile.value = '';
-                    verificationMobile.readOnly = false;
-                    verificationMobile.classList.remove('bg-gray-50');
-                    verificationMobile.placeholder = 'Enter mobile number';
                 }
+                
+                // Keep the field editable so users can change it before sending OTP
+                verificationMobile.readOnly = false;
+                verificationMobile.classList.remove('bg-gray-50');
+                verificationMobile.placeholder = 'Enter mobile or WhatsApp number';
+                
             } else {
                 nicContainer.classList.add('hidden');
                 mobileContainer.classList.add('hidden');

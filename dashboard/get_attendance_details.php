@@ -83,23 +83,44 @@ try {
         $response['class_title'] = $class['title'] ?? 'Unknown Live Class';
         $stmt->close();
 
-        // Fetch attendees from live_class_participants (the correct table for live class attendance)
-        $attendee_query = "SELECT u.first_name, u.second_name, u.user_id, 
-                                  lcp.joined_at, lcp.left_at
-                           FROM live_class_participants lcp
-                           JOIN users u ON lcp.student_id = u.user_id
-                           WHERE lcp.recording_id = ?
-                           ORDER BY lcp.joined_at ASC";
+        // Check if guest columns exist
+        $col_check = $conn->query("SHOW COLUMNS FROM live_class_participants LIKE 'guest_name'");
+        $has_guest_cols = ($col_check->num_rows > 0);
+
+        if ($has_guest_cols) {
+            // Fetch both registered and guest attendees
+            $attendee_query = "
+                SELECT 
+                    COALESCE(u.first_name, lcp.guest_name) as display_name,
+                    CASE WHEN lcp.student_id IS NULL THEN lcp.guest_phone ELSE u.user_id END as display_id,
+                    lcp.joined_at, lcp.left_at,
+                    CASE WHEN lcp.student_id IS NULL THEN 0 ELSE 1 END as is_registered
+                FROM live_class_participants lcp
+                LEFT JOIN users u ON lcp.student_id = u.user_id
+                WHERE lcp.recording_id = ?
+                ORDER BY lcp.joined_at ASC";
+        } else {
+            // Fallback: old query without guest columns
+            $attendee_query = "SELECT u.first_name, u.second_name, u.user_id, 
+                                      lcp.joined_at, lcp.left_at, 1 as is_registered,
+                                      CONCAT(u.first_name, ' ', u.second_name) as display_name,
+                                      u.user_id as display_id
+                               FROM live_class_participants lcp
+                               JOIN users u ON lcp.student_id = u.user_id
+                               WHERE lcp.recording_id = ?
+                               ORDER BY lcp.joined_at ASC";
+        }
         $stmt = $conn->prepare($attendee_query);
         $stmt->bind_param("i", $class_id);
         $stmt->execute();
         $res = $stmt->get_result();
         while ($row = $res->fetch_assoc()) {
-            $left_info = $row['left_at'] ? ' → ' . date('H:i:s', strtotime($row['left_at'])) : '';
+            $left_info = !empty($row['left_at']) ? ' → ' . date('H:i:s', strtotime($row['left_at'])) : '';
             $response['attendees'][] = [
-                'name' => $row['first_name'] . ' ' . $row['second_name'],
-                'id'   => $row['user_id'],
-                'time' => date('H:i:s', strtotime($row['joined_at'])) . $left_info
+                'name'         => $row['display_name'],
+                'id'           => $row['display_id'],
+                'time'         => date('H:i:s', strtotime($row['joined_at'])) . $left_info,
+                'is_registered'=> (int)($row['is_registered'] ?? 1)
             ];
         }
         $stmt->close();
