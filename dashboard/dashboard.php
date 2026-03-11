@@ -159,7 +159,7 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class="w-full pt-4 pb-12 px-1">
+    <div class="w-full pt-2 pb-12 px-2">
         <?php if (!$is_logged_in): ?>
             <!-- Login Section for Guests -->
             <!-- Hero Section with Slideshow and Login - 50/50 Split -->
@@ -347,11 +347,12 @@ if ($is_logged_in && $role === 'student') {
             </div>
         </section>
         <!-- Available Classes Section -->
-        <div class="px-4 mb-16" id="classes-section">
+        <div class="px-4  mt-8 mb-16" id="classes-section">
             <div class="text-center mb-10">
-                <h2 class="text-4xl font-extrabold text-gray-900">පවතින පන්ති</h2>
-                <p class="text-gray-600 mt-3 text-lg">විෂය ධාරාවන් අනුව පන්ති තෝරාගෙන අදම ලියාපදිංචි වන්න</p>
-                <div class="h-1 w-24 bg-red-600 mx-auto mt-4 rounded-full"></div>
+                <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block shadow-sm">Popular Classes</span>
+                <h2 class="text-4xl font-black text-gray-900 mb-4">පවතින පන්ති</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg font-medium">විෂය ධාරාවන් අනුව පන්ති තෝරාගෙන අදම ලියාපදිංචි වන්න</p>
+                <div class="h-1.5 w-32 bg-red-600 mx-auto mt-6 rounded-full"></div>
             </div>
             
             <?php if (empty($assignments_by_stream)): ?>
@@ -502,12 +503,13 @@ if ($is_logged_in && $role === 'student') {
             }
         </script>
 
-        <!-- Courses Section -->
-        <div class="px-4 mb-12">
-            <h2 class="text-3xl font-bold text-black p-4 rounded-xl text-center ">
-                අපගේ බාහිර පාඨමාලා
-            </h2>
-             <div class="h-1 w-24 bg-red-600 mx-auto rounded-full mb-12"></div>
+        <div class="px-4 mb-20">
+            <div class="text-center mb-10">
+                <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block shadow-sm">Popular Courses</span>
+                <h2 class="text-4xl font-black text-gray-900 mb-4">අපගේ බාහිර පාඨමාලා</h2>
+                <p class="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg font-medium">ඔබේ අනාගතය සාර්ථක කර ගැනීමට අපගේ අන්තර්ජාල පාඨමාලා හා එක්වන්න</p>
+                <div class="h-1.5 w-32 bg-red-600 mx-auto mt-6 rounded-full"></div>
+            </div>
             <?php if (empty($courses)): ?>
                 <div class="bg-white rounded-lg shadow p-8 text-center">
                     <p class="text-gray-500">No courses available at the moment.</p>
@@ -571,16 +573,16 @@ if ($is_logged_in && $role === 'student') {
                 <i class="fas fa-lock text-red-600 text-2xl"></i>
             </div>
             <h3 class="text-xl font-black text-gray-900 mb-2">Please Login or Register First</h3>
-            <!-- <p class="text-gray-600 mb-8 text-lg">Please Login.</p> -->
+            <p class="text-gray-600 mb-8 text-sm font-medium">කරුණාකර පළමුව ඇතුළු වන්න (Login) හෝ ලියාපදිංචි වන්න (Register)</p>
             
             <div class="space-y-4">
                 <a href="#login-section" onclick="closeAuthModal(); scrollToLogin();"
                    class="block w-full bg-red-600 text-white py-4 px-6 rounded-xl hover:bg-red-700 font-bold transition-all transform active:scale-95 shadow-lg shadow-red-200">
-                    Login
+                    ඇතුළු වන්න (Login)
                 </a>
                 <a href="../register.php"
                    class="block w-full bg-gray-100 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-200 font-bold transition-all transform active:scale-95">
-                    Register
+                    ලියාපදිංචි වන්න (Register)
                 </a>
             </div>
             <button onclick="closeAuthModal()" 
@@ -731,42 +733,5 @@ if ($is_logged_in && $role === 'student') {
         });
     </script>
 
-    <?php if (!$is_logged_in): ?>
-    <script>
-        // Show auth modal
-        function showAuthModal() {
-            document.getElementById('authModal').classList.remove('hidden');
-        }
-
-        // Close auth modal
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.add('hidden');
-        }
-
-        // Scroll to login section
-        function scrollToLogin() {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        // Add click handlers to navbar links if user is not logged in
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get all navbar links (both desktop and mobile)
-            const allNavLinks = document.querySelectorAll('nav a[href*=".php"]:not([href*="logout"]):not([href*="auth.php"])');
-            
-            allNavLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    const href = this.getAttribute('href');
-                    
-                    // Only allow live_classes.php, dashboard.php, about_us.php, and publications.php without login
-                    if (href && !href.includes('live_classes.php') && !href.includes('dashboard.php') && !href.includes('about_us.php') && !href.includes('publications.php')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        showAuthModal();
-                    }
-                });
-            });
-        });
-    </script>
-    <?php endif; ?>
 </body>
 </html>
