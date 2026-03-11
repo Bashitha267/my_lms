@@ -4201,11 +4201,12 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 });
             }
 
-            // Auto-join live class for students
+            // Auto-join live class for students and guests
             function joinLiveClass() {
-                if (!isLiveClass || hasJoinedLiveClass || '<?php echo $role; ?>' !== 'student') return;
+                if (!isLiveClass || hasJoinedLiveClass) return;
                 
-                if (liveClassStatus === 'ongoing' || liveClassStatus === 'scheduled') {
+                // For registered students
+                if ('<?php echo $role; ?>' === 'student' && (liveClassStatus === 'ongoing' || liveClassStatus === 'scheduled')) {
                     const formData = new FormData();
                     formData.append('recording_id', recordingId);
 
@@ -4225,12 +4226,35 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                     .catch(error => {
                         console.error('Error joining live class:', error);
                     });
+                } 
+                // For Guests
+                else if ('<?php echo $role; ?>' === '' && '<?php echo $_SESSION['guest_name'] ?? ''; ?>' !== '' && (liveClassStatus === 'ongoing' || liveClassStatus === 'scheduled')) {
+                    const formData = new FormData();
+                    formData.append('recording_id', recordingId);
+
+                    fetch('join_live_class_guest.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            hasJoinedLiveClass = true;
+                            if (!data.already_joined) {
+                                showToast('Joined live class as guest', 'success');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error joining live class as guest:', error);
+                    });
                 }
             }
 
             // Leave live class when page unloads
             function leaveLiveClass() {
-                if (!isLiveClass || !hasJoinedLiveClass || '<?php echo $role; ?>' !== 'student') return;
+                if (!isLiveClass || !hasJoinedLiveClass) return;
+                if ('<?php echo $role; ?>' !== 'student' && '<?php echo $role; ?>' !== '') return;
                 
                 if (liveClassStatus === 'ongoing') {
                     const formData = new FormData();
@@ -4243,8 +4267,8 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
 
             // Initialize live class features
             if (isLiveClass) {
-                // Auto-join for students
-                if ('<?php echo $role; ?>' === 'student') {
+                // Auto-join for students and guests
+                if ('<?php echo $role; ?>' === 'student' || ('<?php echo $role; ?>' === '' && '<?php echo $_SESSION['guest_name'] ?? ''; ?>' !== '')) {
                     setTimeout(joinLiveClass, 1000); // Delay to ensure page is loaded
                 }
 

@@ -134,7 +134,7 @@ if ($is_logged_in && $role === 'student') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - LMS</title>
+    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -159,26 +159,23 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class=" max-w-8xl mx-auto pt-4 pb-12 sm:px-6 lg:px-12">
+    <div class="w-full pt-4 pb-12 px-1">
         <?php if (!$is_logged_in): ?>
             <!-- Login Section for Guests -->
             <!-- Hero Section with Slideshow and Login - 50/50 Split -->
-            <div class="md:mx-14 mx-4 grid grid-cols-1 lg:grid-cols-6 gap-6 mb-12 ">
-                <!-- Left Side: Image Slideshow -->
-                <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden relative h-[300px] lg:h-[600px] lg:col-span-4 group ">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 mb-1">
+                <!-- Left Side: Image -->
+                <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden relative h-[350px] lg:h-[700px] lg:col-span-8 group">
                     <div class="absolute inset-0">
                         <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" 
                              alt="Education" 
                              class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700">
                     </div>
-                    <div class="absolute inset-0 bg-gradient-to-t from-gray-900/90 via-gray-900/40 to-transparent flex flex-col justify-end p-8 lg:p-10">
-                        
-                    </div>
                 </div>
 
                 <!-- Right Side: Login Form -->
-                <div id="login-section" class="lg:h-[600px] lg:col-span-2">
-                    <div class="bg-white rounded-2xl shadow-xl px-5 py-6 lg:px-6 lg:py-8 h-full flex flex-col justify-between border border-gray-100 mb-4 lg:mb-0">
+                <div id="login-section" class="lg:h-[700px] lg:col-span-4">
+                    <div class="bg-white rounded-2xl shadow-xl px-5 py-6 lg:px-8 lg:py-10 h-full flex flex-col justify-between border border-gray-100">
                         <!-- Header Section -->
                         <div class="text-center">
                             <div class="mb-4">
@@ -190,6 +187,7 @@ if ($is_logged_in && $role === 'student') {
                             </p>
                             <p class="mt-2 pt-2 text-gray-500 font-semibold text-[10px] lg:text-[11px] border-t border-gray-100">
                                 අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක ක්ලික් කරන්න.
+                            </p>
                         </div>
                         
                         <!-- Messages -->
@@ -258,7 +256,6 @@ if ($is_logged_in && $role === 'student') {
                                     <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
                                 </a>
                             </p>
-                           
                         </div>
                     </div>
                 </div>
@@ -274,18 +271,19 @@ if ($is_logged_in && $role === 'student') {
             </div>
         <?php endif; ?>
         <!-- Bento Grid Gallery Section -->
-        <section class="mt-4 mb-20 px-2 sm:px-4">
+        <section class="mb-4">
             <?php 
             $gallery_images = ['banner1.jpeg', 'banner2.jpeg', 'banner3.jpeg', 'banner4.jpeg', 'banner5.jpeg', 
                               'banner6.jpeg', 'banner7.jpeg', 'banner8.jpeg', 'banner9.jpeg', 'banner10.jpeg',
                               'banner11.jpeg', 'banner12.jpeg'];
+            shuffle($gallery_images);
             $chunks = array_chunk($gallery_images, 5); // Split into groups of 5 for the pattern (1 large + 4 small)
             ?>
             
             <div class="space-y-3">
                 <?php foreach ($chunks as $chunkIndex => $chunk): ?>
                 <!-- Bento Block -->
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-2 mx-4">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-1">
                     <!-- Left: Large vertical image (spanning 6 columns) -->
                     <?php if (isset($chunk[0])): ?>
                     <div class="md:col-span-6 h-[350px] md:h-[700px] overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
@@ -298,9 +296,9 @@ if ($is_logged_in && $role === 'student') {
                     <?php endif; ?>
                     
                     <!-- Right: Grid of smaller images (spanning 6 columns) -->
-                    <div class="md:col-span-6 grid grid-rows-2 gap-4 h-[400px] md:h-[700px]">
+                    <div class="md:col-span-6 grid grid-rows-2 gap-1 h-[400px] md:h-[700px]">
                         <!-- Top row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-1">
                             <?php if (isset($chunk[1])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
                                  onclick="openImageModal('assests/<?php echo $chunk[1]; ?>')">
@@ -322,7 +320,7 @@ if ($is_logged_in && $role === 'student') {
                             <?php endif; ?>
                         </div>
                         <!-- Bottom row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-1">
                             <?php if (isset($chunk[3])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
                                  onclick="openImageModal('assests/<?php echo $chunk[3]; ?>')">
@@ -507,7 +505,7 @@ if ($is_logged_in && $role === 'student') {
         <!-- Courses Section -->
         <div class="px-4 mb-12">
             <h2 class="text-3xl font-bold text-black p-4 rounded-xl text-center ">
-                අපගේ පාඨමාලා
+                අපගේ බාහිර පාඨමාලා
             </h2>
              <div class="h-1 w-24 bg-red-600 mx-auto rounded-full mb-12"></div>
             <?php if (empty($courses)): ?>

@@ -99,6 +99,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_students'])) {
                     $check_ta->close();
                 }
 
+                // --- WhatsApp Notification Logic ---
+                if ($success_count > 0 && file_exists('../whatsapp_config.php')) {
+                    require_once '../whatsapp_config.php';
+                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                        // Fetch Subject and Teacher Details
+                        $subj_res = $conn->query("SELECT s.name as subject_name FROM stream_subjects ss JOIN subjects s ON ss.subject_id = s.id WHERE ss.id = $ss_id");
+                        $subj_row = $subj_res->fetch_assoc();
+                        $subject_name = $subj_row['subject_name'] ?? 'Unknown Subject';
+
+                        $tchr_res = $conn->prepare("SELECT first_name, second_name FROM users WHERE user_id = ?");
+                        $tchr_res->bind_param("s", $teacher_id);
+                        $tchr_res->execute();
+                        $tchr_row = $tchr_res->get_result()->fetch_assoc();
+                        $teacher_name = trim(($tchr_row['first_name'] ?? '') . ' ' . ($tchr_row['second_name'] ?? ''));
+                        $tchr_res->close();
+
+                        // Fetch Student details and send messages
+                        $student_ids_str = "'" . implode("','", $selected_students) . "'";
+                        $stu_res = $conn->query("SELECT first_name, whatsapp_number, mobile_number FROM users WHERE user_id IN ($student_ids_str)");
+                        
+                        while ($stu_row = $stu_res->fetch_assoc()) {
+                            $to_num = !empty($stu_row['whatsapp_number']) ? $stu_row['whatsapp_number'] : $stu_row['mobile_number'];
+                            if (!empty($to_num)) {
+                                $msg = "🎓 *Enrollment Update*\n\n" .
+                                       "Hello " . $stu_row['first_name'] . ",\n" .
+                                       "You have been successfully enrolled in the following subject:\n\n" .
+                                       "Subject: *{$subject_name}*\n" .
+                                       "Academic Year: *{$target_year}*\n" .
+                                       "Teacher: *{$teacher_name}*\n\n" .
+                                       "--------------------------\n\n" .
+                                       "ඔබව සාර්ථකව *{$target_year}* වසරේ *{$teacher_name}* විසින් මෙහෙයවනු ලබන *{$subject_name}* පන්තිය සඳහා ලියාපදිංචි කරන ලදී.\n\n" .
+                                       "Best of luck! - LearnerX Team";
+                                sendWhatsAppMessage($to_num, $msg);
+                            }
+                        }
+                    }
+                }
+                // --- End WhatsApp Notification Logic ---
+
                 $success_msg = "Successfully enrolled $success_count students and assigned teacher to the new class.";
             }
         }

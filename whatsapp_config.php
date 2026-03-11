@@ -61,7 +61,7 @@ if (!function_exists('sendWhatsAppMessage')) {
         error_log("Attempting to send WhatsApp message to: " . $mobile);
         
         // Append global footer
-        $message .= "\n\n| LernerrLK 🇱🇰\n| Best Place to Your Online Learning";
+        $message .= "\n\n| Lernerr.LK 🇱🇰\n| Best Place to Your Online Learning";
         
         
         if (!WHATSAPP_ENABLED) {

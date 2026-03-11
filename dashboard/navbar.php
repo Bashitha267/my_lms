@@ -46,7 +46,7 @@ $root_url = $is_in_dashboard ? '../' : '';
             <!-- Logo/Brand - Left Side -->
             <div class="flex items-center flex-shrink-0">
                 <a href="<?php echo $root_url; ?>index.php" class="text-white text-base sm:text-lg font-bold hover:text-red-200 transition-colors tracking-wide">
-                    LearnerX
+                    Lernerr.LK
                 </a>
             </div>
             
@@ -96,6 +96,13 @@ $root_url = $is_in_dashboard ? '../' : '';
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="<?php echo $base_url; ?>profile.php" 
+                           class="<?php echo ($current_page == 'profile.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
+                            PROFILE
+                        </a>
+                        <div class="sinhala-tooltip">මගේ ගිණුම</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>online_courses.php" 
@@ -161,6 +168,13 @@ $root_url = $is_in_dashboard ? '../' : '';
                             HOME
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
+                    </div>
+                    <div class="nav-item-with-tooltip">
+                        <a href="<?php echo $base_url; ?>profile.php" 
+                           class="<?php echo ($current_page == 'profile.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-2 xl:px-3 py-2 rounded-md text-[9px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out">
+                            PROFILE
+                        </a>
+                        <div class="sinhala-tooltip">මගේ ගිණුම</div>
                     </div>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>online_courses.php" 
@@ -263,14 +277,14 @@ $root_url = $is_in_dashboard ? '../' : '';
                             
                              <!-- Full Name -->
                             <div class="nav-item-with-tooltip">
-                                <button onclick="openProfileModal()" class="flex items-center space-x-2 focus:outline-none group">
+                                <a href="<?php echo $base_url; ?>profile.php" class="flex items-center space-x-2 focus:outline-none group">
                                     <span class="text-white text-xs xl:text-sm font-medium truncate max-w-[150px] xl:max-w-[200px] group-hover:text-red-200 transition-colors">
                                         <?php echo htmlspecialchars($full_name); ?>
                                     </span>
                                     <svg class="w-4 h-4 text-white group-hover:text-red-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
-                                </button>
+                                </a>
                                 <div class="sinhala-tooltip">මගේ ගිණුම</div>
                             </div>
                             
@@ -314,14 +328,14 @@ $root_url = $is_in_dashboard ? '../' : '';
                         </div>
                         
                          <!-- Full Name (Mobile) -->
-                        <button onclick="openProfileModal()" class="flex items-center space-x-1 focus:outline-none">
+                        <a href="<?php echo $base_url; ?>profile.php" class="flex items-center space-x-1 focus:outline-none">
                             <span class="text-white text-xs sm:text-sm font-medium truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[120px]">
                                 <?php echo htmlspecialchars($full_name); ?>
                             </span>
                             <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
-                        </button>
+                        </a>
                     <?php endif; ?>
                     
                     <!-- Mobile Menu Toggle Button -->
@@ -380,6 +394,11 @@ $root_url = $is_in_dashboard ? '../' : '';
                    class="mobile-menu-link <?php echo ($current_page == 'dashboard.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
                     <span>HOME</span>
                     <span class="text-[10px] text-red-100/70 font-normal">මුල් පිටුව</span>
+                </a>
+                <a href="<?php echo $base_url; ?>profile.php" 
+                   class="mobile-menu-link <?php echo ($current_page == 'profile.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
+                    <span>PROFILE</span>
+                    <span class="text-[10px] text-red-100/70 font-normal">මගේ ගිණුම</span>
                 </a>
                 <a href="<?php echo $base_url; ?>online_courses.php" 
                    class="mobile-menu-link <?php echo ($current_page == 'online_courses.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">

@@ -387,7 +387,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Registration</title>
+    <title>Registration - Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -893,18 +893,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     </div>
                     <!-- End of Verification Section -->
 
-                    <!-- Terms and Conditions Section -->
-                    <div class="border-t pt-6 mt-6">
-                        <div class="flex items-start space-x-3">
-                            <input type="checkbox" id="terms_checkbox" name="terms_accepted" value="1"
-                                   class="h-5 w-5 text-red-600 focus:ring-red-500 border-gray-300 rounded mt-0.5 cursor-pointer"
-                                   onclick="openTermsModal()">
-                            <label for="terms_checkbox" class="text-sm text-gray-700 cursor-pointer">
-                                I have read and agree to the <span class="text-red-600 font-medium hover:underline cursor-pointer" onclick="openTermsModal()">Terms and Conditions</span> *
-                            </label>
-                        </div>
-                        <input type="hidden" id="terms_accepted" name="terms_accepted_confirmed" value="0">
-                    </div>
+
 
                     <!-- Submit Button (Always Visible) - Direct child of form, NOT inside verificationSection -->
                     <div id="submitButtonContainer" class="flex justify-end space-x-3 pt-4 border-t mt-6">
@@ -928,73 +917,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         </div>
     </div>
 
-    <!-- Terms and Conditions Modal -->
-    <div id="termsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-            <!-- Modal Header -->
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-2xl font-bold text-gray-900">Terms and Conditions</h2>
-                <button type="button" onclick="closeTermsModal()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
 
-            <!-- Modal Body (Scrollable) -->
-            <div class="px-6 py-4 overflow-y-auto flex-1">
-                <div class="prose prose-sm max-w-none">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h3>
-                    <p class="text-gray-700 mb-4">By registering for and using this Learning Management System (LMS), you agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not register or use our services.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">2. User Registration</h3>
-                    <p class="text-gray-700 mb-4">You must provide accurate, current, and complete information during the registration process. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">3. User Conduct</h3>
-                    <p class="text-gray-700 mb-4">Users agree to use the LMS only for lawful purposes and in accordance with these Terms. You shall not:</p>
-                    <ul class="list-disc pl-6 mb-4 text-gray-700">
-                        <li>Upload or distribute any content that is illegal, harmful, or violates any rights of others</li>
-                        <li>Attempt to gain unauthorized access to the system or other users' accounts</li>
-                        <li>Interfere with or disrupt the operation of the LMS</li>
-                        <li>Share your login credentials with others</li>
-                    </ul>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">4. Privacy and Data Protection</h3>
-                    <p class="text-gray-700 mb-4">We are committed to protecting your privacy. Your personal information will be collected, stored, and processed in accordance with applicable data protection laws. By registering, you consent to the collection and use of your information as described in our Privacy Policy.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">5. Intellectual Property</h3>
-                    <p class="text-gray-700 mb-4">All content, materials, and resources available through the LMS are the property of the institution or its licensors and are protected by copyright and other intellectual property laws. You may not reproduce, distribute, or create derivative works without explicit permission.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">6. Course Enrollment and Payments</h3>
-                    <p class="text-gray-700 mb-4">Enrollment in courses may be subject to approval and payment of applicable fees. Refund policies, if any, will be communicated separately. Failure to pay fees may result in suspension or termination of access to the LMS.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">7. Account Termination</h3>
-                    <p class="text-gray-700 mb-4">We reserve the right to suspend or terminate your account at any time for violation of these Terms or for any other reason deemed necessary to protect the integrity of the LMS.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">8. Limitation of Liability</h3>
-                    <p class="text-gray-700 mb-4">The LMS is provided "as is" without warranties of any kind. We shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the system.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">9. Changes to Terms</h3>
-                    <p class="text-gray-700 mb-4">We reserve the right to modify these Terms at any time. Continued use of the LMS after changes constitutes acceptance of the modified Terms.</p>
-
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">10. Contact Information</h3>
-                    <p class="text-gray-700 mb-4">For questions or concerns about these Terms, please contact our support team.</p>
-
-                    <p class="text-sm text-gray-600 mt-6 italic">Last updated: <?php echo date('F d, Y'); ?></p>
-                </div>
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-                <button type="button" onclick="rejectTerms()" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 font-medium">
-                    Reject
-                </button>
-                <button type="button" onclick="acceptTerms()" class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">
-                    Accept
-                </button>
-            </div>
-        </div>
-    </div>
 
     <script>
         // Toggle role-based fields (student only now)
@@ -1836,74 +1759,9 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 return false;
             }
             
-            // Check if terms are accepted
-            const termsAccepted = document.getElementById('terms_accepted').value === '1';
-            if (!termsAccepted) {
-                e.preventDefault();
-                showToast('Please read and accept the Terms and Conditions to continue.', 'error');
-                return false;
-            }
         });
 
-        // Terms and Conditions Modal Functions
-        function openTermsModal() {
-            const modal = document.getElementById('termsModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                // Prevent body scroll when modal is open
-                document.body.style.overflow = 'hidden';
-            }
-        }
 
-        function closeTermsModal() {
-            const modal = document.getElementById('termsModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                // Restore body scroll
-                document.body.style.overflow = 'auto';
-            }
-        }
-
-        function acceptTerms() {
-            const checkbox = document.getElementById('terms_checkbox');
-            const hiddenInput = document.getElementById('terms_accepted');
-            
-            if (checkbox && hiddenInput) {
-                checkbox.checked = true;
-                hiddenInput.value = '1';
-                showToast('Thank you for accepting our Terms and Conditions!', 'success');
-            }
-            
-            closeTermsModal();
-        }
-
-        function rejectTerms() {
-            const checkbox = document.getElementById('terms_checkbox');
-            const hiddenInput = document.getElementById('terms_accepted');
-            
-            if (checkbox && hiddenInput) {
-                checkbox.checked = false;
-                hiddenInput.value = '0';
-                showToast('You must accept the Terms and Conditions to register.', 'warning');
-            }
-            
-            closeTermsModal();
-        }
-
-        // Close modal when clicking outside of it
-        document.getElementById('termsModal')?.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeTermsModal();
-            }
-        });
-
-        // Prevent checkbox from toggling without reading terms
-        document.getElementById('terms_checkbox')?.addEventListener('change', function(e) {
-            if (this.checked) {
-                // Uncheck it first, modal will handle the checking
-                this.checked = false;
-            }
-        });
 
         // District Handling
         const districts = <?php echo json_encode($districts); ?>;

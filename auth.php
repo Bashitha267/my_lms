@@ -125,10 +125,10 @@ if (isset($_POST['login'])) {
                         header("Location: admin/dashboard.php");
                         break;
                     case 'teacher':
-                        header("Location: dashboard/recordings.php");
+                        header("Location: dashboard/profile.php");
                         break;
                     case 'student':
-                        header("Location: dashboard/recordings.php");
+                        header("Location: dashboard/profile.php");
                         break;
                     case 'instructor':
                         header("Location: /lms/instructor/dashboard.php");
