@@ -1,6 +1,7 @@
 <?php
 require_once '../check_session.php';
 require_once '../config.php';
+require_once '../whatsapp_config.php';
 
 // Verify user is admin
 if ($_SESSION['role'] !== 'admin') {
@@ -8,50 +9,65 @@ if ($_SESSION['role'] !== 'admin') {
     exit();
 }
 
-$page_title = "Manage Publications";
+$active_tab = $_GET['tab'] ?? 'orders';
 $success_message = '';
 $error_message = '';
 
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// --- TAB 1: ORDER MANAGEMENT LOGIC ---
+if ($active_tab === 'orders' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
+    $order_id = intval($_POST['order_id']);
+    $new_status = $_POST['status'];
+    $valid_statuses = ['pending', 'preparing', 'hand_order_to_delivery', 'canceled'];
+    
+    if (in_array($new_status, $valid_statuses)) {
+        $stmt = $conn->prepare("SELECT name, contact_number, status FROM publication_orders WHERE id = ?");
+        $stmt->bind_param("i", $order_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($order = $res->fetch_assoc()) {
+            if ($order['status'] !== $new_status) {
+                $update_stmt = $conn->prepare("UPDATE publication_orders SET status = ? WHERE id = ?");
+                $update_stmt->bind_param("si", $new_status, $order_id);
+                if ($update_stmt->execute()) {
+                    $success_message = "Order #{$order_id} status updated.";
+                    // WhatsApp
+                    $status_messages = [
+                        'pending' => "Your order is pending.",
+                        'preparing' => "We are preparing your order.",
+                        'hand_order_to_delivery' => "Your order is on the way!",
+                        'canceled' => "Your order has been canceled."
+                    ];
+                    $msg = "Hello {$order['name']},\n\n🛒 *Order Update*\nOrder ID: $order_id\n\n" . ($status_messages[$new_status] ?? "Status: $new_status") . "\n\n- LearnerX";
+                    sendWhatsAppMessage($order['contact_number'], $msg);
+                }
+            } else {
+                $error_message = "Already in this status.";
+            }
+        }
+    }
+}
+
+// --- TAB 2: PUBLICATION MANAGEMENT LOGIC ---
+if ($active_tab === 'publications' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // Add Category
     if (isset($_POST['add_category'])) {
         $category_name = trim($_POST['category_name']);
         if (!empty($category_name)) {
             $stmt = $conn->prepare("INSERT INTO publication_categories (name) VALUES (?)");
             $stmt->bind_param("s", $category_name);
-            if ($stmt->execute()) {
-                $success_message = "Category added successfully.";
-            } else {
-                $error_message = "Error adding category: " . $conn->error;
-            }
+            if ($stmt->execute()) $success_message = "Category added.";
+            else $error_message = "Error: " . $conn->error;
             $stmt->close();
-        } else {
-            $error_message = "Category name is required.";
         }
     }
     // Delete Category
     elseif (isset($_POST['delete_category'])) {
         $category_id = intval($_POST['category_id']);
-        
-        // Check if publications exist in this category
-        $check_stmt = $conn->prepare("SELECT COUNT(*) FROM publications WHERE category_id = ?");
-        $check_stmt->bind_param("i", $category_id);
-        $check_stmt->execute();
-        $count = $check_stmt->get_result()->fetch_row()[0];
-        $check_stmt->close();
-        
-        if ($count > 0) {
-             $error_message = "Cannot delete category containing publications. Please delete the publications first.";
-        } else {
-            $stmt = $conn->prepare("DELETE FROM publication_categories WHERE id = ?");
-            $stmt->bind_param("i", $category_id);
-            if ($stmt->execute()) {
-                $success_message = "Category deleted successfully.";
-            } else {
-                $error_message = "Error deleting category: " . $conn->error;
-            }
-            $stmt->close();
+        $check = $conn->query("SELECT COUNT(*) FROM publications WHERE category_id = $category_id")->fetch_row()[0];
+        if ($check > 0) $error_message = "Category not empty.";
+        else {
+            $conn->query("DELETE FROM publication_categories WHERE id = $category_id");
+            $success_message = "Category deleted.";
         }
     }
     // Add Publication
@@ -62,83 +78,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $price = floatval($_POST['price']);
         $discount = floatval($_POST['discount']);
         
-        // Handle file upload
         $image_path = '';
         if (isset($_FILES['publication_image']) && $_FILES['publication_image']['error'] == 0) {
             $upload_dir = '../uploads/publications/';
-            if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0777, true);
-            }
-            
-            $file_extension = strtolower(pathinfo($_FILES['publication_image']['name'], PATHINFO_EXTENSION));
-            $allowed_extensions = array('jpg', 'jpeg', 'png', 'webp');
-            
-            if (in_array($file_extension, $allowed_extensions)) {
-                $unique_filename = uniqid('pub_') . '.' . $file_extension;
-                $target_file = $upload_dir . $unique_filename;
-                
-                if (move_uploaded_file($_FILES['publication_image']['tmp_name'], $target_file)) {
-                    $image_path = 'uploads/publications/' . $unique_filename;
-                } else {
-                    $error_message = "Failed to upload image.";
+            if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+            $ext = strtolower(pathinfo($_FILES['publication_image']['name'], PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                $filename = uniqid('pub_') . '.' . $ext;
+                if (move_uploaded_file($_FILES['publication_image']['tmp_name'], $upload_dir . $filename)) {
+                    $image_path = 'uploads/publications/' . $filename;
                 }
-            } else {
-                $error_message = "Invalid image format. Allowed formats: JPG, JPEG, PNG, WEBP.";
             }
         }
         
-        if (empty($error_message)) {
-            $stmt = $conn->prepare("INSERT INTO publications (category_id, title, description, price, discount, image_path) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("issdds", $category_id, $title, $description, $price, $discount, $image_path);
-            
-            if ($stmt->execute()) {
-                $success_message = "Publication added successfully.";
-            } else {
-                $error_message = "Error adding publication: " . $conn->error;
-            }
-            $stmt->close();
-        }
+        $stmt = $conn->prepare("INSERT INTO publications (category_id, title, description, price, discount, image_path) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("issdds", $category_id, $title, $description, $price, $discount, $image_path);
+        if ($stmt->execute()) $success_message = "Publication added.";
+        else $error_message = "Error: " . $conn->error;
+        $stmt->close();
     }
     // Delete Publication
     elseif (isset($_POST['delete_publication'])) {
-        $publication_id = intval($_POST['publication_id']);
-        
-        // Get image path to delete file
-        $stmt = $conn->prepare("SELECT image_path FROM publications WHERE id = ?");
-        $stmt->bind_param("i", $publication_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($row = $result->fetch_assoc()) {
-            $image_path = $row['image_path'];
-            if (!empty($image_path) && file_exists('../' . $image_path)) {
-                unlink('../' . $image_path);
-            }
-        }
-        $stmt->close();
-        
-        // Delete record
-        $stmt = $conn->prepare("DELETE FROM publications WHERE id = ?");
-        $stmt->bind_param("i", $publication_id);
-        if ($stmt->execute()) {
-            $success_message = "Publication deleted successfully.";
-        } else {
-            $error_message = "Error deleting publication: " . $conn->error;
-        }
-        $stmt->close();
+        $pid = intval($_POST['publication_id']);
+        $res = $conn->query("SELECT image_path FROM publications WHERE id = $pid")->fetch_assoc();
+        if ($res && !empty($res['image_path']) && file_exists('../' . $res['image_path'])) unlink('../' . $res['image_path']);
+        $conn->query("DELETE FROM publications WHERE id = $pid");
+        $success_message = "Publication deleted.";
     }
 }
 
-// Fetch Categories
-$categories = $conn->query("SELECT * FROM publication_categories ORDER BY name")->fetch_all(MYSQLI_ASSOC);
+// Fetch Orders (Tab 1)
+$orders = [];
+if ($active_tab === 'orders') {
+    $q = "SELECT o.*, 
+          (SELECT SUM(price_at_order * quantity) FROM publication_order_items WHERE order_id = o.id) as total_amount,
+          (SELECT GROUP_CONCAT(CONCAT(p.title, ' (x', poi.quantity, ')') SEPARATOR ', ') 
+           FROM publication_order_items poi 
+           JOIN publications p ON poi.publication_id = p.id 
+           WHERE poi.order_id = o.id) as items_summary
+          FROM publication_orders o ORDER BY o.created_at DESC";
+    $orders = $conn->query($q)->fetch_all(MYSQLI_ASSOC);
+}
 
-// Fetch Publications
-$publications_query = "
-    SELECT p.*, c.name as category_name 
-    FROM publications p 
-    LEFT JOIN publication_categories c ON p.category_id = c.id 
-    ORDER BY p.created_at DESC
-";
-$publications = $conn->query($publications_query)->fetch_all(MYSQLI_ASSOC);
+// Fetch Publications (Tab 2)
+$categories = $conn->query("SELECT * FROM publication_categories ORDER BY name")->fetch_all(MYSQLI_ASSOC);
+$publications = [];
+if ($active_tab === 'publications') {
+    $q = "SELECT p.*, c.name as category_name FROM publications p LEFT JOIN publication_categories c ON p.category_id = c.id ORDER BY p.created_at DESC";
+    $publications = $conn->query($q)->fetch_all(MYSQLI_ASSOC);
+}
 
 ?>
 <!DOCTYPE html>
@@ -146,164 +134,201 @@ $publications = $conn->query($publications_query)->fetch_all(MYSQLI_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Publications - Admin</title>
+    <title>Publications & Orders | Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100">
-    
+<body class="bg-slate-50 min-h-screen">
     <?php include 'header.php'; ?>
 
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        
-        <div class="px-4 py-6 sm:px-0">
-             <div class="flex items-center justify-between mb-6">
-                <h1 class="text-2xl font-bold text-gray-900">Manage Publications</h1>
+    <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="mb-8">
+            <h1 class="text-3xl font-black text-slate-900 tracking-tight">Publications & Orders</h1>
+            <p class="text-slate-500 font-medium">Manage book orders and store inventory.</p>
+        </div>
+
+        <?php if ($success_message): ?>
+            <div class="mb-6 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 p-4 rounded-xl flex items-center justify-between">
+                <div class="flex items-center"><i class="fas fa-check-circle mr-3"></i><span class="font-bold"><?php echo $success_message; ?></span></div>
+                <button onclick="this.parentElement.remove()" class="text-emerald-500 hover:text-emerald-700"><i class="fas fa-times"></i></button>
             </div>
+        <?php endif; ?>
 
-            <?php if ($success_message): ?>
-                <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded"><?php echo $success_message; ?></div>
-            <?php endif; ?>
-            <?php if ($error_message): ?>
-                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded"><?php echo $error_message; ?></div>
-            <?php endif; ?>
+        <!-- Tabs -->
+        <div class="flex space-x-2 mb-8 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 inline-flex">
+            <a href="?tab=orders" class="px-6 py-2.5 rounded-xl font-bold transition-all <?php echo $active_tab === 'orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'; ?>">
+                Manage Orders
+            </a>
+            <a href="?tab=publications" class="px-6 py-2.5 rounded-xl font-bold transition-all <?php echo $active_tab === 'publications' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'; ?>">
+                Inventory & Add New
+            </a>
+        </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                
-                <!-- Category Management Block -->
-                <div class="bg-white p-6 rounded-lg shadow-md h-fit">
-                    <h2 class="text-lg font-bold mb-4 border-b pb-2">Add Category</h2>
-                    <form method="POST" action="">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
-                            <input type="text" name="category_name" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                        </div>
-                        <button type="submit" name="add_category" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition">Add Category</button>
-                    </form>
-
-                    <div class="mt-8">
-                        <h2 class="text-lg font-bold mb-4 border-b pb-2">Existing Categories</h2>
-                        <ul class="divide-y divide-gray-200 border rounded-md max-h-60 overflow-y-auto">
-                            <?php foreach ($categories as $cat): ?>
-                            <li class="p-3 flex justify-between items-center hover:bg-gray-50">
-                                <span class="text-sm font-medium text-gray-900"><?php echo htmlspecialchars($cat['name']); ?></span>
-                                <form method="POST" action="" onsubmit="return confirm('Delete this category?');" class="inline">
-                                    <input type="hidden" name="category_id" value="<?php echo $cat['id']; ?>">
-                                    <button type="submit" name="delete_category" class="text-red-600 hover:text-red-900 ml-2">
-                                        <i class="fas fa-trash text-sm"></i>
-                                    </button>
-                                </form>
-                            </li>
-                            <?php endforeach; ?>
-                            <?php if (empty($categories)): ?>
-                            <li class="p-4 text-sm text-gray-500 text-center">No categories found.</li>
-                            <?php endif; ?>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Add Publication Form -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md h-fit">
-                    <h2 class="text-lg font-bold mb-4 border-b pb-2">Add New Publication</h2>
-                    <form method="POST" action="" enctype="multipart/form-data">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                                <input type="text" name="title" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                <select name="category_id" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                                    <option value="">-- Choose Category --</option>
-                                    <?php foreach ($categories as $cat): ?>
-                                        <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="mb-4 md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                <textarea name="description" rows="3" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"></textarea>
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Price (LKR)</label>
-                                <input type="number" step="0.01" min="0" name="price" required class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Discount amount (LKR)</label>
-                                <input type="number" step="0.01" min="0" value="0" name="discount" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                            </div>
-                            <div class="mb-4 md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Publication Image</label>
-                                <input type="file" name="publication_image" accept="image/jpeg, image/png, image/webp" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border">
-                            </div>
-                        </div>
-                        <button type="submit" name="add_publication" class="w-full mt-4 bg-green-600 text-white py-2 rounded-md hover:bg-green-700 transition">Publish</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Publications List -->
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h2 class="text-lg font-bold mb-4 border-b pb-2">All Publications</h2>
-                
+        <?php if ($active_tab === 'orders'): ?>
+            <!-- TAB: ORDERS -->
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full divide-y divide-slate-100">
+                        <thead class="bg-slate-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title & Category</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pricing</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Details</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Items & Total</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment</th>
+                                <th class="px-6 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status Action</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <?php foreach ($publications as $pub): ?>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <?php if (!empty($pub['image_path'])): ?>
-                                        <img src="../<?php echo htmlspecialchars($pub['image_path']); ?>" alt="Cover" class="w-16 h-20 object-cover rounded shadow-sm border">
-                                    <?php else: ?>
-                                        <div class="w-16 h-20 flex items-center justify-center bg-gray-100 rounded shadow-sm border">
-                                            <i class="fas fa-book text-gray-400"></i>
-                                        </div>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php foreach ($orders as $order): ?>
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="font-black text-slate-900 leading-tight">#<?php echo $order['id']; ?> - <?php echo htmlspecialchars($order['name']); ?></div>
+                                    <div class="text-xs text-slate-400 font-bold mt-1 tracking-tighter"><?php echo $order['contact_number']; ?> | <?php echo $order['district']; ?></div>
+                                    <div class="text-[10px] text-slate-300 mt-1"><?php echo date('M d, Y h:i A', strtotime($order['created_at'])); ?></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-xs text-slate-600 font-medium mb-1 w-48 truncate" title="<?php echo htmlspecialchars($order['items_summary']); ?>"><?php echo htmlspecialchars($order['items_summary']); ?></div>
+                                    <div class="text-sm font-black text-blue-600">LKR <?php echo number_format($order['total_amount'], 2); ?></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="text-xs font-bold text-slate-700 uppercase"><?php echo str_replace('_', ' ', $order['payment_method']); ?></span>
+                                    <?php if ($order['bank_receipt_path']): ?>
+                                        <a href="../<?php echo $order['bank_receipt_path']; ?>" target="_blank" class="block text-[10px] text-blue-500 font-bold hover:underline mt-1">View Receipt</a>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="text-sm font-bold text-gray-900"><?php echo htmlspecialchars($pub['title']); ?></div>
-                                    <div class="text-xs text-blue-600 mt-1"><i class="fas fa-tag mr-1"></i> <?php echo htmlspecialchars($pub['category_name']); ?></div>
-                                    <?php if (!empty($pub['description'])): ?>
-                                        <div class="text-xs text-gray-500 mt-1 truncate w-48"><?php echo htmlspecialchars($pub['description']); ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <?php if ($pub['discount'] > 0): ?>
-                                        <div class="text-sm font-bold text-green-600">LKR <?php echo number_format($pub['price'] - $pub['discount'], 2); ?></div>
-                                        <div class="text-xs text-gray-500 line-through">LKR <?php echo number_format($pub['price'], 2); ?></div>
-                                    <?php else: ?>
-                                        <div class="text-sm font-bold text-gray-900">LKR <?php echo number_format($pub['price'], 2); ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                    <form method="POST" action="" onsubmit="return confirm('Are you sure you want to delete this publication?');" class="inline">
-                                        <input type="hidden" name="publication_id" value="<?php echo $pub['id']; ?>">
-                                        <button type="submit" name="delete_publication" class="text-red-600 hover:text-red-900 bg-red-50 p-2 rounded-full hover:bg-red-100">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                    <form method="POST" class="flex flex-col items-center gap-2">
+                                        <input type="hidden" name="order_id" value="<?php echo $order['id']; ?>">
+                                        <?php 
+                                            $s = $order['status'];
+                                            $clr = 'bg-slate-100 text-slate-600';
+                                            if ($s == 'pending') $clr = 'bg-amber-100 text-amber-600';
+                                            if ($s == 'preparing') $clr = 'bg-blue-100 text-blue-600';
+                                            if ($s == 'hand_order_to_delivery') $clr = 'bg-emerald-100 text-emerald-600';
+                                            if ($s == 'canceled') $clr = 'bg-red-100 text-red-600';
+                                        ?>
+                                        <select name="status" class="text-xs font-black rounded-xl border-2 border-slate-100 p-2 <?php echo $clr; ?> focus:border-blue-500 focus:ring-0">
+                                            <option value="pending" <?php echo $s == 'pending' ? 'selected' : ''; ?>>Pending</option>
+                                            <option value="preparing" <?php echo $s == 'preparing' ? 'selected' : ''; ?>>Preparing</option>
+                                            <option value="hand_order_to_delivery" <?php echo $s == 'hand_order_to_delivery' ? 'selected' : ''; ?>>On Delivery</option>
+                                            <option value="canceled" <?php echo $s == 'canceled' ? 'selected' : ''; ?>>Canceled</option>
+                                        </select>
+                                        <button name="update_status" type="submit" class="bg-slate-900 text-white text-[10px] px-3 py-1.5 rounded-lg font-black hover:bg-slate-800 transition shadow-lg">Update</button>
                                     </form>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
-                            <?php if (empty($publications)): ?>
-                            <tr>
-                                <td colspan="4" class="px-6 py-8 text-center text-gray-500 font-medium">No publications added yet.</td>
-                            </tr>
-                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-        </div>
+        <?php else: ?>
+            <!-- TAB: PUBLICATIONS -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Add Publication -->
+                <div class="lg:col-span-2 space-y-8">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                        <h2 class="text-xl font-black text-slate-900 mb-6 flex items-center">
+                            <i class="fas fa-plus-circle mr-3 text-blue-600"></i>Add New Publication
+                        </h2>
+                        <form method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Title</label>
+                                <input type="text" name="title" required class="w-full px-4 py-3 rounded-2xl border-2 border-slate-50 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-bold transition-all" placeholder="Enter book title">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Category</label>
+                                <select name="category_id" required class="w-full px-4 py-3 rounded-2xl border-2 border-slate-50 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-bold transition-all">
+                                    <?php foreach ($categories as $cat): ?>
+                                        <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Cover Image</label>
+                                <input type="file" name="publication_image" class="text-xs font-bold text-slate-500">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Description</label>
+                                <textarea name="description" rows="3" class="w-full px-4 py-3 rounded-2xl border-2 border-slate-50 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-bold transition-all"></textarea>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Price (LKR)</label>
+                                <input type="number" step="0.01" name="price" required class="w-full px-4 py-3 rounded-2xl border-2 border-slate-50 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-bold transition-all">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Discount (LKR)</label>
+                                <input type="number" step="0.01" value="0" name="discount" class="w-full px-4 py-3 rounded-2xl border-2 border-slate-50 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 font-bold transition-all">
+                            </div>
+                            <button type="submit" name="add_publication" class="md:col-span-2 bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 transition shadow-xl mt-4">Publish Item</button>
+                        </form>
+                    </div>
+
+                    <!-- Inventory Table -->
+                    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                        <div class="p-6 border-b border-slate-50"><h3 class="font-black text-slate-900 uppercase tracking-widest text-xs">Current Inventory</h3></div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-100">
+                                <thead>
+                                    <tr class="bg-slate-50 text-[10px] uppercase font-black text-slate-400">
+                                        <th class="px-6 py-4 text-left">Item</th>
+                                        <th class="px-6 py-4 text-left">Price</th>
+                                        <th class="px-6 py-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <?php foreach ($publications as $pub): ?>
+                                    <tr>
+                                        <td class="px-6 py-4 flex items-center gap-4">
+                                            <img src="../<?php echo $pub['image_path'] ?: 'assets/img/book-placeholder.png'; ?>" class="w-10 h-14 object-cover rounded-lg shadow">
+                                            <div>
+                                                <div class="font-black text-slate-900"><?php echo htmlspecialchars($pub['title']); ?></div>
+                                                <div class="text-[10px] text-blue-500 font-bold italic"><?php echo htmlspecialchars($pub['category_name']); ?></div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="font-bold text-slate-900">LKR <?php echo number_format($pub['price'] - $pub['discount'], 2); ?></div>
+                                            <?php if ($pub['discount'] > 0): ?><div class="text-[10px] text-slate-400 line-through">LKR <?php echo number_format($pub['price'], 2); ?></div><?php endif; ?>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <form method="POST" onsubmit="return confirm('Delete?');">
+                                                <input type="hidden" name="publication_id" value="<?php echo $pub['id']; ?>">
+                                                <button name="delete_publication" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="space-y-8 h-fit sticky top-24">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                        <h2 class="text-lg font-black text-slate-900 mb-6">Manage Categories</h2>
+                        <form method="POST" class="mb-8">
+                            <div class="flex gap-2">
+                                <input type="text" name="category_name" placeholder="Category Name" class="flex-1 px-4 py-2 bg-slate-50 rounded-xl font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                <button type="submit" name="add_category" class="bg-blue-600 text-white px-4 rounded-xl hover:bg-blue-700 transition shadow-lg"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </form>
+                        <div class="space-y-3">
+                            <?php foreach ($categories as $cat): ?>
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl group transition-all hover:bg-white hover:shadow-md border border-transparent hover:border-slate-100">
+                                <span class="text-sm font-bold text-slate-700"><?php echo htmlspecialchars($cat['name']); ?></span>
+                                <form method="POST" onsubmit="return confirm('Delete?');">
+                                    <input type="hidden" name="category_id" value="<?php echo $cat['id']; ?>">
+                                    <button name="delete_category" class="text-slate-300 group-hover:text-red-500 transition-colors"><i class="fas fa-trash-alt text-xs"></i></button>
+                                </form>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </body>
 </html>

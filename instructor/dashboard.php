@@ -65,7 +65,7 @@ if ($user_role === 'instructor') {
     $my_subjects_query = "SELECT subject_id FROM instructor_subjects WHERE instructor_id = '" . $conn->real_escape_string($user_id) . "'";
     $pending_query = "
         SELECT 
-            ir.id, ir.created_at, ir.request_note,
+            ir.id, ir.created_at, ir.request_note, ir.session_date,
             s.name as subject_name,
             u.first_name as student_name
         FROM instructor_requests ir
@@ -75,7 +75,8 @@ if ($user_role === 'instructor') {
         AND ir.subject_id IN ($my_subjects_query)
         ORDER BY ir.created_at DESC
     ";
-    $pending_requests = $conn->query($pending_query)->fetch_all(MYSQLI_ASSOC);
+    $pending_res = $conn->query($pending_query);
+    $pending_requests = $pending_res ? $pending_res->fetch_all(MYSQLI_ASSOC) : [];
 
     // Fetch Accepted Requests
     $accepted_query = "
@@ -92,7 +93,8 @@ if ($user_role === 'instructor') {
     $stmt = $conn->prepare($accepted_query);
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
-    $accepted_requests = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $res = $stmt->get_result();
+    $accepted_requests = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
     $stmt->close();
 }
 
@@ -181,73 +183,91 @@ function time_elapsed_string($datetime) {
     return 'Just now';
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $page_title; ?></title>
+    <title>Dashboard | LearnerX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script>
-        function filterSubjects() {
-            let input = document.getElementById('searchSubject');
-            let filter = input.value.toUpperCase();
-            let cards = document.getElementsByClassName('subject-card');
-            
-            for (let i = 0; i < cards.length; i++) {
-                let txtValue = cards[i].getAttribute('data-name');
-                if (txtValue.toUpperCase().indexOf(filter) > -1) {
-                    cards[i].style.display = "";
-                } else {
-                    cards[i].style.display = "none";
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; }
+        .req-card { border: 1px solid #f1f5f9; border-radius: 16px; transition: all 0.2s; }
+        .req-card:hover { border-color: #e2e8f0; background-color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="pb-12">
     
     <?php include 'navbar.php'; ?>
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto px-4 pt-8">
         
         <!-- Alerts -->
         <?php if (isset($success_message)): ?>
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded"><?php echo $success_message; ?></div>
+            <div class="bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 p-4 mb-6 rounded text-sm font-medium"><?php echo $success_message; ?></div>
         <?php endif; ?>
         <?php if (isset($error_message)): ?>
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded"><?php echo $error_message; ?></div>
+            <div class="bg-rose-50 border-l-4 border-rose-500 text-rose-700 p-4 mb-6 rounded text-sm font-medium"><?php echo $error_message; ?></div>
         <?php endif; ?>
 
         <!-- ================= INSTRUCTOR VIEW ================= -->
         <?php if ($user_role === 'instructor'): ?>
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-900">Instructor Dashboard</h1>
-                <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-bold">Logged in as Instructor</span>
+            <div class="flex justify-between items-center mb-8 border-b pb-6 border-slate-200">
+                <h1 class="text-2xl font-bold text-slate-900">Instructor Dashboard</h1>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Logged in as</span>
+                    <span class="bg-slate-900 text-white px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest">Instructor</span>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Pending Requests -->
-                <div class="bg-white rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-bell text-yellow-500"></i> New Requests
+                <div class="card">
+                    <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fas fa-bolt text-amber-500"></i> New Session Requests
                     </h2>
-                    <div class="space-y-4 max-h-[600px] overflow-y-auto">
+                    <div class="space-y-4">
                         <?php if (empty($pending_requests)): ?>
-                            <p class="text-gray-400 text-center py-8">No new requests.</p>
+                            <div class="text-center py-16">
+                                <i class="fas fa-inbox text-4xl text-slate-200 mb-3 block"></i>
+                                <p class="text-slate-400 text-sm font-medium">No new requests at the moment.</p>
+                            </div>
                         <?php else: ?>
                             <?php foreach ($pending_requests as $req): ?>
-                                <div class="border border-gray-100 rounded-lg p-4 hover:shadow-md transition">
-                                    <div class="flex justify-between mb-2">
-                                        <span class="font-bold text-lg text-purple-700"><?php echo htmlspecialchars($req['subject_name']); ?></span>
-                                        <span class="text-xs text-gray-400"><?php echo time_elapsed_string($req['created_at']); ?></span>
+                                <div class="req-card bg-slate-50 p-6">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div>
+                                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-black px-2 py-0.5 rounded uppercase tracking-widest block w-fit mb-2">Subject Group</span>
+                                            <h3 class="font-bold text-lg text-slate-900"><?php echo htmlspecialchars($req['subject_name']); ?></h3>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-[10px] text-slate-400 font-bold uppercase block">Received</span>
+                                            <span class="text-xs font-medium text-slate-600"><?php echo time_elapsed_string($req['created_at']); ?></span>
+                                        </div>
                                     </div>
-                                    <p class="text-gray-600 text-sm mb-3"><?php echo htmlspecialchars($req['request_note'] ?: "No note provided."); ?></p>
+                                    
+                                    <div class="grid grid-cols-2 gap-4 mb-4">
+                                        <div class="bg-white p-3 rounded-lg border border-slate-100">
+                                            <span class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Session Date</span>
+                                            <span class="text-sm font-bold text-slate-700"><?php echo date('M d, Y', strtotime($req['session_date'])); ?></span>
+                                        </div>
+                                        <div class="bg-white p-3 rounded-lg border border-slate-100">
+                                            <span class="text-[9px] text-slate-400 font-bold uppercase block mb-1">Student</span>
+                                            <span class="text-sm font-bold text-slate-700"><?php echo htmlspecialchars($req['student_name']); ?></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-blue-50/50 p-4 rounded-lg mb-6 border border-blue-100/50">
+                                        <span class="text-[9px] text-blue-400 font-bold uppercase block mb-1">Request Details</span>
+                                        <p class="text-sm text-blue-900 font-medium leading-relaxed"><?php echo htmlspecialchars($req['request_note'] ?: "No additional notes provided."); ?></p>
+                                    </div>
+
                                     <form method="POST">
                                         <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
-                                        <button type="submit" name="accept_request" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition">
+                                        <button type="submit" name="accept_request" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-emerald-600 transition-all flex items-center justify-center gap-2">
                                             Accept Request
                                         </button>
                                     </form>
@@ -258,31 +278,30 @@ function time_elapsed_string($datetime) {
                 </div>
 
                 <!-- Accepted Students -->
-                <div class="bg-white rounded-xl shadow-lg p-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-user-graduate text-green-500"></i> My Students
+                <div class="card">
+                    <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fas fa-users text-emerald-500"></i> Active Students
                     </h2>
-                    <div class="space-y-4 max-h-[600px] overflow-y-auto">
+                    <div class="space-y-4">
                         <?php if (empty($accepted_requests)): ?>
-                            <p class="text-gray-400 text-center py-8">No accepted requests yet.</p>
+                            <div class="text-center py-16">
+                                <p class="text-slate-400 text-sm">No active student sessions.</p>
+                            </div>
                         <?php else: ?>
                             <?php foreach ($accepted_requests as $req): ?>
-                                <div class="border border-green-100 bg-green-50/30 rounded-lg p-4">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <div>
-                                            <h3 class="font-bold text-gray-800"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></h3>
-                                            <p class="text-sm text-gray-500"><?php echo htmlspecialchars($req['subject_name']); ?></p>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="text-green-600 hover:text-green-800">
-                                                <i class="fab fa-whatsapp text-xl"></i>
-                                            </a>
-                                            <a href="tel:<?php echo $req['mobile_number']; ?>" class="text-blue-600 hover:text-blue-800">
-                                                <i class="fas fa-phone text-xl"></i>
-                                            </a>
-                                        </div>
+                                <div class="p-4 border border-emerald-100 bg-emerald-50/20 rounded-xl flex justify-between items-center">
+                                    <div>
+                                        <h3 class="font-bold text-slate-900"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></h3>
+                                        <p class="text-xs text-slate-500 font-medium uppercase tracking-tighter"><?php echo htmlspecialchars($req['subject_name']); ?></p>
                                     </div>
-                                    <p class="text-xs text-gray-400 text-right mt-2">Accepted <?php echo time_elapsed_string($req['accepted_at']); ?></p>
+                                    <div class="flex gap-2">
+                                        <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 transition shadow-sm">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </a>
+                                        <a href="tel:<?php echo $req['mobile_number']; ?>" class="w-10 h-10 bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-300 transition shadow-sm">
+                                            <i class="fas fa-phone"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -292,34 +311,30 @@ function time_elapsed_string($datetime) {
 
         <!-- ================= STUDENT VIEW ================= -->
         <?php elseif ($user_role === 'student'): ?>
-            
-            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b pb-6 border-slate-200">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Find an Instructor</h1>
-                    <p class="text-gray-500">Select a subject to request a personal session.</p>
+                    <h1 class="text-2xl font-bold text-slate-900">Request Instructor Session</h1>
+                    <p class="text-slate-500 text-sm">Select your subject and get help from expert mentors.</p>
                 </div>
                 
-                <!-- Search Bar -->
-                <div class="relative w-full md:w-96">
+                <div class="relative w-full md:w-80">
                     <input type="text" id="searchSubject" onkeyup="filterSubjects()" placeholder="Search subjects..." 
-                           class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none shadow-sm transition">
-                    <i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
+                           class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:border-indigo-500 outline-none transition">
+                    <i class="fas fa-search absolute left-4 top-3.5 text-slate-300"></i>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Subject List -->
                 <div class="lg:col-span-2">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <?php foreach ($subjects as $sub): ?>
-                            <div class="subject-card bg-white p-5 rounded-xl shadow-sm hover:shadow-md transition border border-gray-100 flex justify-between items-center group" data-name="<?php echo htmlspecialchars($sub['name'] . ' ' . $sub['code']); ?>">
+                            <div class="subject-card card flex justify-between items-center group" data-name="<?php echo htmlspecialchars($sub['name'] . ' ' . $sub['code']); ?>">
                                 <div>
-                                    <h3 class="font-bold text-lg text-gray-800 group-hover:text-purple-600 transition"><?php echo htmlspecialchars($sub['name']); ?></h3>
-                                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded"><?php echo htmlspecialchars($sub['code']); ?></span>
+                                    <h3 class="font-bold text-slate-800"><?php echo htmlspecialchars($sub['name']); ?></h3>
+                                    <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase font-black tracking-widest"><?php echo htmlspecialchars($sub['code']); ?></span>
                                 </div>
                                 <button onclick="openRequestModal(<?php echo $sub['id']; ?>, '<?php echo htmlspecialchars($sub['name']); ?>')" 
-                                        class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-bold hover:bg-purple-600 hover:text-white transition">
+                                        class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg font-bold hover:bg-indigo-600 hover:text-white transition text-sm">
                                     Request
                                 </button>
                             </div>
@@ -327,40 +342,31 @@ function time_elapsed_string($datetime) {
                     </div>
                 </div>
 
-                <!-- Sidebar: My Requests -->
                 <div class="lg:col-span-1">
-                    <div class="bg-white p-6 rounded-xl shadow-lg sticky top-6">
-                        <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">My Requests</h2>
-                        
-                        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+                    <div class="card sticky top-8">
+                        <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 border-b pb-4">My Requests</h2>
+                        <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
                             <?php if (empty($my_requests)): ?>
-                                <p class="text-gray-400 text-center text-sm">You haven't made any requests yet.</p>
+                                <p class="text-slate-400 text-center text-xs italic py-4">No requests found.</p>
                             <?php else: ?>
                                 <?php foreach ($my_requests as $req): ?>
-                                    <div class="p-3 rounded-lg border <?php echo ($req['status'] === 'accepted') ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'; ?>">
+                                    <div class="p-4 rounded-xl border <?php echo ($req['status'] === 'accepted') ? 'border-emerald-100 bg-emerald-50/30' : 'border-slate-100 bg-slate-50/50'; ?>">
                                         <div class="flex justify-between items-center mb-1">
-                                            <span class="font-bold text-sm text-gray-700"><?php echo htmlspecialchars($req['subject_name']); ?></span>
-                                            <?php if ($req['status'] === 'pending'): ?>
-                                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">Pending</span>
-                                            <?php elseif ($req['status'] === 'accepted'): ?>
-                                                <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Accepted</span>
-                                            <?php endif; ?>
+                                            <span class="font-bold text-xs text-slate-800"><?php echo htmlspecialchars($req['subject_name']); ?></span>
+                                            <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full <?php echo ($req['status'] === 'accepted') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'; ?>"><?php echo $req['status']; ?></span>
                                         </div>
-                                        
                                         <?php if ($req['status'] === 'accepted'): ?>
-                                            <div class="mt-2 pt-2 border-t border-green-200">
-                                                <div class="flex items-center gap-2 mb-1">
-                                                    <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-xs text-purple-700">
-                                                        <i class="fas fa-chalkboard-teacher"></i>
+                                            <div class="mt-3 pt-3 border-t border-emerald-100/50 flex items-center justify-between">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-8 h-8 rounded-full bg-white border border-emerald-100 flex items-center justify-center text-xs text-emerald-600">
+                                                        <i class="fas fa-user-tie"></i>
                                                     </div>
-                                                    <span class="text-xs font-bold text-gray-800"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></span>
+                                                    <span class="text-[11px] font-bold text-slate-700"><?php echo htmlspecialchars($req['first_name']); ?></span>
                                                 </div>
-                                                <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="block w-full text-center bg-green-500 text-white text-xs py-1.5 rounded hover:bg-green-600 transition">
-                                                    <i class="fab fa-whatsapp"></i> Chat Now
+                                                <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="text-emerald-600 hover:text-emerald-700 text-sm font-bold">
+                                                    Chat <i class="fab fa-whatsapp ml-1"></i>
                                                 </a>
                                             </div>
-                                        <?php else: ?>
-                                            <p class="text-xs text-gray-400 mt-1">Waiting for instructor...</p>
                                         <?php endif; ?>
                                     </div>
                                 <?php endforeach; ?>
@@ -368,26 +374,22 @@ function time_elapsed_string($datetime) {
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            <!-- Request Modal -->
-            <div id="requestModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 backdrop-blur-sm">
-                <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all scale-100">
-                    <h3 class="text-xl font-bold text-gray-900 mb-2">Request Instructor</h3>
-                    <p class="text-gray-500 text-sm mb-4">Subject: <span id="modalSubjectName" class="font-bold text-purple-600"></span></p>
-                    
+            <div id="requestModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+                <div class="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl relative">
+                    <button onclick="closeRequestModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"><i class="fas fa-times"></i></button>
+                    <h3 class="text-xl font-bold text-slate-900 mb-2">Request Mentor</h3>
+                    <p class="text-slate-500 text-sm mb-6">Subject: <span id="modalSubjectName" class="font-bold text-indigo-600"></span></p>
                     <form method="POST">
                         <input type="hidden" name="subject_id" id="modalSubjectId">
-                        
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Add a Note (Optional)</label>
-                            <textarea name="note" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Explain what you need help with..."></textarea>
+                        <div class="mb-6">
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Detailed Note</label>
+                            <textarea name="note" rows="4" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm" placeholder="Tell the instructor what you need help with..."></textarea>
                         </div>
-                        
                         <div class="flex gap-3">
-                            <button type="button" onclick="closeRequestModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold transition">Cancel</button>
-                            <button type="submit" name="request_instructor" class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-bold transition">Send Request</button>
+                            <button type="button" onclick="closeRequestModal()" class="flex-1 px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+                            <button type="submit" name="request_instructor" class="flex-1 px-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 shadow-xl transition active:scale-95">Send Request</button>
                         </div>
                     </form>
                 </div>
@@ -400,27 +402,19 @@ function time_elapsed_string($datetime) {
                     document.getElementById('requestModal').classList.remove('hidden');
                     document.getElementById('requestModal').classList.add('flex');
                 }
-
                 function closeRequestModal() {
                     document.getElementById('requestModal').classList.add('hidden');
                     document.getElementById('requestModal').classList.remove('flex');
                 }
-                
-                // Close modal on click outside
-                document.getElementById('requestModal').addEventListener('click', function(e) {
-                    if (e.target === this) closeRequestModal();
-                });
+                function filterSubjects() {
+                    let filter = document.getElementById('searchSubject').value.toUpperCase();
+                    let cards = document.getElementsByClassName('subject-card');
+                    for (let card of cards) {
+                        card.style.display = card.dataset.name.toUpperCase().includes(filter) ? "" : "none";
+                    }
+                }
             </script>
-
-        <?php else: ?>
-            <!-- Fallback for other roles (Admin etc) -->
-            <div class="text-center py-20">
-                <h2 class="text-2xl font-bold text-gray-600">Access Restricted</h2>
-                <p class="text-gray-500 mt-2">Please login as a Student or Instructor.</p>
-                <a href="../dashboard/dashboard.php" class="inline-block mt-4 text-blue-600 hover:underline">Go to Dashboard</a>
-            </div>
         <?php endif; ?>
-
     </div>
 </body>
 </html>

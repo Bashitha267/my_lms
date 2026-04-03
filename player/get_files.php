@@ -20,8 +20,8 @@ if ($recording_id <= 0) {
 }
 
 // Build query based on user role
-if ($role === 'teacher') {
-    // Teachers can see all files
+if ($role === 'teacher' || $role === 'admin') {
+    // Teachers and Admins can see all files
     $query = "SELECT rf.id, rf.file_name, rf.file_path, rf.file_size, rf.file_type, rf.file_extension, 
                      rf.upload_date, rf.uploaded_by,
                      u.first_name, u.second_name, u.role
@@ -32,14 +32,14 @@ if ($role === 'teacher') {
     $stmt = $conn->prepare($query);
     $stmt->bind_param("i", $recording_id);
 } else {
-    // Students can see only their own files and teacher files
+    // Students can see only their own files and files from teachers/admins
     $query = "SELECT rf.id, rf.file_name, rf.file_path, rf.file_size, rf.file_type, rf.file_extension, 
                      rf.upload_date, rf.uploaded_by,
                      u.first_name, u.second_name, u.role
               FROM recording_files rf
               INNER JOIN users u ON rf.uploaded_by = u.user_id
               WHERE rf.recording_id = ? AND rf.status = 1 
-                AND (rf.uploaded_by = ? OR u.role = 'teacher')
+                AND (rf.uploaded_by = ? OR u.role IN ('teacher', 'admin'))
               ORDER BY rf.upload_date DESC";
     $stmt = $conn->prepare($query);
     $stmt->bind_param("is", $recording_id, $user_id);

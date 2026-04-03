@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
     
     $first_name = trim($_POST['first_name'] ?? '');
     $second_name = trim($_POST['second_name'] ?? '');
-    $email = trim($_POST['email'] ?? '');
     $mobile_number = trim($_POST['mobile_number'] ?? '');
     $whatsapp_number = trim($_POST['whatsapp_number'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -19,21 +18,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
     $nic_number = trim($_POST['nic_number'] ?? '');
     $address = trim($_POST['address'] ?? '');
     $gender = $_POST['gender'] ?? '';
+    $hourly_rate = floatval($_POST['hourly_rate'] ?? 0);
     
     // Validation
-    if (empty($first_name) || empty($second_name) || empty($email) || empty($password)) {
+    if (empty($first_name) || empty($second_name) || empty($mobile_number) || empty($password)) {
         $error_message = 'All required fields must be filled.';
     } elseif ($password !== $confirm_password) {
         $error_message = 'Passwords do not match.';
     } else {
         // Check for existing user
-        $stmt = $conn->prepare("SELECT user_id FROM users WHERE email = ? OR mobile_number = ?");
-        $stmt->bind_param("ss", $email, $mobile_number);
+        $stmt = $conn->prepare("SELECT user_id FROM users WHERE mobile_number = ?");
+        $stmt->bind_param("s", $mobile_number);
         $stmt->execute();
         $result = $stmt->get_result();
         
         if ($result->num_rows > 0) {
-            $error_message = ' Email or Mobile Number already registered.';
+            $error_message = 'Mobile Number already registered.';
         }
         $stmt->close();
         
@@ -60,8 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
             $approved = 0; // Requires Admin Approval
             
             // Insert User
-            $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, nic_no, address, gender, approved, registering_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1)");
-            $stmt->bind_param("sssssssssssi", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $nic_number, $address, $gender, $approved);
+            $stmt = $conn->prepare("INSERT INTO users (user_id, password, role, first_name, second_name, mobile_number, whatsapp_number, nic_no, address, gender, approved, registering_date, status, hourly_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?)");
+            $stmt->bind_param("ssssssssssid", $user_id, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $nic_number, $address, $gender, $approved, $hourly_rate);
             
             if ($stmt->execute()) {
                 $success_message = "Registration successful! Your Instructor ID is $user_id. Please wait for Admin approval.";
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
                 
                  // Send WhatsApp Notification (Welcome)
                  if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
-                    $msg = "👋 *Welcome to LMS - Instructor Portal*\n\n" .
+                    $msg = "👋 *Welcome to Lernerr - Instructor Portal*\n\n" .
                            "Hello $first_name,\n" .
                            "Your registration as an Instructor is successful.\n" .
                            "🆔 *ID:* $user_id\n" .
@@ -94,16 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instructor Registration - LMS</title>
+    <title>Instructor Registration - Lernerr</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
-                        url('https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background-color: #f3f4f6; /* Clean light gray background */
             min-height: 100vh;
         }
     </style>
@@ -141,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
             </div>
             
             <div class="text-sm text-purple-300">
-                &copy; <?php echo date('Y'); ?> LMS Platform
+                &copy; <?php echo date('Y'); ?> Lernerr
             </div>
         </div>
 
@@ -182,10 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                        <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition" placeholder="instructor@example.com" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                    </div>
+
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                          <div>
@@ -212,9 +205,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
                         </div>
                     </div>
                     
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                        <input type="text" name="address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition" placeholder="City, District" value="<?php echo htmlspecialchars($_POST['address'] ?? ''); ?>">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Session Rate (LKR)</label>
+                            <input type="number" name="hourly_rate" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition" placeholder="e.g. 1500.00" value="<?php echo htmlspecialchars($_POST['hourly_rate'] ?? ''); ?>">
+                        </div>
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <input type="text" name="address" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition" placeholder="City, District" value="<?php echo htmlspecialchars($_POST['address'] ?? ''); ?>">
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">

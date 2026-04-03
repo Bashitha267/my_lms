@@ -423,7 +423,11 @@ $stats = $stats_result->fetch_assoc();
                                                     default => 'bg-green-100 text-green-800'
                                                 };
                                                 ?>">
-                                                <?php echo ucfirst($user['role']); ?>
+                                                <?php 
+                                                    echo ucfirst($user['role']); 
+                                                    if($user['role'] === 'teacher') echo ' (Tcr)';
+                                                    if($user['role'] === 'instructor') echo ' (Ins)';
+                                                ?>
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap">

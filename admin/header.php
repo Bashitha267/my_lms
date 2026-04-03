@@ -1,7 +1,9 @@
 <?php
-// header.php - Admin header component with red and white theme
+// header.php - Admin header component with blue theme
 // Get current page for active state
 $current_page = basename($_SERVER['PHP_SELF']);
+// Prefix to use for links (empty if in same folder, otherwise something like '../admin/')
+$admin_header_prefix = $admin_header_prefix ?? '';
 ?>
 
 <header class="bg-blue-600 shadow-lg sticky top-0 z-50">
@@ -9,71 +11,72 @@ $current_page = basename($_SERVER['PHP_SELF']);
         <div class="flex justify-between items-center h-16">
             <!-- Logo/Brand -->
             <div class="flex items-center flex-shrink-0">
-                <a href="dashboard.php" class="text-white text-2xl font-bold hover:text-blue-100 transition-colors tracking-tight">
+                <a href="<?php echo $admin_header_prefix; ?>dashboard.php" class="text-white text-2xl font-bold hover:text-blue-100 transition-colors tracking-tight">
                     LMS ADMIN
                 </a>
             </div>
             
             <!-- Admin Navigation Links -->
             <div class="hidden md:flex md:items-center md:space-x-1 flex-1 justify-center">
-                <a href="dashboard.php" 
-                   class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                <a href="<?php echo $admin_header_prefix; ?>dashboard.php" 
+                   class="<?php echo ($current_page == 'dashboard.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Dashboard
                 </a>
-                <a href="users.php" 
-                   class="<?php echo ($current_page == 'users.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Manage Users
+                <a href="<?php echo $admin_header_prefix; ?>users.php" 
+                   class="<?php echo ($current_page == 'users.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Users
                 </a>
-                <a href="update_students.php" 
-                   class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Update Students
+                <a href="<?php echo $admin_header_prefix; ?>update_students.php" 
+                   class="<?php echo ($current_page == 'update_students.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Students
                 </a>
-                <a href="manage_instructors.php" 
-                   class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Manage Instructors
+                <a href="<?php echo $admin_header_prefix; ?>manage_instructors.php" 
+                   class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Instructors
+                </a>
+                <a href="<?php echo $admin_header_prefix; ?>manage_teachers.php" 
+                   class="<?php echo ($current_page == 'manage_teachers.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Teachers
                 </a>
                
-                <a href="verify_payments.php" 
-                   class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                <a href="<?php echo $admin_header_prefix; ?>verify_payments.php" 
+                   class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Payments
                 </a>
-                <a href="manage_content.php" 
-                   class="<?php echo ($current_page == 'manage_content.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Manage Content
+                <a href="<?php echo $admin_header_prefix; ?>manage_content.php" 
+                   class="<?php echo ($current_page == 'manage_content.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Course Content
                 </a>
-                <a href="manage_publications.php" 
-                   class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Publications
+                <a href="<?php echo $admin_header_prefix; ?>manage_publications.php" 
+                   class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Publications & Orders
                 </a>
-                <a href="manage_orders.php" 
-                   class="<?php echo ($current_page == 'manage_orders.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Orders
+                <a href="<?php echo $admin_header_prefix; ?>reports.php" 
+                   class="<?php echo ($current_page == 'reports.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Reports
                 </a>
-                <a href="settings.php" 
-                   class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Settings
-                </a>
-                <a href="../dashboard/request_al_details.php" 
-                   class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    A/L DETAILS
+                <a href="<?php echo $admin_header_prefix; ?>../dashboard/request_al_details.php" 
+                   class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    A/L Results
                 </a>
             </div>
+
             
             <!-- User Menu / Logout -->
             <div class="flex items-center space-x-4">
                 <?php if (isset($_SESSION['username'])): ?>
-                    <div class="hidden sm:block text-red-100 text-sm font-medium">
+                    <div class="hidden sm:block text-blue-100 text-sm font-medium">
                         <?php echo htmlspecialchars($_SESSION['username']); ?>
                     </div>
-                    <a href="../auth.php?logout=1" 
-                       class="bg-white text-red-600 hover:bg-red-50 px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out shadow-sm border border-transparent">
+                    <a href="<?php echo $admin_header_prefix; ?>../auth.php?logout=1" 
+                       class="bg-white text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md text-sm font-bold uppercase transition duration-150 ease-in-out shadow-sm border border-transparent">
                         Logout
                     </a>
                 <?php endif; ?>
                 
                 <!-- Mobile menu button -->
                 <button type="button" 
-                        class="md:hidden mobile-menu-button bg-red-700 inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
+                        class="md:hidden mobile-menu-button bg-blue-700 inline-flex items-center justify-center p-2 rounded-md text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white"
                         aria-controls="mobile-menu" 
                         aria-expanded="false">
                     <span class="sr-only">Open main menu</span>
@@ -92,53 +95,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
     
     <!-- Mobile menu -->
     <div class="md:hidden transition-all duration-300 ease-in-out overflow-hidden" id="mobile-menu">
-        <div class="px-2 pt-2 pb-4 space-y-1 bg-red-700 border-t border-red-800 shadow-inner">
-            <a href="dashboard.php" 
-               class="<?php echo ($current_page == 'dashboard.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Dashboard
-            </a>
-            <a href="users.php" 
-               class="<?php echo ($current_page == 'users.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Manage Users
-            </a>
-            <a href="update_students.php" 
-               class="<?php echo ($current_page == 'update_students.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Update Students
-            </a>
-            <a href="manage_instructors.php" 
-               class="<?php echo ($current_page == 'manage_instructors.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Manage Instructors
-            </a>
-           
-            <a href="verify_payments.php" 
-               class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Payments
-            </a>
-            <a href="manage_content.php" 
-               class="<?php echo ($current_page == 'manage_content.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Manage Content
-            </a>
-            <a href="manage_publications.php" 
-               class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Manage Publications
-            </a>
-            <a href="manage_orders.php" 
-               class="<?php echo ($current_page == 'manage_orders.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Publication Orders
-            </a>
-            <a href="settings.php" 
-               class="<?php echo ($current_page == 'settings.php') ? 'bg-red-800 text-white' : 'text-red-100 hover:bg-red-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">
-                Settings
-            </a>
+        <div class="px-2 pt-2 pb-4 space-y-1 bg-blue-700 border-t border-blue-800 shadow-inner text-center">
+            <a href="<?php echo $admin_header_prefix; ?>dashboard.php" class="<?php echo ($current_page == 'dashboard.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Dashboard</a>
+            <a href="<?php echo $admin_header_prefix; ?>users.php" class="<?php echo ($current_page == 'users.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Manage Users</a>
+            <a href="<?php echo $admin_header_prefix; ?>manage_teachers.php" class="<?php echo ($current_page == 'manage_teachers.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Manage Teachers</a>
+            <a href="<?php echo $admin_header_prefix; ?>verify_payments.php" class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Payments</a>
+            <a href="<?php echo $admin_header_prefix; ?>manage_publications.php" class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Publications & Orders</a>
+            <a href="<?php echo $admin_header_prefix; ?>reports.php" class="<?php echo ($current_page == 'reports.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Reports</a>
             <?php if (isset($_SESSION['username'])): ?>
-                <div class="border-t border-red-800 mt-4 pt-4 pb-2">
-                    <div class="px-3 flex items-center mb-3">
-                        <span class="text-white font-medium">Signed in as <?php echo htmlspecialchars($_SESSION['username']); ?></span>
-                    </div>
-                    <a href="../auth.php?logout=1" 
-                       class="block px-3 py-2 rounded-md text-base font-medium text-red-100 hover:text-white hover:bg-red-800">
-                        Logout
-                    </a>
+                <div class="border-t border-blue-800 mt-4 pt-4 pb-2">
+                    <a href="<?php echo $admin_header_prefix; ?>../auth.php?logout=1" class="block px-3 py-2 rounded-md text-base font-medium text-blue-100 hover:text-white hover:bg-blue-800">Logout (<?php echo htmlspecialchars($_SESSION['username']); ?>)</a>
                 </div>
             <?php endif; ?>
         </div>
@@ -189,4 +155,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-

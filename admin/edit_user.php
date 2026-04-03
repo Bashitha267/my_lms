@@ -24,10 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $mobile = trim($_POST['mobile_number']);
     $whatsapp = trim($_POST['whatsapp_number']);
     $role = $_POST['role'];
+    $commission_rate = floatval($_POST['commission_rate'] ?? 0);
+    $hourly_rate = floatval($_POST['hourly_rate'] ?? 0);
     
     // Update basic info
-    $stmt = $conn->prepare("UPDATE users SET first_name=?, second_name=?, email=?, mobile_number=?, whatsapp_number=?, role=? WHERE user_id=?");
-    $stmt->bind_param("sssssss", $fname, $sname, $email, $mobile, $whatsapp, $role, $user_id);
+    $stmt = $conn->prepare("UPDATE users SET first_name=?, second_name=?, email=?, mobile_number=?, whatsapp_number=?, role=?, commission_rate=?, hourly_rate=? WHERE user_id=?");
+    $stmt->bind_param("ssssssdds", $fname, $sname, $email, $mobile, $whatsapp, $role, $commission_rate, $hourly_rate, $user_id);
     
     if ($stmt->execute()) {
         $success_msg = "User profile updated successfully.";
@@ -258,6 +260,28 @@ if ($user['role'] === 'teacher') {
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Whatsapp Number</label>
                                 <input type="text" name="whatsapp_number" value="<?php echo htmlspecialchars($user['whatsapp_number']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
+
+                            <?php if ($user['role'] === 'teacher'): ?>
+                            <div class="md:col-span-2 bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                                <label class="block text-sm font-bold text-yellow-800 mb-1">Teacher Commission Rate (%)</label>
+                                <div class="relative max-w-xs">
+                                    <input type="number" name="commission_rate" step="0.01" value="<?php echo htmlspecialchars($user['commission_rate'] ?? '75.00'); ?>" class="w-full border-yellow-200 rounded-md shadow-sm focus:border-yellow-500 focus:ring-yellow-500 p-2 border pr-8 font-bold">
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-400 font-bold">%</span>
+                                </div>
+                                <p class="text-xs text-yellow-600 mt-1">Percentage the teacher receives from course payments.</p>
+                            </div>
+                            <?php endif; ?>
+
+                            <?php if ($user['role'] === 'instructor'): ?>
+                            <div class="md:col-span-2 bg-purple-50 p-4 rounded-lg border border-purple-100">
+                                <label class="block text-sm font-bold text-purple-800 mb-1">Instructor Session Rate (LKR)</label>
+                                <div class="relative max-w-xs">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400 font-bold">LKR</span>
+                                    <input type="number" name="hourly_rate" step="0.01" value="<?php echo htmlspecialchars($user['hourly_rate'] ?? '0.00'); ?>" class="w-full border-purple-200 rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 p-2 border pl-12 font-bold">
+                                </div>
+                                <p class="text-xs text-purple-600 mt-1">Fixed payment amount per assigned mentor session.</p>
+                            </div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="flex justify-end">

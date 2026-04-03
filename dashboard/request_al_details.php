@@ -145,7 +145,14 @@ while ($row = $result->fetch_assoc()) {
 </head>
 <body class="bg-gray-50">
     <div class="min-h-screen flex flex-col">
-        <?php include 'navbar.php'; ?>
+        <?php 
+        if ($role === 'admin') {
+            $admin_header_prefix = '../admin/';
+            include '../admin/header.php';
+        } else {
+            include 'navbar.php'; 
+        }
+        ?>
         
         <!-- Main Content -->
         <div class="flex-grow container mx-auto px-4 py-8 max-w-7xl">

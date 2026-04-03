@@ -28,9 +28,9 @@ BEGIN
         LIMIT 1;
         
         IF v_teacher_id IS NOT NULL THEN
-            -- Calculate split (75% teacher, 25% institute)
-            SET v_teacher_points = NEW.amount * 0.75;
-            SET v_institute_points = NEW.amount * 0.25;
+            -- Calculate split (100% teacher, 0% institute as requested)
+            SET v_teacher_points = NEW.amount;
+            SET v_institute_points = 0;
             
             -- Create wallet if doesn't exist
             INSERT IGNORE INTO teacher_wallet (teacher_id, total_points, total_earned)

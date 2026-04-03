@@ -19,8 +19,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
     $payment_id = intval($_POST['payment_id'] ?? 0);
     $action = $_POST['action'] ?? ''; 
     
-    if ($payment_id > 0 && in_array($action, ['approve', 'reject']) && in_array($payment_type, ['enrollment', 'monthly', 'course'])) {
-        if ($payment_type === 'course') {
+    if ($payment_id > 0 && in_array($action, ['approve', 'reject']) && in_array($payment_type, ['enrollment', 'monthly', 'course', 'instructor'])) {
+        if ($payment_type === 'instructor') {
+            $status = $action === 'approve' ? 'verified' : 'rejected';
+            $conn->begin_transaction();
+            try {
+                // 1. Update Payment Record
+                $stmt = $conn->prepare("UPDATE instructor_payments SET status = ?, verified_at = NOW(), verified_by = ? WHERE id = ?");
+                $stmt->bind_param("ssi", $status, $admin_id, $payment_id);
+                $stmt->execute();
+                
+                // 2. Fetch Request Info
+                $req_q = "SELECT ip.*, ir.student_id, ir.accepted_by, s.name as subject_name 
+                         FROM instructor_payments ip 
+                         JOIN instructor_requests ir ON ip.request_id = ir.id 
+                         JOIN subjects s ON ir.subject_id = s.id
+                         WHERE ip.id = ?";
+                $r_stmt = $conn->prepare($req_q);
+                $r_stmt->bind_param("i", $payment_id);
+                $r_stmt->execute();
+                $r_info = $r_stmt->get_result()->fetch_assoc();
+                
+                if ($r_info) {
+                    $req_id = $r_info['request_id'];
+                    $new_req_status = $action === 'approve' ? 'verified_payment' : 'pending'; // Back to pending if rejected? Or stay in payment_pending?
+                    // Let's go to verified_payment or back to pending so student can re-upload or instructor can accept again?
+                    // Usually if payment fails, request should probably stay in a specific state or reset.
+                    // Request status: 'pending','accepted','payment_pending','verified_payment','rejected','completed'
+                    $up_status = $action === 'approve' ? 'verified_payment' : 'pending';
+                    $conn->query("UPDATE instructor_requests SET status = '$up_status' WHERE id = $req_id");
+                    
+                    // WhatsApp Notifications
+                    if (file_exists('../whatsapp_config.php')) {
+                        require_once '../whatsapp_config.php';
+                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                            // Student Notify
+                            $s_stmt = $conn->prepare("SELECT first_name, whatsapp_number FROM users WHERE user_id = ?");
+                            $s_stmt->bind_param("s", $r_info['student_id']);
+                            $s_stmt->execute();
+                            $s_user = $s_stmt->get_result()->fetch_assoc();
+                            
+                            // Instructor Notify
+                            $i_stmt = $conn->prepare("SELECT first_name, whatsapp_number FROM users WHERE user_id = ?");
+                            $i_stmt->bind_param("s", $r_info['accepted_by']);
+                            $i_stmt->execute();
+                            $i_user = $i_stmt->get_result()->fetch_assoc();
+                            
+                            if ($s_user) {
+                                $s_msg = $action === 'approve' ? 
+                                    "✅ *Session Payment Approved*\nHello {$s_user['first_name']}, your payment for the session on *{$r_info['subject_name']}* is verified. Enjoy your session!" :
+                                    "❌ *Session Payment Rejected*\nHello {$s_user['first_name']}, your payment proof for *{$r_info['subject_name']}* was rejected. Please re-check and upload again.";
+                                sendWhatsAppMessage($s_user['whatsapp_number'], $s_msg);
+                            }
+                            
+                            if ($i_user && $action === 'approve') {
+                                $i_msg = "💰 *Payment Verified*\nHello {$i_user['first_name']}, the payment for your session on *{$r_info['subject_name']}* has been verified by admin. You can now proceed with the session.";
+                                sendWhatsAppMessage($i_user['whatsapp_number'], $i_msg);
+                            }
+                        }
+                    }
+                }
+                
+                $conn->commit();
+                $success_message = "Instructor payment {$action}d successfully!";
+            } catch (Exception $e) {
+                $conn->rollback();
+                $error_message = "Error: " . $e->getMessage();
+            }
+        }
+        elseif ($payment_type === 'course') {
             $status = $action === 'approve' ? 'paid' : 'failed';
             $conn->begin_transaction();
             try {
@@ -303,6 +370,22 @@ if ($active_tab === 'verify') {
         }
     }
 
+    // Pending Instructor Sessions
+    $inst_query = "SELECT ip.*, ir.request_note, u.first_name, u.second_name, s.name as subject_name, 'Instructor' as stream_name
+                  FROM instructor_payments ip
+                  JOIN instructor_requests ir ON ip.request_id = ir.id
+                  JOIN users u ON ip.student_id = u.user_id
+                  JOIN subjects s ON ir.subject_id = s.id
+                  WHERE ip.status = 'pending' ORDER BY ip.submitted_at DESC";
+    $i_res = $conn->query($inst_query);
+    if ($i_res) {
+        while ($row = $i_res->fetch_assoc()) {
+            $row['payment_type'] = 'instructor';
+            $row['created_at'] = $row['submitted_at']; // Alias for display
+            $pending_payments[] = $row;
+        }
+    }
+
     // History (Last 10 Approved)
     // 1. Fetch from Stream Payments (Enrollment + Monthly)
     $hist_sql = "
@@ -373,193 +456,11 @@ if ($active_tab === 'verify') {
     $history_payments = array_slice($history_payments, 0, 10);
 }
 
-// 2. Class Payments (for Classes Tab)
-$teachers = [];
-$teacher_classes = [];
-$teacher_courses = [];
-$class_students = [];
-$course_students = [];
+// 2. Teacher Requests handled above in tab logic
 $selected_teacher = null;
 $selected_assignment = null;
 $selected_course = null;
 
-if ($active_tab === 'classes') {
-    // Fetch Teachers
-    if (!isset($_GET['teacher_id'])) {
-        $filter_month = $_GET['month'] ?? date('n');
-        $filter_year = $_GET['year'] ?? date('Y');
-        $sort_order = $_GET['sort'] ?? 'high_low';
-        
-        $sort_sql = $sort_order === 'low_high' ? 'ASC' : 'DESC';
-        $stmt = $conn->prepare("
-            SELECT u.user_id, u.first_name, u.second_name, u.profile_picture,
-                   COALESCE(SUM(tpr.amount), 0) as total_paid
-            FROM users u
-            LEFT JOIN teacher_payment_requests tpr 
-                   ON u.user_id = tpr.teacher_id 
-                  AND tpr.status = 'paid'
-                  AND MONTH(tpr.processed_date) = ?
-                  AND YEAR(tpr.processed_date) = ?
-            WHERE u.role = 'teacher'
-            GROUP BY u.user_id
-            ORDER BY total_paid $sort_sql, u.first_name ASC
-        ");
-        $stmt->bind_param("ii", $filter_month, $filter_year);
-        $stmt->execute();
-        $res = $stmt->get_result();
-        while($row = $res->fetch_assoc()) $teachers[] = $row;
-        $stmt->close();
-    } else {
-        // Fetch Teacher Details
-        $tid = $_GET['teacher_id'];
-        $stmt = $conn->prepare("SELECT user_id, first_name, second_name FROM users WHERE user_id = ?");
-        $stmt->bind_param("s", $tid);
-        $stmt->execute();
-        $selected_teacher = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        
-        if (!isset($_GET['assignment_id']) && !isset($_GET['course_id'])) {
-            // Fetch Classes for Teacher (Filtered by Year)
-            $filter_year = $_GET['year'] ?? date('Y');
-            $stmt = $conn->prepare("
-                SELECT ta.id, ta.academic_year, s.name as stream_name, sub.name as subject_name, sub.code as subject_code
-                FROM teacher_assignments ta
-                JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
-                JOIN streams s ON ss.stream_id = s.id
-                JOIN subjects sub ON ss.subject_id = sub.id
-                WHERE ta.teacher_id = ? AND ta.academic_year = ? AND ta.status = 'active'
-                ORDER BY s.name, sub.name
-            ");
-            $stmt->bind_param("si", $tid, $filter_year);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            while($row = $res->fetch_assoc()) $teacher_classes[] = $row;
-            $stmt->close();
-            
-            // Fetch Online Courses for Teacher
-            $query = "SELECT id, title, price, cover_image FROM courses WHERE teacher_id = ? ORDER BY title";
-            $stmt = $conn->prepare($query);
-            if ($stmt) {
-                $stmt->bind_param("s", $tid);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                while($row = $res->fetch_assoc()) $teacher_courses[] = $row;
-                $stmt->close();
-            }
-            
-        } elseif (isset($_GET['assignment_id'])) {
-            // Fetch Assignment Details
-            $aid = intval($_GET['assignment_id']);
-            $stmt = $conn->prepare("
-                SELECT ta.*, s.name as stream_name, sub.name as subject_name
-                FROM teacher_assignments ta
-                JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
-                JOIN streams s ON ss.stream_id = s.id
-                JOIN subjects sub ON ss.subject_id = sub.id
-                WHERE ta.id = ?
-            ");
-            $stmt->bind_param("i", $aid);
-            $stmt->execute();
-            $selected_assignment = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-
-            // Fetch Students & Payment Status
-            $filter_month = $_GET['month'] ?? date('n');
-            $filter_year = $_GET['year'] ?? date('Y');
-            $filter_status = $_GET['status'] ?? 'all';
-
-            $query = "
-                SELECT 
-                    se.id as enrollment_id, u.user_id, u.first_name, u.second_name, u.profile_picture,
-                    mp.payment_status as monthly_status, mp.amount, mp.created_at as paid_at
-                FROM student_enrollment se
-                JOIN users u ON se.student_id = u.user_id
-                LEFT JOIN monthly_payments mp ON mp.student_enrollment_id = se.id 
-                    AND mp.month = ? AND mp.year = ? AND mp.payment_status = 'paid'
-                WHERE se.stream_subject_id = ? AND se.academic_year = ? AND se.status = 'active'
-            ";
-            
-            if ($filter_status === 'paid') {
-                $query .= " AND mp.payment_status = 'paid'";
-            } elseif ($filter_status === 'not_paid') {
-                $query .= " AND mp.id IS NULL"; 
-            }
-            
-            $query .= " ORDER BY u.first_name";
-
-            $stmt = $conn->prepare($query);
-            $stmt->bind_param("iiis", $filter_month, $filter_year, $selected_assignment['stream_subject_id'], $selected_assignment['academic_year']);
-            $stmt->execute();
-            $res = $stmt->get_result();
-            while($row = $res->fetch_assoc()) $class_students[] = $row;
-            $stmt->close();
-            
-        } elseif (isset($_GET['course_id'])) {
-            // Fetch Course Details
-            $cid = intval($_GET['course_id']);
-            $stmt = $conn->prepare("SELECT * FROM courses WHERE id = ?");
-            $stmt->bind_param("i", $cid);
-            $stmt->execute();
-            $selected_course = $stmt->get_result()->fetch_assoc();
-            $stmt->close();
-            
-            // Fetch Students & Payment Status
-            $filter_status = $_GET['status'] ?? 'all';
-            
-            $query = "
-                SELECT ce.id, ce.student_id,
-                       ce.payment_status, ce.enrolled_at,
-                       (SELECT amount FROM course_payments cp WHERE cp.course_enrollment_id = ce.id AND cp.payment_status = 'paid' ORDER BY id DESC LIMIT 1) as paid_amount,
-                       (SELECT created_at FROM course_payments cp WHERE cp.course_enrollment_id = ce.id AND cp.payment_status = 'paid' ORDER BY id DESC LIMIT 1) as paid_at
-                FROM course_enrollments ce
-                WHERE ce.course_id = ?
-            ";
-             
-            if ($filter_status === 'paid') $query .= " AND ce.payment_status = 'paid'";
-            elseif ($filter_status === 'not_paid') $query .= " AND ce.payment_status = 'pending'";
-             
-            // Removed SQL ORDER BY due to separated query
-             
-            $stmt = $conn->prepare($query);
-            if ($stmt) {
-                $stmt->bind_param("i", $cid);
-                $stmt->execute();
-                $res = $stmt->get_result();
-                
-                // Prepare user fetch statement
-                $u_stmt = $conn->prepare("SELECT user_id, first_name, second_name, profile_picture FROM users WHERE user_id = ?");
-                
-                while($row = $res->fetch_assoc()) {
-                    // Fetch user details separately to avoid collation mismatch
-                    $u_stmt->bind_param("s", $row['student_id']);
-                    $u_stmt->execute();
-                    $u_res = $u_stmt->get_result();
-                    if ($user = $u_res->fetch_assoc()) {
-                        $row['user_id'] = $user['user_id'];
-                        $row['first_name'] = $user['first_name'];
-                        $row['second_name'] = $user['second_name'];
-                        $row['profile_picture'] = $user['profile_picture'];
-                    } else {
-                        $row['user_id'] = $row['student_id'];
-                        $row['first_name'] = 'Unknown';
-                        $row['second_name'] = 'User';
-                        $row['profile_picture'] = null;
-                    }
-                    $course_students[] = $row;
-                }
-                $u_stmt->close();
-                $stmt->close();
-                
-                // Sort by name in PHP
-                usort($course_students, function($a, $b) {
-                    return strcasecmp($a['first_name'] . ' ' . $a['second_name'], $b['first_name'] . ' ' . $b['second_name']);
-                });
-            } else {
-                $error_message = "Database error: " . $conn->error;
-            }
-        }
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -590,9 +491,6 @@ if ($active_tab === 'classes') {
                     </a>
                     <a href="?tab=teacher_req" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'teacher_req' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
                         Teacher Verify Pendings
-                    </a>
-                    <a href="?tab=classes" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'classes' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
-                        Class Payments Overview
                     </a>
                 </nav>
             </div>
@@ -929,281 +827,7 @@ if ($active_tab === 'classes') {
             </script>
         <?php endif; ?>
 
-        <!-- TAB 2: CLASSES OVERVIEW -->
-        <?php if ($active_tab === 'classes'): ?>
-            
-            <!-- Breadcrumb Navigation -->
-            <nav class="flex mb-4 text-sm text-gray-500">
-                <a href="?tab=classes" class="hover:text-red-600">Teachers</a>
-                <?php if($selected_teacher): ?>
-                    <span class="mx-2">/</span>
-                    <a href="?tab=classes&teacher_id=<?php echo $selected_teacher['user_id']; ?>" class="hover:text-red-600"><?php echo htmlspecialchars($selected_teacher['first_name']); ?></a>
-                <?php endif; ?>
-                <?php if($selected_assignment): ?>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-900 font-medium"><?php echo htmlspecialchars($selected_assignment['subject_name']); ?></span>
-                <?php endif; ?>
-                <?php if($selected_course): ?>
-                    <span class="mx-2">/</span>
-                    <span class="text-gray-900 font-medium"><?php echo htmlspecialchars($selected_course['title']); ?></span>
-                <?php endif; ?>
-            </nav>
 
-            <!-- Step 1: Select Teacher -->
-            <?php if (!$selected_teacher): ?>
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex flex-col md:flex-row justify-between md:items-center mb-6">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4 md:mb-0">Teachers Overview</h3>
-                        <form method="GET" class="flex flex-wrap items-center gap-2">
-                            <input type="hidden" name="tab" value="classes">
-                            
-                            <!-- Month Filter -->
-                            <select name="month" onchange="this.form.submit()" class="border-gray-300 rounded text-sm focus:ring-red-500 focus:border-red-500">
-                                <?php 
-                                for($m=1; $m<=12; $m++) {
-                                    $sel = ($m == ($_GET['month']??date('n'))) ? 'selected' : '';
-                                    $month_name = date('F', mktime(0, 0, 0, $m, 1));
-                                    echo "<option value='$m' $sel>$month_name</option>";
-                                }
-                                ?>
-                            </select>
-                            
-                            <!-- Year Filter -->
-                            <select name="year" onchange="this.form.submit()" class="border-gray-300 rounded text-sm focus:ring-red-500 focus:border-red-500">
-                                <?php 
-                                $cur = date('Y');
-                                for($y=$cur-2; $y<=$cur+1; $y++) {
-                                    $sel = ($y == ($_GET['year']??$cur)) ? 'selected' : '';
-                                    echo "<option value='$y' $sel>$y</option>";
-                                }
-                                ?>
-                            </select>
-
-                            <!-- Sort Filter -->
-                            <select name="sort" onchange="this.form.submit()" class="border-gray-300 rounded text-sm focus:ring-red-500 focus:border-red-500">
-                                <option value="high_low" <?php echo (($_GET['sort']??'high_low') === 'high_low') ? 'selected' : ''; ?>>High to Low</option>
-                                <option value="low_high" <?php echo (($_GET['sort']??'') === 'low_high') ? 'selected' : ''; ?>>Low to High</option>
-                            </select>
-                        </form>
-                    </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        <?php foreach($teachers as $t): ?>
-                            <a href="?tab=classes&teacher_id=<?php echo $t['user_id']; ?>" class="flex items-center p-4 border rounded-xl hover:border-red-500 hover:shadow-lg transition-all group bg-white">
-                                <div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden mr-4 shrink-0 shadow-sm border border-gray-100">
-                                    <?php if($t['profile_picture']): ?>
-                                        <img src="../<?php echo $t['profile_picture']; ?>" class="w-full h-full object-cover">
-                                    <?php else: ?>
-                                        <div class="flex items-center justify-center w-full h-full text-gray-600 bg-gray-100 text-sm font-bold"><?php echo substr($t['first_name'],0,1); ?></div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="flex-1 overflow-hidden">
-                                    <span class="block font-bold text-gray-800 group-hover:text-red-600 truncate text-sm"><?php echo htmlspecialchars($t['first_name'].' '.$t['second_name']); ?></span>
-                                    <span class="block text-xs text-gray-500 mb-1">Total Paid (Month)</span>
-                                    <span class="block font-black text-green-600">Rs. <?php echo number_format($t['total_paid'] ?? 0, 2); ?></span>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                        <?php if (empty($teachers)): ?>
-                            <div class="col-span-full text-center text-gray-500 py-8">No teachers found.</div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Step 2: Select Class/Course -->
-            <?php if ($selected_teacher && !$selected_assignment && !$selected_course): ?>
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-lg font-bold text-gray-900">Classes for <?php echo htmlspecialchars($selected_teacher['first_name']); ?></h3>
-                        <form method="GET" class="flex items-center space-x-2">
-                            <input type="hidden" name="tab" value="classes">
-                            <input type="hidden" name="teacher_id" value="<?php echo $selected_teacher['user_id']; ?>">
-                            <select name="year" onchange="this.form.submit()" class="border-gray-300 rounded text-sm focus:ring-red-500 focus:border-red-500">
-                                <?php 
-                                $cur = date('Y');
-                                for($y=$cur-1; $y<=$cur+1; $y++) {
-                                    $sel = ($y == ($_GET['year']??$cur)) ? 'selected' : '';
-                                    echo "<option value='$y' $sel>$y</option>";
-                                }
-                                ?>
-                            </select>
-                        </form>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <?php if(empty($teacher_classes)): ?>
-                            <p class="text-gray-500 col-span-3 text-center">No classes found for this year.</p>
-                        <?php else: ?>
-                            <?php foreach($teacher_classes as $c): ?>
-                                <a href="?tab=classes&teacher_id=<?php echo $selected_teacher['user_id']; ?>&assignment_id=<?php echo $c['id']; ?>&year=<?php echo $_GET['year']??date('Y'); ?>" class="block bg-white border border-gray-200 rounded-lg p-5 hover:border-red-500 hover:shadow-lg transition-all relative overflow-hidden">
-                                     <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-                                     <h4 class="font-bold text-lg text-gray-900"><?php echo htmlspecialchars($c['subject_name']); ?></h4>
-                                     <p class="text-gray-600"><?php echo htmlspecialchars($c['stream_name']); ?></p>
-                                     <p class="text-xs text-gray-400 mt-2"><?php echo $c['subject_code']; ?></p>
-                                </a>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-
-                    <!-- Online Courses Section -->
-                    <div class="mt-8">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4">Online Courses for <?php echo htmlspecialchars($selected_teacher['first_name']); ?></h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <?php if(empty($teacher_courses)): ?>
-                                <p class="text-gray-500 col-span-full">No online courses found.</p>
-                            <?php else: ?>
-                                <?php foreach($teacher_courses as $c): ?>
-                                    <a href="?tab=classes&teacher_id=<?php echo $selected_teacher['user_id']; ?>&course_id=<?php echo $c['id']; ?>" class="block bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-red-500 hover:shadow-lg transition-all group">
-                                         <?php if(!empty($c['cover_image'])): ?>
-                                            <div class="h-32 w-full bg-gray-200">
-                                                <img src="../<?php echo $c['cover_image']; ?>" class="w-full h-full object-cover">
-                                            </div>
-                                         <?php else: ?>
-                                            <div class="h-32 w-full bg-gray-100 flex items-center justify-center text-gray-400">
-                                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            </div>
-                                         <?php endif; ?>
-                                         <div class="p-4">
-                                            <h4 class="font-bold text-gray-900 mb-1 group-hover:text-red-600"><?php echo htmlspecialchars($c['title']); ?></h4>
-                                            <p class="font-medium text-green-600">Rs. <?php echo number_format($c['price'], 2); ?></p>
-                                         </div>
-                                    </a>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Step 3: Class Payments View -->
-            <?php if ($selected_assignment): ?>
-                <div class="bg-white rounded-lg shadow">
-                    <!-- Filters -->
-                    <div class="p-6 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                        <form method="GET" class="flex flex-wrap gap-4 items-end">
-                            <input type="hidden" name="tab" value="classes">
-                            <input type="hidden" name="teacher_id" value="<?php echo $selected_teacher['user_id']; ?>">
-                            <input type="hidden" name="assignment_id" value="<?php echo $selected_assignment['id']; ?>">
-                            
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Year</label>
-                                <input type="number" name="year" value="<?php echo $_GET['year']??date('Y'); ?>" class="w-24 border-gray-300 rounded text-sm">
-                            </div>
-                            
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Month</label>
-                                <select name="month" class="border-gray-300 rounded text-sm w-32">
-                                    <?php for($m=1; $m<=12; $m++): ?>
-                                        <option value="<?php echo $m; ?>" <?php echo $m == ($_GET['month']??date('n')) ? 'selected' : ''; ?>>
-                                            <?php echo date('F', mktime(0,0,0,$m,1)); ?>
-                                        </option>
-                                    <?php endfor; ?>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</label>
-                                <select name="status" class="border-gray-300 rounded text-sm w-32">
-                                    <option value="all" <?php echo ($_GET['status']??'all')=='all'?'selected':''; ?>>All</option>
-                                    <option value="paid" <?php echo ($_GET['status']??'')=='paid'?'selected':''; ?>>Paid</option>
-                                    <option value="not_paid" <?php echo ($_GET['status']??'')=='not_paid'?'selected':''; ?>>Not Paid</option>
-                                </select>
-                            </div>
-
-                            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700">Filter</button>
-                        </form>
-                    </div>
-
-                    <div class="p-6">
-                        <?php if(empty($class_students)): ?>
-                            <p class="text-center text-gray-500 py-10">No students found.</p>
-                        <?php else: ?>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <?php foreach($class_students as $s): 
-                                    $is_paid = $s['monthly_status'] === 'paid';
-                                ?>
-                                    <div class="flex items-center p-3 border rounded-lg <?php echo $is_paid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'; ?>">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3 <?php echo $is_paid ? 'bg-green-400' : 'bg-red-400'; ?>">
-                                            <?php echo substr($s['first_name'],0,1); ?>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-bold text-gray-900 truncate"><?php echo htmlspecialchars($s['first_name'].' '.$s['second_name']); ?></p>
-                                            <p class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($s['user_id']); ?></p>
-                                        </div>
-                                        <div class="text-right">
-                                            <?php if($is_paid): ?>
-                                                <span class="block px-2 py-1 bg-green-200 text-green-800 text-xs font-bold rounded-full">Paid</span>
-                                                <span class="text-xs text-gray-500"><?php echo date('M d', strtotime($s['paid_at'])); ?></span>
-                                            <?php else: ?>
-                                                <span class="block px-2 py-1 bg-red-200 text-red-800 text-xs font-bold rounded-full">Not Paid</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Step 3: Course Payments View -->
-            <?php if ($selected_course): ?>
-                <div class="bg-white rounded-lg shadow">
-                    <!-- Filters -->
-                    <div class="p-6 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                        <form method="GET" class="flex flex-wrap gap-4 items-end">
-                            <input type="hidden" name="tab" value="classes">
-                            <input type="hidden" name="teacher_id" value="<?php echo $selected_teacher['user_id']; ?>">
-                            <input type="hidden" name="course_id" value="<?php echo $selected_course['id']; ?>">
-                            
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</label>
-                                <select name="status" class="border-gray-300 rounded text-sm w-32">
-                                    <option value="all" <?php echo ($_GET['status']??'all')=='all'?'selected':''; ?>>All</option>
-                                    <option value="paid" <?php echo ($_GET['status']??'')=='paid'?'selected':''; ?>>Paid</option>
-                                    <option value="not_paid" <?php echo ($_GET['status']??'')=='not_paid'?'selected':''; ?>>Not Paid</option>
-                                </select>
-                            </div>
-
-                            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-red-700">Filter</button>
-                        </form>
-                    </div>
-
-                    <div class="p-6">
-                        <?php if(empty($course_students)): ?>
-                            <p class="text-center text-gray-500 py-10">No students enrolled.</p>
-                        <?php else: ?>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <?php foreach($course_students as $s): 
-                                    $is_paid = $s['payment_status'] === 'paid';
-                                ?>
-                                    <div class="flex items-center p-3 border rounded-lg <?php echo $is_paid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'; ?>">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3 <?php echo $is_paid ? 'bg-green-400' : 'bg-red-400'; ?>">
-                                            <?php echo substr($s['first_name'],0,1); ?>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-bold text-gray-900 truncate"><?php echo htmlspecialchars($s['first_name'].' '.$s['second_name']); ?></p>
-                                            <p class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($s['user_id']); ?></p>
-                                        </div>
-                                        <div class="text-right">
-                                            <?php if($is_paid): ?>
-                                                <span class="block px-2 py-1 bg-green-200 text-green-800 text-xs font-bold rounded-full">Paid</span>
-                                                <span class="text-xs text-gray-500"><?php echo date('M d', strtotime($s['paid_at'])); ?></span>
-                                            <?php else: ?>
-                                                <span class="block px-2 py-1 bg-red-200 text-red-800 text-xs font-bold rounded-full">Pending</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-        <?php endif; ?>
 
     </div>
 </body>

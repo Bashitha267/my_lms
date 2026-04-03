@@ -257,7 +257,11 @@ if ($role === 'student') {
     // Get teacher wallet balance
     $teacher_points = 0;
     $teacher_earnings = 0;
-    $wallet_query = "SELECT total_points, total_earned FROM teacher_wallet WHERE teacher_id = ?";
+    $commission_rate = 75.00;
+    $wallet_query = "SELECT tw.total_points, tw.total_earned, u.commission_rate 
+                    FROM teacher_wallet tw
+                    JOIN users u ON tw.teacher_id = u.user_id
+                    WHERE tw.teacher_id = ?";
     $wallet_stmt = $conn->prepare($wallet_query);
     if ($wallet_stmt) {
         $wallet_stmt->bind_param("s", $user_id);
@@ -267,6 +271,7 @@ if ($role === 'student') {
             $wallet_row = $wallet_result->fetch_assoc();
             $teacher_points = $wallet_row['total_points'];
             $teacher_earnings = $wallet_row['total_earned'];
+            $commission_rate = $wallet_row['commission_rate'] ?? 75.00;
         }
         $wallet_stmt->close();
     }
@@ -739,10 +744,14 @@ if ($role === 'student') {
                                 <h2 class="text-4xl font-black text-gray-900 mb-2">
                                     <?php echo number_format($teacher_points, 2); ?> <span class="text-2xl text-gray-500">Points</span>
                                 </h2>
-                                <p class="text-sm text-gray-600">
+                                <p class="text-sm text-gray-600 flex items-center gap-2">
                                     Total Earned: <span class="font-bold text-green-700">Rs. <?php echo number_format($teacher_earnings, 2); ?></span>
-                                    <span class="text-xs text-gray-400 ml-2">(1 Point = 1 Rs)</span>
+                                    <span class="text-xs text-gray-400">(1 Point = 1 Rs)</span>
                                 </p>
+                                <div class="mt-4 inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-black uppercase tracking-wider">
+                                    <i class="fas fa-percent mr-2"></i>
+                                    Your Share: <?php echo number_format($commission_rate, 1); ?>%
+                                </div>
                             </div>
                             <div class="p-6 bg-white rounded-2xl shadow-lg">
                                 <i class="fas fa-wallet text-5xl text-green-600"></i>
@@ -785,7 +794,7 @@ if ($role === 'student') {
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
-                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Your Share (75%)</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Your Share (<?php echo number_format($commission_rate, 0); ?>%)</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                                         </tr>
                                     </thead>

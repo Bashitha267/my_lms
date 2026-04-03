@@ -2553,39 +2553,8 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                                     <i class="fas fa-download mr-2"></i>
                                     Downloads
                                 </h3>
-                                <?php if ($role === 'student' || $role === 'teacher'): ?>
-                                <button onclick="toggleUploadArea()" class="upload-toggle-btn">
-                                    <i class="fas fa-upload"></i>
-                                    Upload
-                                </button>
-                                <?php endif; ?>
                             </div>
                             
-                            <?php if ($role === 'student' || $role === 'teacher'): ?>
-                            <div class="upload-area" id="upload-area" style="display: none;">
-                                <form id="upload-form" enctype="multipart/form-data">
-                                    <input type="hidden" name="recording_id" value="<?php echo $recording_id; ?>">
-                                    <div class="upload-input-wrapper">
-                                        <input type="file" id="file-input" name="file" accept="*/*" style="display: none;">
-                                        <label for="file-input" class="upload-label">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                            <span>Select file</span>
-                                        </label>
-                                    </div>
-                                    <div class="upload-progress" id="upload-progress" style="display: none;">
-                                        <div class="progress-bar">
-                                            <div class="progress-fill" id="progress-fill"></div>
-                                        </div>
-                                        <span class="progress-text" id="progress-text" style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; display: block; text-align: center;">0%</span>
-                                    </div>
-                                    <button type="submit" class="upload-btn" id="upload-btn" style="display: none;">
-                                        <i class="fas fa-upload mr-2"></i>
-                                        Upload File
-                                    </button>
-                                </form>
-                            </div>
-                            <?php endif; ?>
-
                             <div class="files-list" id="downloads-list">
                                 <div class="files-loading">Loading...</div>
                             </div>
@@ -2598,7 +2567,38 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                                     <i class="fas fa-upload mr-2"></i>
                                     Uploads
                                 </h3>
+                                <?php if ($role === 'student' || $role === 'teacher'): ?>
+                                <button onclick="toggleUploadArea()" class="upload-toggle-btn" style="background: #059669;">
+                                    <i class="fas fa-upload"></i>
+                                    Upload
+                                </button>
+                                <?php endif; ?>
                             </div>
+                            
+                            <?php if ($role === 'student' || $role === 'teacher'): ?>
+                            <div class="upload-area" id="upload-area" style="display: none; border-color: #333;">
+                                <form id="upload-form" enctype="multipart/form-data">
+                                    <input type="hidden" name="recording_id" value="<?php echo $recording_id; ?>">
+                                    <div class="upload-input-wrapper">
+                                        <input type="file" id="file-input" name="file" accept="*/*" style="display: none;">
+                                        <label for="file-input" class="upload-label">
+                                            <i class="fas fa-cloud-upload-alt" style="color: #059669;"></i>
+                                            <span>Select file</span>
+                                        </label>
+                                    </div>
+                                    <div class="upload-progress" id="upload-progress" style="display: none;">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" id="progress-fill" style="background: #059669;"></div>
+                                        </div>
+                                        <span class="progress-text" id="progress-text" style="font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; display: block; text-align: center;">0%</span>
+                                    </div>
+                                    <button type="submit" class="upload-btn" id="upload-btn" style="display: none; background: #059669;">
+                                        <i class="fas fa-upload mr-2"></i>
+                                        Upload File
+                                    </button>
+                                </form>
+                            </div>
+                            <?php endif; ?>
                             <div class="files-list" id="uploads-list">
                                 <div class="files-loading">Loading...</div>
                             </div>
@@ -3916,11 +3916,11 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 const downloadsList = document.getElementById('downloads-list');
                 const uploadsList = document.getElementById('uploads-list');
                 
-                const isTeacher = '<?php echo $role; ?>' === 'teacher';
+                const isTeacher = '<?php echo $role; ?>' === 'teacher' || '<?php echo $role; ?>' === 'admin';
                 const currentUserId = '<?php echo $user_id; ?>';
                 
                 // Separate files by uploader role
-                const teacherFiles = files.filter(file => file.uploader_role === 'teacher');
+                const teacherFiles = files.filter(file => file.uploader_role === 'teacher' || file.uploader_role === 'admin');
                 // For students: only show their own uploads. For teachers: show all student uploads.
                 const studentFiles = files.filter(file => {
                     if (file.uploader_role !== 'student') return false;

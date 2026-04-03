@@ -2,7 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
 // Prepare user info if logged in
 $user_logged_in = isset($_SESSION['user_id']);
@@ -65,156 +65,305 @@ $stmt->close();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Publications - LearnerX</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .glass-card {
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-nav {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
         }
-        .glass-card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(220, 38, 38, 0.3);
-            box-shadow: 0 20px 40px -15px rgba(220, 38, 38, 0.1);
+
+        .hero-gradient {
+            background: radial-gradient(circle at top right, #fff1f2 0%, transparent 40%),
+                        radial-gradient(circle at bottom left, #f0f9ff 0%, transparent 40%);
         }
-        .gradient-text {
-            background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+
+        .pub-card {
+            background: #ffffff;
+            border-radius: 24px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            isolation: isolate;
         }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+
+        .pub-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.1);
+            border-color: #fecaca;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
+
+        .pub-cover {
+            position: relative;
+            aspect-ratio: 3/4;
+            border-radius: 20px;
+            margin: 12px;
+            overflow: hidden;
+            background: #f1f5f9;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
+
+        .pub-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .pub-card:hover .pub-cover img {
+            transform: scale(1.1);
+        }
+
+        .cat-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(4px);
+            color: #ef4444;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 100px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .discount-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
             background: #ef4444;
-            border-radius: 10px;
+            color: white;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 100px;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 20px;
+            padding: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .filter-pill {
+            padding: 10px 20px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            background: transparent;
+        }
+
+        .filter-pill:hover {
+            background: #f1f5f9;
+        }
+
+        /* Tooltip Styles */
+        [data-sinhala] {
+            position: relative;
+        }
+        [data-sinhala]:hover::after {
+            content: attr(data-sinhala);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            animation: tooltipIn 0.3s forwards;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        @keyframes tooltipIn {
+            to { opacity: 1; transform: translate(-50%, -10px); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen custom-scrollbar">
-    <!-- Include Navbar -->
+<body class="min-h-screen">
     <?php include 'navbar.php'; ?>
 
-    <!-- Hero Header -->
-    <section class="relative pt-16 pb-20 overflow-hidden">
-        <div class="absolute top-0 left-0 w-full h-full -z-10">
-            <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-red-50 rounded-full blur-[120px] opacity-60"></div>
-            <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-slate-100 rounded-full blur-[100px] opacity-60"></div>
-        </div>
+    <!-- Main Content -->
+    <main class="relative hero-gradient pt-16 pb-20">
+        
+        <!-- Abstract Decorations -->
+        <div class="absolute top-0 right-0 w-96 h-96 bg-red-100 rounded-full blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-                <div>
-                    <span class="inline-block px-4 py-1.5 mb-4 text-sm font-bold tracking-widest text-red-600 uppercase bg-red-50 rounded-full">Educational Materials</span>
-                    <h1 class="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight">
-                        Premium <span class="gradient-text">Publications</span>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            
+            <!-- Header Section -->
+            <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16">
+                <div class="max-w-2xl">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm mb-6 animate-float">
+                        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider" data-sinhala="අධ්‍යාපනික ද්‍රව්‍ය">Premium Learning Resources</span>
+                    </div>
+                    <h1 class="text-5xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
+                        Unlock Expert <br/> 
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400" data-sinhala="ප්‍රකාශන">Publications</span>
                     </h1>
-                    <p class="text-slate-600 max-w-xl text-lg">
-                        Unlock your potential with our curated collection of textbooks, guides, and study materials designed by top educators.
+                    <p class="text-lg text-slate-500 font-medium leading-relaxed" data-sinhala="අපගේ ඉහළම උපදේශකයින් විසින් සකස් කරන ලද පෙළපොත්, මාර්ගෝපදේශ සහ අධ්‍යයන ද්‍රව්‍ය.">
+                        Elevate your learning experience with textbooks, curated guides, and specialized study materials crafted by our elite instructors.
                     </p>
                 </div>
 
-                <!-- Filters -->
-                <div class="w-full md:w-auto">
-                    <form action="publications.php" method="GET" class="flex flex-wrap items-center gap-3">
-                        <div class="relative flex-1 md:flex-none min-w-[160px]">
-                            <select name="category" onchange="this.form.submit()" 
-                                    class="w-full appearance-none bg-white border border-slate-200 px-4 py-3 pr-10 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none">
-                                <option value="0">All Categories</option>
+                <!-- Search & Filter Controls -->
+                <div class="w-full lg:max-w-md">
+                    <form action="publications.php" method="GET" class="search-container flex flex-col sm:flex-row gap-2">
+                        <div class="flex-1 relative">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>" 
+                                   placeholder="Search resources..." data-sinhala="නිබන්ධන සොයන්න..."
+                                   class="w-full pl-11 pr-4 py-3 bg-transparent outline-none text-slate-700 font-medium placeholder:text-slate-400">
+                        </div>
+                        <div class="flex gap-2">
+                            <select name="category" onchange="this.form.submit()" class="bg-slate-50 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 outline-none border-none cursor-pointer hover:bg-slate-100 transition-colors">
+                                <option value="0" data-sinhala="සියලුම කාණ්ඩ">All Topics</option>
                                 <?php foreach($categories as $cat): ?>
                                     <option value="<?php echo $cat['id']; ?>" <?php echo $category_filter == $cat['id'] ? 'selected' : ''; ?>>
                                         <?php echo htmlspecialchars($cat['name']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                <i class="fas fa-chevron-down text-xs"></i>
-                            </div>
-                        </div>
-
-                        <div class="relative flex-1 md:w-64">
-                            <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>"
-                                   placeholder="Search publications..."
-                                   class="w-full bg-white border border-slate-200 pl-11 pr-4 py-3 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none">
-                            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                                <i class="fas fa-search text-sm"></i>
-                            </div>
+                            <button type="submit" class="bg-slate-900 text-white p-3.5 rounded-xl hover:bg-black transition-all">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
                         </div>
                     </form>
+                    <?php if (!empty($search_query) || $category_filter > 0): ?>
+                        <div class="mt-4 flex justify-end">
+                            <a href="publications.php" class="text-xs font-bold text-red-600 hover:text-red-700 underline underline-offset-4 flex items-center gap-1">
+                                <i class="fas fa-times-circle"></i> Clear Filters
+                            </a>
+                        </div>
+                    <?php endif; ?>
                 </div>
+            </div>
+
+            <!-- Stats & Breadcrumbs -->
+            <div class="flex items-center gap-6 mb-10 overflow-x-auto pb-2 border-b border-slate-200">
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-slate-400 font-bold">FOUND</span>
+                    <span class="bg-slate-900 text-white px-2.5 py-0.5 rounded-md text-xs font-black"><?php echo count($publications); ?></span>
+                    <span class="text-slate-600 font-bold uppercase tracking-widest text-[10px]">RESOURCES</span>
+                </div>
+                <?php if($category_filter > 0): ?>
+                    <div class="h-4 w-px bg-slate-300"></div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-tag text-red-500 text-xs"></i>
+                        <span class="text-xs font-bold text-slate-500 uppercase"><?php 
+                            foreach($categories as $c) if($c['id'] == $category_filter) echo htmlspecialchars($c['name']); 
+                        ?></span>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- Publications Grid -->
             <?php if(empty($publications)): ?>
-                <div class="flex flex-col items-center justify-center py-20 text-center">
-                    <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-                        <i class="fas fa-book-open text-slate-300 text-4xl"></i>
+                <div class="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-200">
+                    <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                        <i class="fas fa-search text-3xl text-slate-300"></i>
                     </div>
-                    <h3 class="text-2xl font-bold text-slate-800 mb-2">No publications found</h3>
-                    <p class="text-slate-500 max-w-xs">We couldn't find any materials matching your search criteria. Try a different category or search term.</p>
-                    <a href="publications.php" class="mt-6 text-red-600 font-bold hover:underline">Clear all filters</a>
+                    <h2 class="text-3xl font-black text-slate-800 mb-4">No Matches Found</h2>
+                    <p class="text-slate-500 max-w-sm mx-auto font-medium mb-8">Try adjusting your filters or search keywords to find what you're looking for.</p>
+                    <a href="publications.php" class="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-200">
+                        Explore All Publications
+                    </a>
                 </div>
             <?php else: ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    <?php foreach($publications as $pub): 
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                    <?php foreach($publications as $pub):
                         $final_price = $pub['price'] - $pub['discount'];
+                        $discount_pct = $pub['price'] > 0 ? round(($pub['discount'] / $pub['price']) * 100) : 0;
                     ?>
-                        <div class="glass-card flex flex-col h-full rounded-3xl overflow-hidden">
-                            <!-- Image Container -->
-                            <div class="relative aspect-[4/5] overflow-hidden group">
+                        <div class="pub-card flex flex-col group">
+                            <!-- Image Section -->
+                            <div class="pub-cover group">
                                 <?php if(!empty($pub['image_path'])): ?>
                                     <img src="../<?php echo htmlspecialchars($pub['image_path']); ?>" 
-                                         alt="<?php echo htmlspecialchars($pub['title']); ?>"
-                                         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                                         alt="<?php echo htmlspecialchars($pub['title']); ?>">
                                 <?php else: ?>
-                                    <div class="w-full h-full bg-slate-100 flex items-center justify-center">
-                                        <i class="fas fa-book text-slate-300 text-6xl"></i>
+                                    <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+                                        <i class="fas fa-book-open text-slate-300 text-6xl"></i>
                                     </div>
                                 <?php endif; ?>
                                 
-                                <div class="absolute top-4 left-4">
-                                    <span class="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-red-600 shadow-sm border border-red-50/50">
-                                        <?php echo htmlspecialchars($pub['category_name']); ?>
-                                    </span>
+                                <span class="cat-badge" data-sinhala="කාණ්ඩය"><?php echo htmlspecialchars($pub['category_name']); ?></span>
+                                
+                                <?php if($pub['discount'] > 0): ?>
+                                    <span class="discount-badge" data-sinhala="වට්ටම්">-<?php echo $discount_pct; ?>%</span>
+                                <?php endif; ?>
+
+                                <!-- Quick Overlay on Hover -->
+                                <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm flex items-center justify-center">
+                                    <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
+                                        'id'    => $pub['id'],
+                                        'title' => $pub['title'],
+                                        'price' => $final_price
+                                    ])); ?>)" class="bg-white text-slate-900 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform">
+                                        <i class="fas fa-shopping-basket text-xl"></i>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Content -->
-                            <div class="p-6 flex flex-col flex-grow">
-                                <h3 class="text-xl font-bold text-slate-900 mb-2 line-clamp-2 min-h-[3.5rem] leading-snug">
+                            <!-- Content Section -->
+                            <div class="px-6 pb-6 pt-2 flex-1 flex flex-col">
+                                <h3 class="text-lg font-black text-slate-800 line-clamp-2 leading-tight mb-3 min-h-[3rem]">
                                     <?php echo htmlspecialchars($pub['title']); ?>
                                 </h3>
-                                <p class="text-sm text-slate-500 mb-6 line-clamp-3 leading-relaxed">
+                                <p class="text-sm text-slate-500 font-medium line-clamp-2 mb-6 flex-1">
                                     <?php echo htmlspecialchars($pub['description']); ?>
                                 </p>
 
-                                <div class="mt-auto">
-                                    <div class="flex items-center gap-3 mb-6">
-                                        <div class="text-2xl font-black text-slate-900">
-                                            Rs. <?php echo number_format($final_price, 0); ?>
+                                <!-- Price & Action -->
+                                <div class="flex items-end justify-between mt-auto pt-6 border-t border-slate-100">
+                                    <div>
+                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">BEST PRICE</p>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-2xl font-black text-slate-900 tracking-tighter">Rs.<?php echo number_format($final_price, 0); ?></span>
+                                            <?php if($pub['discount'] > 0): ?>
+                                                <span class="text-sm text-slate-300 line-through font-bold">Rs.<?php echo number_format($pub['price'], 0); ?></span>
+                                            <?php endif; ?>
                                         </div>
-                                        <?php if($pub['discount'] > 0): ?>
-                                            <div class="text-sm text-slate-400 line-through">
-                                                Rs. <?php echo number_format($pub['price'], 0); ?>
-                                            </div>
-                                            <div class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                SAVE Rs. <?php echo number_format($pub['discount'], 0); ?>
-                                            </div>
-                                        <?php endif; ?>
                                     </div>
-
                                     <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
-                                        'id' => $pub['id'],
+                                        'id'    => $pub['id'],
                                         'title' => $pub['title'],
                                         'price' => $final_price
-                                    ])); ?>)" 
-                                            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 group transform active:scale-95">
-                                        <span>Buy Now</span>
-                                        <i class="fas fa-shopping-cart text-sm transition-transform group-hover:translate-x-1"></i>
+                                    ])); ?>)" data-sinhala="දැන් ලබාගන්න"
+                                            class="bg-red-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-lg shadow-red-100 group-hover:-translate-y-1">
+                                        <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
                             </div>
@@ -223,104 +372,137 @@ $stmt->close();
                 </div>
             <?php endif; ?>
         </div>
-    </section>
+    </main>
 
-    <!-- Order Drawer/Modal (Styled Premium) -->
-    <div id="orderModal" class="fixed inset-0 z-[100] hidden overflow-hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true" onclick="closeOrderModal()"></div>
+    <!-- ===================== PREMIUM ORDER MODAL ===================== -->
+    <div id="orderModal" class="fixed inset-0 z-[100] hidden overflow-y-auto" role="dialog">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onclick="closeOrderModal()"></div>
 
-            <div class="inline-block align-bottom bg-white rounded-t-[2.5rem] sm:rounded-[2.5rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full border border-slate-100">
-                <div class="bg-white px-8 pt-8 pb-8">
-                    <div class="flex items-center justify-between mb-8">
-                        <div>
-                            <h3 class="text-2xl font-black text-slate-900" id="modal-title">Complete Your Order</h3>
-                        </div>
-                        <button onclick="closeOrderModal()" class="text-slate-400 hover:text-slate-600 p-2">
-                            <i class="fas fa-times text-xl"></i>
-                        </button>
+        <!-- Scrollable Container -->
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="modal-inner relative bg-white w-full max-w-xl rounded-[40px] shadow-[0_40px_100px_-15px_rgba(0,0,0,0.3)] overflow-hidden border border-white/20">
+                
+                <!-- Modal Decoration -->
+                <div class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 -z-10"></div>
+
+                <!-- Header -->
+                <div class="px-10 pt-10 pb-6 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-900 tracking-tight" data-sinhala="ඇණවුම සම්පූර්ණ කරන්න">Checkout</h2>
+                        <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Shipping & Payment Details</p>
                     </div>
+                    <button onclick="closeOrderModal()" class="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
 
-                    <div class="bg-red-50 rounded-2xl p-5 mb-8 flex items-center justify-between border border-red-100">
+                <div class="px-10 pb-10">
+                    <!-- Order Snapshot -->
+                    <div class="bg-slate-900 rounded-3xl p-6 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-red-200">
-                                <i class="fas fa-book"></i>
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold text-red-600 uppercase tracking-widest mb-0.5">Selected Item</p>
-                                <p class="font-bold text-slate-900 truncate max-w-[200px]" id="modalPubTitle"></p>
-                            </div>
+                           <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-white text-2xl">
+                               <i class="fas fa-box-open"></i>
+                           </div>
+                           <div>
+                               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">SELECTED RESOURCE</p>
+                               <h4 id="modalPubTitle" class="text-white font-bold leading-tight line-clamp-1"></h4>
+                           </div>
                         </div>
                         <div class="text-right">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Price</p>
-                            <p class="text-xl font-black text-slate-900" id="modalPubPrice"></p>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TOTAL COST</p>
+                            <span id="modalPubPrice" class="text-2xl font-black text-white tracking-tighter"></span>
                         </div>
                     </div>
 
-                    <form id="orderForm" enctype="multipart/form-data" class="space-y-5">
+                    <!-- Form -->
+                    <form id="orderForm" enctype="multipart/form-data" class="space-y-6">
                         <input type="hidden" id="pubId" name="publication_id">
-                        
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Your Name</label>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
                                 <input type="text" name="name" required value="<?php echo htmlspecialchars($user_name); ?>"
-                                       class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder-slate-400 text-sm font-medium">
+                                       class="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">WhatsApp Number</label>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1" data-sinhala="වොට්සැප් අංකය">WhatsApp Number</label>
                                 <input type="text" name="contact_number" required value="<?php echo htmlspecialchars($user_contact); ?>"
-                                       class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder-slate-400 text-sm font-medium">
+                                       class="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">District</label>
-                            <input type="text" name="district" required value="<?php echo htmlspecialchars($user_district); ?>"
-                                   class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder-slate-400 text-sm font-medium">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Delivery Address</label>
-                            <textarea name="address" rows="2" required placeholder="Full address for courier delivery..."
-                                      class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all placeholder-slate-400 text-sm font-medium"></textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Payment Method</label>
-                            <select name="payment_method" id="paymentMethod" required onchange="togglePaymentDetails()"
-                                    class="w-full bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all text-sm font-medium">
-                                <option value="">Choose payment option...</option>
-                                <option value="card">Online Payment (Card/Wallet)</option>
-                                <option value="bank_transfer">Manual Bank Transfer</option>
-                            </select>
-                        </div>
-
-                        <!-- Bank Details (Conditional) -->
-                        <div id="bankDetailsSection" class="hidden bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-300">
-                            <div class="flex items-center gap-2 mb-4 text-slate-900 font-bold">
-                                <i class="fas fa-university"></i>
-                                <span>Bank Account Info</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">District</label>
+                                <input type="text" name="district" required value="<?php echo htmlspecialchars($user_district); ?>"
+                                       class="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
                             </div>
-                            <div class="space-y-1 mb-4 text-sm font-medium text-slate-600">
-                                <p>Bank: <span class="text-slate-900">Commercial Bank</span></p>
-                                <p>Account Name: <span class="text-slate-900">LearnerX Institute</span></p>
-                                <p>Account No: <span class="text-slate-900 font-bold">1234 5678 9012</span></p>
+                            <div class="space-y-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Quantity</label>
+                                <select name="quantity" class="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                                    <?php for($i=1; $i<=10; $i++): ?>
+                                        <option value="<?php echo $i; ?>"><?php echo $i; ?> Piece<?php echo $i>1?'s':'' ?></option>
+                                    <?php endfor; ?>
+                                </select>
                             </div>
-                            
-                            <label class="block text-[10px] font-black text-red-600 uppercase tracking-widest mb-2">Upload Transfer Receipt</label>
-                            <div class="relative">
-                                <input type="file" name="receipt" id="receiptFile" accept="image/*,.pdf"
-                                       class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
-                            </div>
-                            <p id="receiptError" class="hidden text-[10px] text-red-500 font-bold mt-2 italic">Receipt is mandatory for bank transfers.</p>
                         </div>
 
-                        <div id="formFeedback"></div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Delivery Address</label>
+                            <textarea name="address" required rows="2" placeholder="Street, Building, City..."
+                                      class="w-full bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"></textarea>
+                        </div>
 
-                        <button type="submit" id="submitOrderBtn"
-                                class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-2xl transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2 mt-4 transform active:scale-95">
-                            <span>Place Order Now</span>
-                            <i class="fas fa-arrow-right text-xs"></i>
+                        <!-- Payment Method -->
+                        <div class="space-y-3">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payment Method</label>
+                            <input type="hidden" name="payment_method" id="paymentMethodInput">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div id="tabCard" onclick="selectPayment('card')" class="cursor-pointer border-2 border-slate-100 p-5 rounded-3xl flex flex-col items-center gap-2 hover:border-red-100 hover:bg-red-50/30 transition-all group">
+                                    <i class="fas fa-credit-card text-2xl text-slate-300 group-hover:text-red-400"></i>
+                                    <span class="text-xs font-black text-slate-400 group-hover:text-red-900 uppercase tracking-tighter">Online Payment</span>
+                                </div>
+                                <div id="tabBank" onclick="selectPayment('bank_transfer')" class="cursor-pointer border-2 border-slate-100 p-5 rounded-3xl flex flex-col items-center gap-2 hover:border-red-100 hover:bg-red-50/30 transition-all group">
+                                    <i class="fas fa-university text-2xl text-slate-300 group-hover:text-red-400"></i>
+                                    <span class="text-xs font-black text-slate-400 group-hover:text-red-900 uppercase tracking-tighter">Bank Transfer</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bank Details (Hidden by default) -->
+                        <div id="bankDetailsSection" class="hidden animate-fade-in bg-slate-50 rounded-[32px] p-8 border border-slate-200">
+                             <div class="flex items-center gap-4 mb-6">
+                                 <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-100">
+                                     <i class="fas fa-building-columns"></i>
+                                 </div>
+                                 <h5 class="font-black text-slate-900 tracking-tight">Institute Bank Details</h5>
+                             </div>
+                             <div class="grid gap-3 text-sm font-bold text-slate-600 mb-8">
+                                 <div class="flex justify-between border-b border-slate-200 pb-2">
+                                     <span class="text-slate-400">BANK</span>
+                                     <span>COMMERCIAL BANK</span>
+                                 </div>
+                                 <div class="flex justify-between border-b border-slate-200 pb-2">
+                                     <span class="text-slate-400">ACCOUNT</span>
+                                     <span>LEARNERX HUB (PVT) LTD</span>
+                                 </div>
+                                 <div class="flex justify-between">
+                                     <span class="text-slate-400">NUMBER</span>
+                                     <span class="font-mono text-red-600">80100 23456 7890</span>
+                                 </div>
+                             </div>
+                             <div class="space-y-3">
+                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Upload Receipt</label>
+                                 <input type="file" name="receipt" id="receiptFile" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:bg-red-600 file:text-white hover:file:bg-slate-900 cursor-pointer">
+                             </div>
+                        </div>
+
+                        <div id="formFeedback" class="text-xs font-bold"></div>
+
+                        <button type="submit" id="submitOrderBtn" class="w-full bg-slate-900 text-white font-black py-5 rounded-3xl hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3 active:scale-[0.98]">
+                            <span>SEND ORDER REQUEST</span>
+                            <i class="fas fa-paper-plane text-xs"></i>
                         </button>
                     </form>
                 </div>
@@ -328,74 +510,81 @@ $stmt->close();
         </div>
     </div>
 
-    <!-- Success Modal -->
-    <div id="successModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md"></div>
-        <div class="relative bg-white rounded-[2.5rem] p-10 max-w-sm w-full text-center shadow-2xl border border-slate-100">
-            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <i class="fas fa-check text-green-600 text-3xl"></i>
+    <!-- SUCCESS NOTIFICATION -->
+    <div id="successModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900 flex items-center justify-center">
+            <div class="text-center">
+                <div class="w-32 h-32 bg-red-600 rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-[0_30px_60px_-10px_rgba(239,68,68,0.5)] rotate-12">
+                    <i class="fas fa-check text-5xl text-white"></i>
+                </div>
+                <h3 class="text-5xl font-black text-white tracking-tight mb-4">Request Sent!</h3>
+                <p class="text-slate-400 text-lg max-w-sm mx-auto font-medium mb-12">We've received your order. One of our team members will contact you on WhatsApp shortly.</p>
+                <button onclick="window.location.reload()" class="bg-white text-slate-900 px-10 py-5 rounded-full font-black hover:scale-110 transition-transform">
+                    AWESOME! 🎊
+                </button>
             </div>
-            <h3 class="text-2xl font-black text-slate-900 mb-2">Order Success!</h3>
-            <p class="text-slate-500 mb-8">Your order has been placed. We'll contact you shortly via WhatsApp.</p>
-            <button onclick="window.location.reload()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl">
-                Awesome!
-            </button>
         </div>
     </div>
 
     <script>
+        let selectedPaymentMethod = '';
+
+        function selectPayment(method) {
+            selectedPaymentMethod = method;
+            document.getElementById('paymentMethodInput').value = method;
+
+            const card = document.getElementById('tabCard');
+            const bank = document.getElementById('tabBank');
+            const bankSection = document.getElementById('bankDetailsSection');
+
+            card.classList.remove('bg-red-50', 'border-red-500', 'ring-2', 'ring-red-500/20');
+            bank.classList.remove('bg-red-50', 'border-red-500', 'ring-2', 'ring-red-500/20');
+
+            if(method === 'card') {
+                card.classList.add('bg-red-50', 'border-red-500', 'ring-2', 'ring-red-500/20');
+                bankSection.classList.add('hidden');
+            } else {
+                bank.classList.add('bg-red-50', 'border-red-500', 'ring-2', 'ring-red-500/20');
+                bankSection.classList.remove('hidden');
+            }
+        }
+
         function openOrderModal(pub) {
             document.getElementById('pubId').value = pub.id;
             document.getElementById('modalPubTitle').textContent = pub.title;
-            document.getElementById('modalPubPrice').textContent = 'Rs. ' + pub.price;
+            document.getElementById('modalPubPrice').textContent = 'Rs.' + pub.price.toLocaleString();
             document.getElementById('orderModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             
-            // Animation for the modal content
-            const modalContent = document.querySelector('#orderModal > div > div:nth-child(2)');
-            modalContent.classList.add('translate-y-0');
+            // Reset state
+            selectedPaymentMethod = '';
+            document.getElementById('paymentMethodInput').value = '';
+            document.getElementById('tabCard').className = document.getElementById('tabCard').className.replace(/bg-red-50|border-red-500|ring-2|ring-red-500\/20/g, '');
+            document.getElementById('tabBank').className = document.getElementById('tabBank').className.replace(/bg-red-50|border-red-500|ring-2|ring-red-500\/20/g, '');
+            document.getElementById('bankDetailsSection').classList.add('hidden');
         }
 
         function closeOrderModal() {
             document.getElementById('orderModal').classList.add('hidden');
             document.body.style.overflow = 'auto';
             document.getElementById('orderForm').reset();
-            togglePaymentDetails();
-        }
-
-        function togglePaymentDetails() {
-            const method = document.getElementById('paymentMethod').value;
-            const bankSection = document.getElementById('bankDetailsSection');
-            if (method === 'bank_transfer') {
-                bankSection.classList.remove('hidden');
-            } else {
-                bankSection.classList.add('hidden');
-            }
         }
 
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            
-            const method = document.getElementById('paymentMethod').value;
-            const receipt = document.getElementById('receiptFile').files[0];
-            const receiptError = document.getElementById('receiptError');
-            
-            if (method === 'bank_transfer' && !receipt) {
-                receiptError.classList.remove('hidden');
+
+            if (!selectedPaymentMethod) {
+                document.getElementById('formFeedback').innerHTML = '<p class="text-red-500">Pick a payment method!</p>';
                 return;
-            } else {
-                receiptError.classList.add('hidden');
             }
 
             const btn = document.getElementById('submitOrderBtn');
             const feedback = document.getElementById('formFeedback');
-            
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
-            feedback.innerHTML = '';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
 
             const formData = new FormData(this);
-            
+
             fetch('submit_publication_order.php', {
                 method: 'POST',
                 body: formData
@@ -404,20 +593,16 @@ $stmt->close();
             .then(data => {
                 if (data.success) {
                     document.getElementById('successModal').classList.remove('hidden');
-                    document.getElementById('orderModal').classList.add('hidden');
                 } else {
-                    feedback.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold mb-4 border border-red-100 flex items-center gap-2">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>${data.message}</span>
-                    </div>`;
+                    feedback.innerHTML = `<span class="text-red-500">${data.message}</span>`;
                     btn.disabled = false;
-                    btn.innerHTML = 'Place Order Now <i class="fas fa-arrow-right text-xs"></i>';
+                    btn.innerHTML = '<span>SEND ORDER REQUEST</span><i class="fas fa-paper-plane text-xs"></i>';
                 }
             })
-            .catch(err => {
-                feedback.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold mb-4 border border-red-100">Connection error. Please try again.</div>`;
+            .catch(() => {
+                feedback.innerHTML = '<span class="text-red-500">Network Error. Try again!</span>';
                 btn.disabled = false;
-                btn.innerHTML = 'Place Order Now <i class="fas fa-arrow-right text-xs"></i>';
+                btn.innerHTML = '<span>SEND ORDER REQUEST</span><i class="fas fa-paper-plane text-xs"></i>';
             });
         });
     </script>

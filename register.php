@@ -8,41 +8,40 @@ require_once 'config.php';
 $success_message = '';
 $error_message = '';
 
-    // Initialize empty values for GET request
-    $email = '';
-    $first_name = '';
-    $second_name = '';
-    $mobile_number = '';
-    $whatsapp_number = '';
-    $verification_method = 'none';
-    $nic_number = '';
-    $nic_verified = 0;
-    $otp_verified = 0;
-    $dob = '';
-    $school_name = '';
-    $exam_year = '';
-    $district = '';
-    $address = '';
-    $gender = '';
+// Initialize empty values for GET request
+$first_name = '';
+$second_name = '';
+$second_name = '';
+$mobile_number = '';
+$whatsapp_number = '';
+$verification_method = 'none';
+$nic_number = '';
+$nic_verified = 0;
+$otp_verified = 0;
+$dob = '';
+$school_name = '';
+$exam_year = '';
+$district = '';
+$address = '';
+$gender = '';
 
-    // Get enrollment parameters from URL if not in POST
-    $url_course_id = isset($_GET['course_id']) ? intval($_GET['course_id']) : 0;
-    $url_stream_id = isset($_GET['stream_id']) ? intval($_GET['stream_id']) : 0;
-    $url_subject_id = isset($_GET['subject_id']) ? intval($_GET['subject_id']) : 0;
+// Get enrollment parameters from URL if not in POST
+$url_course_id = isset($_GET['course_id']) ? intval($_GET['course_id']) : 0;
+$url_stream_id = isset($_GET['stream_id']) ? intval($_GET['stream_id']) : 0;
+$url_subject_id = isset($_GET['subject_id']) ? intval($_GET['subject_id']) : 0;
 
-    // Set initial values ensuring POST takes precedence
-    $enrollment_type = $_POST['enrollment_type'] ?? ($url_course_id > 0 ? 'course' : 'subject');
-    $course_id_selected = $_POST['course_id'] ?? $url_course_id;
-    $stream_id_selected = $_POST['stream_id'] ?? $url_stream_id;
-    $subject_id_selected = $_POST['subject_id'] ?? $url_subject_id;
+// Set initial values ensuring POST takes precedence
+$enrollment_type = $_POST['enrollment_type'] ?? ($url_course_id > 0 ? 'course' : 'subject');
+$course_id_selected = $_POST['course_id'] ?? $url_course_id;
+$stream_id_selected = $_POST['stream_id'] ?? $url_stream_id;
+$subject_id_selected = $_POST['subject_id'] ?? $url_subject_id;
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     // Removed username input processing
-    $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? ''; // Added confirm password
-    
+
     $role = 'student'; // Only student registration allowed
     $first_name = trim($_POST['first_name'] ?? '');
     $second_name = trim($_POST['second_name'] ?? '');
@@ -55,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
     // Student-specific fields
 
-    
+
     // Student-specific fields
     $dob = !empty($_POST['dob']) ? trim($_POST['dob']) : null;
     $school_name = !empty($_POST['school_name']) ? trim($_POST['school_name']) : null;
@@ -63,58 +62,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $district = !empty($_POST['district']) ? trim($_POST['district']) : null;
     $address = !empty($_POST['address']) ? trim($_POST['address']) : null;
     $gender = !empty($_POST['gender']) ? trim($_POST['gender']) : null;
-    
+
     // Determine approval status based on verification (students only)
     $approved = 0;
     $verification_status = 'pending';
-    
+
     // For students: verification determines approval
     if ($verification_method === 'nic' && $nic_verified === 1) {
         $approved = 1;
         $verification_status = 'verified_nic';
-    } elseif ($verification_method === 'mobile' && $otp_verified === 1) {
+    }
+    elseif ($verification_method === 'mobile' && $otp_verified === 1) {
         $approved = 1;
         $verification_status = 'verified_mobile';
-    } else {
+    }
+    else {
         // Verification failed or not completed - require admin approval
         $approved = 0;
         $verification_status = 'pending';
     }
-    
+
     // Validation (students only)
-    if (empty($email) || empty($password)) {
-        $error_message = 'Email and password are required.';
-    } elseif ($password !== $confirm_password) {
+    if (empty($password)) {
+        $error_message = 'Password is required.';
+    }
+    elseif ($password !== $confirm_password) {
         $error_message = 'Passwords do not match.';
-    } elseif (empty($verification_method) || $verification_method === 'none') {
+    }
+    elseif (empty($verification_method) || $verification_method === 'none') {
         $error_message = 'Please select a verification method and complete the verification.';
-    } elseif ($verification_method === 'nic' && $nic_verified !== 1) {
+    }
+    elseif ($verification_method === 'nic' && $nic_verified !== 1) {
         $error_message = 'Please verify your NIC number before submitting.';
-    } elseif ($verification_method === 'mobile' && $otp_verified !== 1) {
+    }
+    elseif ($verification_method === 'mobile' && $otp_verified !== 1) {
         $error_message = 'Please verify your mobile number with OTP before submitting.';
-    } else {
+    }
+    else {
         // Additional validation for students
         $enrollment_type = $_POST['enrollment_type'] ?? 'subject';
-        
+
         if ($enrollment_type === 'subject') {
             $stream_id_input = $_POST['stream_id'] ?? '';
             $subject_id_input = $_POST['subject_id'] ?? '';
             $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
-            
+
             if (intval($stream_id_input) <= 0) {
                 $error_message = 'Please select a stream.';
-            } elseif (intval($subject_id_input) <= 0) {
+            }
+            elseif (intval($subject_id_input) <= 0) {
                 $error_message = 'Please select a subject.';
-            } elseif (empty($selected_teacher_id)) {
+            }
+            elseif (empty($selected_teacher_id)) {
                 $error_message = 'Please select a teacher.';
             }
-        } elseif ($enrollment_type === 'course') {
+        }
+        elseif ($enrollment_type === 'course') {
             $course_id_input = $_POST['course_id'] ?? '';
             if (intval($course_id_input) <= 0) {
                 $error_message = 'Please select a course.';
             }
         }
-        
+
         // If no validation errors, proceed with user creation
         if (empty($error_message)) {
             // Generate user_id based on role
@@ -125,14 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 'admin' => 'adm'
             ];
             $prefix = $role_prefix[$role] ?? 'usr';
-            
+
             // Get next number for this role
             $stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY user_id DESC LIMIT 1");
             $pattern = $prefix . '_%';
             $stmt->bind_param("s", $pattern);
             $stmt->execute();
             $result = $stmt->get_result();
-            
+
             $next_num = 1000; // Start from 1000
             if ($result->num_rows > 0) {
                 $last_user = $result->fetch_assoc();
@@ -140,53 +149,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 $next_num = max($last_num + 1, 1000);
             }
             $stmt->close();
-            
+
             $user_id = $prefix . '_' . str_pad($next_num, 4, '0', STR_PAD_LEFT);
             // $username = $user_id; // Removed username assignment
-            
+
             // Hash password
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            
+
             // Handle profile picture upload (optional for students)
             $profile_picture_path = null;
-            
+
             // Process upload if file is provided
             if (empty($error_message) && isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK && !empty($_FILES['profile_picture']['name'])) {
                 $upload_dir = 'uploads/profiles/';
                 if (!file_exists($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
                 }
-                
+
                 $file = $_FILES['profile_picture'];
                 $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
                 $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-                
+
                 // Validate file type
                 if (!in_array($file_ext, $allowed_extensions)) {
                     $error_message = 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.';
-                } elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
+                }
+                elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
                     $error_message = 'File size too large. Maximum size is 5MB.';
-                } else {
+                }
+                else {
                     // Generate unique filename
                     $new_filename = $user_id . '_' . time() . '.' . $file_ext;
                     $upload_path = $upload_dir . $new_filename;
-                    
+
                     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
                         $profile_picture_path = 'uploads/profiles/' . $new_filename;
-                    } else {
+                    }
+                    else {
                         $error_message = 'Failed to upload profile picture.';
                     }
                 }
             }
-            
+
             // If no upload errors, proceed with user creation
             if (empty($error_message)) {
                 $nic_no_value = ($verification_method === 'nic' && !empty($nic_number)) ? $nic_number : null;
                 $verification_method_value = ($verification_method !== 'none') ? $verification_method : 'none';
-                
-                $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssssssissssisss", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $district, $address, $gender);
-                
+
+                $stmt = $conn->prepare("INSERT INTO users (user_id, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssssssssissssisss", $user_id, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $district, $address, $gender);
+
                 if ($stmt->execute()) {
                     // Handle student-specific data
                     // Handle student-specific data
@@ -197,41 +209,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         if ($enrollment_type === 'subject') {
                             $stream_id_input = $_POST['stream_id'] ?? '';
                             $subject_id_input = $_POST['subject_id'] ?? '';
-                            
+
                             $stream_id = intval($stream_id_input);
                             $subject_id = intval($subject_id_input);
-                            
+
                             // Create stream_subject if it doesn't exist
                             if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
                                 $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
                                 $check_ss->bind_param("ii", $stream_id, $subject_id);
                                 $check_ss->execute();
                                 $ss_result = $check_ss->get_result();
-                                
+
                                 $stream_subject_id = null;
                                 if ($ss_result->num_rows > 0) {
                                     $ss_row = $ss_result->fetch_assoc();
                                     $stream_subject_id = $ss_row['id'];
-                                } else {
+                                }
+                                else {
                                     $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
                                     $create_ss->bind_param("ii", $stream_id, $subject_id);
                                     if ($create_ss->execute()) {
                                         $stream_subject_id = $conn->insert_id;
-                                    } else {
+                                    }
+                                    else {
                                         $error_message = 'Error creating stream-subject combination: ' . $conn->error;
                                     }
                                     $create_ss->close();
                                 }
                                 $check_ss->close();
-                                
+
                                 // Insert student enrollment
                                 if (empty($error_message) && $stream_subject_id) {
                                     $enroll_stmt = $conn->prepare("INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, enrolled_date, status, payment_status) VALUES (?, ?, ?, CURDATE(), 'active', 'pending')");
                                     $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
-                                    
+
                                     if (!$enroll_stmt->execute()) {
                                         $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
-                                    } else {
+                                    }
+                                    else {
                                         // Enrollment Success - Send WhatsApp
                                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                                             $sub_stmt = $conn->prepare("SELECT name FROM subjects WHERE id = ?");
@@ -241,10 +256,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                             if ($sub_row = $sub_res->fetch_assoc()) {
                                                 $subj_name = $sub_row['name'];
                                                 $enroll_msg = "📚 * / ඇතුළත් වීම  සාර්ථකයි*\n\n" .
-                                                            "Hello {$first_name},\n" .
-                                                            "Enrollment Successful \n\n,You have successfully enrolled in the subject: *{$subj_name}*\n\n" .
-                                                            "--------------------------\n\n" .
-                                                            "ඔබ සාර්ථකව *{$subj_name}* විෂය සඳහා ලියාපදිංචි වී ඇත.";
+                                                    "Hello {$first_name},\n" .
+                                                    "Enrollment Successful \n\n,You have successfully enrolled in the subject: *{$subj_name}*\n\n" .
+                                                    "--------------------------\n\n" .
+                                                    "ඔබ සාර්ථකව *{$subj_name}* විෂය සඳහා ලියාපදිංචි වී ඇත.";
                                                 sendWhatsAppMessage($whatsapp_number, $enroll_msg);
                                             }
                                             $sub_stmt->close();
@@ -253,19 +268,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                     $enroll_stmt->close();
                                 }
                             }
-                        } elseif ($enrollment_type === 'course') {
+                        }
+                        elseif ($enrollment_type === 'course') {
                             $course_id = intval($_POST['course_id'] ?? 0);
-                            
+
                             if (empty($error_message) && $course_id > 0) {
                                 // Enroll in course
                                 $enroll_stmt = $conn->prepare("INSERT INTO course_enrollments (course_id, student_id, enrolled_at, status, payment_status) VALUES (?, ?, NOW(), 'active', 'pending')");
                                 $enroll_stmt->bind_param("is", $course_id, $user_id);
-                                
+
                                 if (!$enroll_stmt->execute()) {
                                     if ($conn->errno != 1062) { // Ignore duplicate entry
                                         $error_message = 'User created but failed to enroll in course: ' . $enroll_stmt->error;
                                     }
-                                } else {
+                                }
+                                else {
                                     // Enrollment Success - Send WhatsApp
                                     if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                                         $crs_stmt = $conn->prepare("SELECT name FROM courses WHERE id = ?");
@@ -275,8 +292,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                         if ($crs_row = $crs_res->fetch_assoc()) {
                                             $course_name = $crs_row['name'];
                                             $enroll_msg = "🎓 *Course Enrollment Successful*\n\n" .
-                                                        "Hello {$first_name},\n" .
-                                                        "You have successfully enrolled in the course: *{$course_name}*";
+                                                "Hello {$first_name},\n" .
+                                                "You have successfully enrolled in the course: *{$course_name}*";
                                             sendWhatsAppMessage($whatsapp_number, $enroll_msg);
                                         }
                                         $crs_stmt->close();
@@ -287,22 +304,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         }
                     }
 
-                    
+
                     if (empty($error_message)) {
                         // Send welcome message via WhatsApp
                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                             try {
                                 $welcome_msg = "🎓 *Welcome to LearnerX!* 🎓\n\n" .
-                                             "Hello {$first_name}, your account has been successfully created.\n" .
-                                             "🆔 *User ID:* {$user_id}\n\n" .
-                                             "--------------------------\n\n" .
-                                             "LearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
-                                             "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
-                                             "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
-                                             "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
-                                
+                                    "Hello {$first_name}, your account has been successfully created.\n" .
+                                    "🆔 *User ID:* {$user_id}\n\n" .
+                                    "--------------------------\n\n" .
+                                    "LearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
+                                    "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
+                                    "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
+                                    "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
+
                                 sendWhatsAppMessage($whatsapp_number, $welcome_msg);
-                            } catch (Exception $e) {
+                            }
+                            catch (Exception $e) {
                                 error_log("WhatsApp welcome message failed: " . $e->getMessage());
                             }
                         }
@@ -312,16 +330,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         if ($approved == 1) {
                             header("Location: login.php?success=" . urlencode($ui_welcome_msg));
                             exit;
-                        } else {
+                        }
+                        else {
                             $success_message = $ui_welcome_msg . "\n\nYour account is pending admin approval. You will be able to login once approved.";
                         }
                         // Clear form data
                         $_POST = array();
                     }
-                } else {
+                }
+                else {
                     if ($conn->errno == 1062) {
-                        $error_message = 'Email or User ID already exists.';
-                    } else {
+                        $error_message = 'User ID already exists.';
+                    }
+                    else {
                         $error_message = 'Error creating user: ' . $conn->error;
                     }
                 }
@@ -341,7 +362,7 @@ $courses_query = "SELECT id, teacher_id, title, price, cover_image FROM courses 
 $courses_result = $conn->query($courses_query);
 $courses = [];
 if ($courses_result) {
-    while($row = $courses_result->fetch_assoc()) {
+    while ($row = $courses_result->fetch_assoc()) {
         // Fetch teacher details safely
         $t_stmt = $conn->prepare("SELECT first_name, second_name FROM users WHERE user_id = ?");
         $t_stmt->bind_param("s", $row['teacher_id']);
@@ -349,7 +370,8 @@ if ($courses_result) {
         $t_res = $t_stmt->get_result();
         if ($t = $t_res->fetch_assoc()) {
             $row['teacher_name'] = $t['first_name'] . ' ' . $t['second_name'];
-        } else {
+        }
+        else {
             $row['teacher_name'] = 'Unknown Teacher';
         }
         $t_stmt->close();
@@ -359,9 +381,9 @@ if ($courses_result) {
 
 // Sri Lanka Districts
 $districts = [
-    'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha', 
-    'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala', 
-    'Mannar', 'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya', 
+    'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
+    'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala',
+    'Mannar', 'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya',
     'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
 ];
 
@@ -391,32 +413,96 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
-                        url('https://res.cloudinary.com/dnfbik3if/image/upload/v1768487136/1220_avhcs8.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
+            background-color: #f0f2f5;
+            background-image: none;
             min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
-        .form-container {
-            background-color: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
+        .form-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dadce0;
+            margin-bottom: 12px;
+            padding: 24px;
+            transition: all 0.3s ease;
+        }
+        .form-card:first-of-type {
+            border-top: 10px solid #dc2626; /* Material Red 600 */
+        }
+        .google-input {
+            border-bottom: 2px solid #e0e0e0;
+            transition: border-color 0.2s;
+        }
+        .google-input:focus {
+            border-bottom-color: #dc2626;
+            outline: none;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 8px;
+        }
+        .section-subtitle {
+            font-size: 0.875rem;
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 8px;
+        }
+        input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 12px 0;
+            border: none;
+            border-bottom: 1px solid #dadce0;
+            background: transparent;
+            font-size: 1rem;
+            transition: border-bottom 0.2s ease-in-out;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-bottom: 2px solid #dc2626;
+            outline: none;
+        }
+        .btn-primary {
+            background-color: #dc2626;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: #b91c1c;
         }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     
-    <div class="max-w-6xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="px-4 py-6 sm:px-0">
-            <div class="form-container rounded-lg shadow-2xl p-6">
-                <div class="flex items-center justify-between mb-6">
-                    <h1 class="text-2xl font-bold text-gray-900 flex items-center space-x-2">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                        </svg>
-                        <span>Student Registration</span>
-                    </h1>
+    <div class="max-w-7xl mx-auto py-8 px-4">
+        <!-- Header Image Card -->
+        <div class="form-card p-0 overflow-hidden !border-0 shadow-lg mb-8">
+            <div class="h-4 w-full bg-red-600"></div>
+            <div class="p-8">
+                <div class="flex items-center space-x-3 mb-4">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    <h1 class="text-3xl font-normal text-[#202124]">Student Registration</h1>
                 </div>
+                <div class="text-[#202124] text-sm">
+                    Lernerr.LK Learning Management System Registration
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <span class="text-red-600 text-sm font-medium">* Required</span>
+                </div>
+            </div>
+        </div>
 
                 <!-- Success Message -->
                 <?php if (!empty($success_message)): ?>
@@ -433,7 +519,8 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             </div>
                         </div>
                     </div>
-                <?php endif; ?>
+                <?php
+endif; ?>
 
                 <!-- Error Message -->
                 <?php if (!empty($error_message)): ?>
@@ -445,154 +532,134 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <p class="ml-3 text-sm font-medium"><?php echo htmlspecialchars($error_message); ?></p>
                         </div>
                     </div>
-                <?php endif; ?>
+                <?php
+endif; ?>
 
                 <!-- Toast Container -->
-                <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
-
-                <form method="POST" action="" class="space-y-6" id="addUserForm" enctype="multipart/form-data">
-                    <!-- Role (Hidden - Student Only) -->
+                <form method="POST" action="" class="space-y-4" id="addUserForm" enctype="multipart/form-data">
                     <input type="hidden" id="role" name="role" value="student">
                     
                     <!-- SECTION 1: Student Information -->
-                    <div class="space-y-6 border-2 border-red-500 rounded-lg p-6">
-                        <div class="flex items-center justify-between bg-red-600 text-white px-6 py-3 rounded-t-lg -mx-6 -mt-6 mb-6">
-                        <h3 class="text-xl font-bold">Student Information</h3>
-                        <h3 class="text-xl font-bold"><span class="font-semibold">User ID:</span> <?php echo htmlspecialchars($display_user_id); ?></h3>
+                    <div class="form-card">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 class="section-title">Student Information</h3>
+                                <p class="section-subtitle">Basic details about the student</p>
+                            </div>
+                            <div class="bg-red-50 text-red-700 px-4 py-2 rounded-full text-sm font-bold border border-red-100">
+                                User ID: <?php echo htmlspecialchars($display_user_id); ?>
+                            </div>
                         </div>
                         
-                        <!-- User ID Display (Not an input) -->
-                       
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- First Name and Last Name in single row -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- First Name and Last Name -->
                             <div>
-                                <label for="first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                                <label for="first_name">First Name *</label>
                                 <input type="text" id="first_name" name="first_name" required
-                                       placeholder="Enter your first name / පළමු නම ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       placeholder="පළමු නම"
                                        value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
                             </div>
 
                             <div>
-                                <label for="second_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                                <label for="second_name">Last Name *</label>
                                 <input type="text" id="second_name" name="second_name" required
-                                       placeholder="Enter your last name / දෙවන නම ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       placeholder="අවසාන නම"
                                        value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
                             </div>
 
                             <!-- Date of Birth and Gender -->
                             <div>
-                                <label for="dob" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                                <label for="dob">Date of Birth *</label>
                                 <input type="date" id="dob" name="dob" required
                                        max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                                        value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
                             </div>
 
                             <div>
-                                <label for="gender" class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
-                                <select id="gender" name="gender" required
-                                        class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                                    <option value="">-- Select Gender --</option>
-                                    <option value="male" <?php echo (($_POST['gender'] ?? '') === 'male') ? 'selected' : ''; ?>>Male</option>
-                                    <option value="female" <?php echo (($_POST['gender'] ?? '') === 'female') ? 'selected' : ''; ?>>Female</option>
+                                <label for="gender">Gender *</label>
+                                <select id="gender" name="gender" required>
+                                    <option value="">තෝරන්න</option>
+                                    <option value="male" <?php echo(($_POST['gender'] ?? '') === 'male') ? 'selected' : ''; ?>>පුරුෂ</option>
+                                    <option value="female" <?php echo(($_POST['gender'] ?? '') === 'female') ? 'selected' : ''; ?>>ස්ත්‍රී</option>
                                 </select>
                             </div>
 
                             <!-- Password and Confirm Password -->
                             <div>
-                                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                                <label for="password">Password *</label>
                                 <input type="password" id="password" name="password" required
-                                       placeholder="Enter a strong password / ශක්තිමත් මුරපදයක් ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                                       placeholder="ශක්තිමත් මුරපදයක් ඇතුළත් කරන්න">
                             </div>
 
                             <div>
-                                <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password *</label>
+                                <label for="confirm_password">Confirm Password *</label>
                                 <input type="password" id="confirm_password" name="confirm_password" required
-                                       placeholder="Re-enter your password / මුරපදය නැවත ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                                       placeholder="මුරපදය නැවත ඇතුළත් කරන්න">
                             </div>
 
                             <!-- School Name -->
                             <div>
-                                <label for="school_name" class="block text-sm font-medium text-gray-700 mb-1">School Name</label>
+                                <label for="school_name">School Name</label>
                                 <input type="text" id="school_name" name="school_name"
-                                       placeholder="Enter your school name / පාසලේ නම ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       placeholder="පාසලේ නම"
                                        value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
                             </div>
 
                             <!-- District -->
                             <div>
-                                <label for="district" class="block text-sm font-medium text-gray-700 mb-1">District *</label>
+                                <label for="district">District *</label>
                                 <div class="relative">
                                     <input type="text" id="district_search" 
-                                           placeholder="Search or select your district / ඔබේ දිස්ත්‍රික්කය සොයන්න හෝ තෝරන්න"
-                                           class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                           placeholder="දිස්ත්‍රික්කය සොයන්න"
                                            autocomplete="off"
                                            value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>"
                                            oninput="filterDistricts()" 
                                            onfocus="showDistricts()"
                                            onblur="setTimeout(hideDistricts, 200)">
                                     <input type="hidden" id="district" name="district" value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>">
-                                    <div id="district_dropdown" class="absolute z-10 w-full bg-white border-2 border-red-300 rounded-md shadow-lg max-h-60 overflow-y-auto hidden">
+                                    <div id="district_dropdown" class="absolute z-10 w-full bg-white border border-[#dadce0] rounded-md shadow-lg max-h-60 overflow-y-auto hidden">
                                         <!-- Options will be populated by JS -->
                                     </div>
                                 </div>
                             </div>
 
-
-
-                            <!-- Address (Full width) -->
+                            <!-- Address -->
                             <div class="md:col-span-2">
-                                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Address *</label>
-                                <textarea id="address" name="address" rows="3" required
-                                          placeholder="Enter your full address / සම්පූර්ණ ලිපිනය ඇතුළත් කරන්න"
-                                          class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
+                                <label for="address">Address *</label>
+                                <textarea id="address" name="address" rows="1" required
+                                          placeholder="සම්පූර්ණ ලිපිනය ඇතුළත් කරන්න"><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
                             </div>
                         </div>
                     </div>
 
                     <!-- SECTION 2: Contact Information -->
-                    <div class="space-y-6 border-2 border-red-500 rounded-lg p-6">
-                        <h3 class="text-xl font-bold bg-red-600 text-white px-6 py-3 rounded-t-lg -mx-6 -mt-6 mb-6">Contact Information</h3>
+                    <div class="form-card">
+                        <h3 class="section-title">Contact Information</h3>
+                        <p class="section-subtitle">How we can reach you</p>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <!-- WhatsApp Number -->
                             <div>
-                                <label for="whatsapp_number" class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number *</label>
+                                <label for="whatsapp_number">WhatsApp Number *</label>
                                 <input type="text" id="whatsapp_number" name="whatsapp_number" required
-                                       placeholder="Enter WhatsApp number (e.g., 0771234567) / වට්ස්ඇප් අංකය ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       placeholder="වට්ස්ඇප් අංකය"
                                        value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
                             </div>
 
                             <!-- Mobile Number (Contact Number) -->
                             <div>
-                                <label for="mobile_number" class="block text-sm font-medium text-gray-700 mb-1">Contact Number (Mobile) *</label>
+                                <label for="mobile_number">Contact Number (Mobile) *</label>
                                 <input type="text" id="mobile_number" name="mobile_number" required
-                                       placeholder="Enter mobile number (e.g., 0771234567) / ජංගම දුරකථන අංකය ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                       placeholder="ජංගම දුරකථන අංකය"
                                        value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
-                            </div>
-
-                            <!-- Email -->
-                            <div class="md:col-span-2">
-                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
-                                <input type="email" id="email" name="email" required
-                                       placeholder="Enter your email address (e.g., student@example.com) / ඊමේල් ලිපිනය ඇතුළත් කරන්න"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                       value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                             </div>
                         </div>
                     </div>
 
                     <!-- SECTION 3: Enrollment Details -->
-                    <div class="space-y-6 border-2 border-red-500 rounded-lg p-6">
-                        <h3 class="text-xl font-bold bg-red-600 text-white px-6 py-3 rounded-t-lg -mx-6 -mt-6 mb-6">Enrollment Details</h3>
+                    <div class="form-card">
+                        <h3 class="section-title">Enrollment Details</h3>
+                        <p class="section-subtitle">Select your class or course</p>
                         
                         <!-- Academic Year (Hidden, set to current year automatically) -->
                         <input type="hidden" id="student_academic_year" name="academic_year" value="<?php echo date('Y'); ?>">
@@ -605,14 +672,14 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                 <div class="flex space-x-6">
                                     <label class="flex items-center space-x-3 cursor-pointer">
                                         <input type="radio" name="enrollment_type" value="subject" 
-                                               <?php echo ($enrollment_type === 'subject') ? 'checked' : ''; ?>
+                                               <?php echo($enrollment_type === 'subject') ? 'checked' : ''; ?>
                                                class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                                                onchange="toggleEnrollmentType()">
                                         <span class="text-gray-900 font-medium">Class Enrollment</span>
                                     </label>
                                     <label class="flex items-center space-x-3 cursor-pointer">
                                         <input type="radio" name="enrollment_type" value="course"
-                                               <?php echo ($enrollment_type === 'course') ? 'checked' : ''; ?>
+                                               <?php echo($enrollment_type === 'course') ? 'checked' : ''; ?>
                                                class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
                                                onchange="toggleEnrollmentType()">
                                         <span class="text-gray-900 font-medium">Online Course Enrollment</span>
@@ -631,10 +698,11 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                                 onchange="handleStreamChange()">
                                             <option value="">-- Select Stream --</option>
                                             <?php foreach ($streams as $stream): ?>
-                                                <option value="<?php echo $stream['id']; ?>" <?php echo ($stream_id_selected == $stream['id']) ? 'selected' : ''; ?>>
+                                                <option value="<?php echo $stream['id']; ?>" <?php echo($stream_id_selected == $stream['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($stream['name']); ?>
                                                 </option>
-                                            <?php endforeach; ?>
+                                            <?php
+endforeach; ?>
                                         </select>
                                         <!-- Create New Subject Button removed -->
                                     </div>
@@ -652,7 +720,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                     <!-- Teachers Grid -->
                                     <div id="teachersContainer" class="hidden">
                                         <label class="block text-sm font-medium text-gray-700 mb-4">Select Teacher *</label>
-                                        <div id="teachersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        <div id="teachersGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <!-- Teachers will be loaded here -->
                                         </div>
                                         <input type="hidden" id="selected_teacher_id" name="selected_teacher_id" value="">
@@ -670,13 +738,14 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                         <div class="text-center p-6 bg-gray-50 rounded-lg border border-gray-200">
                                             <p class="text-gray-500">No online courses available at the moment.</p>
                                         </div>
-                                    <?php else: ?>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <?php
+else: ?>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <?php foreach ($courses as $course): ?>
-                                                <?php 
-                                                    $isSelected = (intval($course_id_selected) === intval($course['id'])); 
-                                                    $coverImage = !empty($course['cover_image']) ? htmlspecialchars($course['cover_image']) : 'https://via.placeholder.com/300x160?text=No+Image';
-                                                ?>
+                                                <?php
+        $isSelected = (intval($course_id_selected) === intval($course['id']));
+        $coverImage = !empty($course['cover_image']) ? htmlspecialchars($course['cover_image']) : 'https://via.placeholder.com/300x160?text=No+Image';
+?>
                                                 <div onclick="selectCourse(<?php echo $course['id']; ?>, this)" 
                                                      class="course-card cursor-pointer border-2 bg-white <?php echo $isSelected ? 'border-red-600 bg-red-50' : 'border-gray-400 hover:border-red-300'; ?> rounded-lg overflow-hidden transition-all duration-200 group relative">
                                                     
@@ -685,7 +754,8 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                                         <div class="selection-circle w-6 h-6 rounded-full border-2 <?php echo $isSelected ? 'bg-red-600 border-red-600' : 'bg-white border-gray-300'; ?> flex items-center justify-center">
                                                             <?php if ($isSelected): ?>
                                                                 <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                            <?php endif; ?>
+                                                            <?php
+        endif; ?>
                                                         </div>
                                                     </div>
 
@@ -704,17 +774,20 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                                         </div>
                                                     </div>
                                                 </div>
-                                            <?php endforeach; ?>
+                                            <?php
+    endforeach; ?>
                                         </div>
-                                    <?php endif; ?>
+                                    <?php
+endif; ?>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- SECTION 4: Profile Picture (Optional) -->
-                    <div class="space-y-6 border-2 border-red-500 rounded-lg p-6">
-                        <h3 class="text-xl font-bold bg-red-600 text-white px-6 py-3 rounded-t-lg -mx-6 -mt-6 mb-6">Profile Picture (Optional)</h3>
+                    <div class="form-card">
+                        <h3 class="section-title">Profile Picture (Optional)</h3>
+                        <p class="section-subtitle">Upload a photo for your profile</p>
                         
                         <div>
                             <label for="profile_picture" class="block text-sm font-medium text-gray-700 mb-2">
@@ -780,7 +853,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                     <!-- <span>Create New Stream</span> -->
                                 </button>
                             </div>
-                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <?php foreach ($streams as $stream): ?>
                                     <label class="flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer">
                                         <input type="checkbox" name="teacher_streams[]" value="<?php echo $stream['id']; ?>" 
@@ -788,7 +861,8 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                                onchange="loadTeacherSubjects()">
                                         <span class="text-sm text-gray-700"><?php echo htmlspecialchars($stream['name']); ?></span>
                                     </label>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </div>
                         </div>
 
@@ -804,15 +878,16 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                                     <!-- <span>Create New Subject</span> -->
                                 </button>
                             </div>
-                            <div id="teacherSubjectsGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <div id="teacherSubjectsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <!-- Subjects will be loaded here based on selected streams -->
                             </div>
                         </div>
                     </div>
 
-                    <!-- Verification Section (Hidden for teachers) -->
-                    <div id="verificationSection" class="border-t pt-6 space-y-4 border-2 border-red-500 rounded-lg p-6">
-                        <h3 class="text-xl font-bold bg-red-600 text-white px-6 py-3 rounded-t-lg -mx-6 -mt-6 mb-6">Identity Verification</h3>
+                    <!-- Verification Section -->
+                    <div id="verificationSection" class="form-card">
+                        <h3 class="section-title">Identity Verification</h3>
+                        <p class="section-subtitle">Please verify your identity using one of the following methods</p>
                         <p class="text-sm text-gray-600 mb-4">Please verify your identity using one of the following methods:</p>
                         
                         <!-- Verification Method Selection -->
@@ -895,27 +970,29 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
 
 
-                    <!-- Submit Button (Always Visible) - Direct child of form, NOT inside verificationSection -->
-                    <div id="submitButtonContainer" class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                        <a href="login.php" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
-                            Cancel
-                        </a>
-                        <button type="submit" name="add_user" id="registerButton"
-                                class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 font-medium">
-                            Register
-                        </button>
-                    </div>
-                    
-                    <div class="mt-4 text-center pb-2">
-                        <a href="/lms/dashboard/dashboard.php" class="text-sm font-medium text-gray-500 hover:text-red-600 flex items-center justify-center transition-colors">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                            Back to Website
-                        </a>
+                    <!-- Submit Button -->
+                    <div id="submitButtonContainer" class="flex items-center justify-between pt-8">
+                        <div class="flex items-center">
+                            <a href="/lms/dashboard/dashboard.php" class="text-sm font-medium text-gray-500 hover:text-red-600 flex items-center transition-colors">
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                Back to Website
+                            </a>
+                        </div>
+                        <div class="flex space-x-4">
+                            <a href="login.php" class="px-6 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-md transition-colors">
+                                Cancel
+                            </a>
+                            <button type="submit" name="add_user" id="registerButton" class="btn-primary">
+                                Register
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+    
+    <div id="toastContainer" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
 
 
 
@@ -1273,28 +1350,24 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 educationHTML += '<ul class="space-y-2">';
                 
                 teacher.education.forEach(edu => {
-                    let eduText = edu.qualification || '';
-                    if (edu.institution) {
-                        eduText += ` - ${edu.institution}`;
-                    }
-                    if (edu.year_obtained) {
-                        eduText += ` (${edu.year_obtained}`;
-                        if (edu.grade_or_class) {
-                            eduText += ` - ${edu.grade_or_class}`;
-                        }
-                        eduText += ')';
-                    } else if (edu.grade_or_class) {
-                        eduText += ` - ${edu.grade_or_class}`;
-                    }
-                    if (edu.field_of_study) {
-                        eduText += ` - ${edu.field_of_study}`;
-                    }
-                    
-                    educationHTML += `<li class="text-sm text-gray-600 flex items-start">
-                        <svg class="w-4 h-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                        </svg>
-                        <span class="flex-1">${eduText}</span>
+                    const qualification = edu.qualification || '';
+                    const institution = edu.institution || '';
+                    const details = [
+                        edu.field_of_study,
+                        edu.year_obtained ? `(${edu.year_obtained}${edu.grade_or_class ? ' - ' + edu.grade_or_class : ''})` : edu.grade_or_class
+                    ].filter(Boolean).join(' - ');
+
+                    educationHTML += `<li class="text-sm text-gray-700 flex items-start bg-red-50 p-4 rounded-xl border border-red-100 mb-3 hover:shadow-md transition-shadow">
+                        <div class="bg-red-600 rounded-full p-1.5 mr-4 mt-1 flex-shrink-0 shadow-sm">
+                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-bold text-gray-900 text-base mb-0.5">${qualification}</div>
+                            ${institution ? `<div class="text-red-700 font-medium">${institution}</div>` : ''}
+                            ${details ? `<div class="text-gray-500 text-xs mt-1 uppercase tracking-tight">${details}</div>` : ''}
+                        </div>
                     </li>`;
                 });
                 
