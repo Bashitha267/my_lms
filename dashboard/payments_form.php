@@ -53,7 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $error_message = 'Month and year are required for monthly payments.';
                             } else {
                                 $insert_query = "INSERT INTO monthly_payments (student_enrollment_id, month, year, amount, payment_method, payment_status, card_number, notes) 
-                                            VALUES (?, ?, ?, ?, 'card', 'pending', ?, ?)";
+                                            VALUES (?, ?, ?, ?, 'card', 'pending', ?, ?)
+                                            ON DUPLICATE KEY UPDATE amount = VALUES(amount), payment_method = VALUES(payment_method), payment_status = 'pending', card_number = VALUES(card_number), notes = VALUES(notes), created_at = NOW()";
                                 $insert_stmt = $conn->prepare($insert_query);
                                 $notes = "Card: ****" . $card_number . ", Holder: " . $card_holder;
                                 $insert_stmt->bind_param("iiiiss", $student_enrollment_id, $month, $year, $amount, $card_number, $notes);
@@ -71,12 +72,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     // Fetch Student, Subject, Stream and Teacher info
                                     $info_q = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, st.name as stream_name, t.first_name as teacher_name
                                               FROM student_enrollment se
-                                              JOIN users u ON se.student_id = u.user_id
+                                              JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                                               JOIN stream_subjects ss ON se.stream_subject_id = ss.id
                                               JOIN subjects s ON ss.subject_id = s.id
                                               JOIN streams st ON ss.stream_id = st.id
                                               LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
-                                              LEFT JOIN users t ON ta.teacher_id = t.user_id
+                                              LEFT JOIN users t ON ta.teacher_id COLLATE utf8mb4_unicode_ci = t.user_id COLLATE utf8mb4_unicode_ci
                                               WHERE se.id = ?";
                                     $i_stmt = $conn->prepare($info_q);
                                     $i_stmt->bind_param("i", $student_enrollment_id);
@@ -170,7 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $error_message = 'Month and year are required for monthly payments.';
                                 } else {
                                     $insert_query = "INSERT INTO monthly_payments (student_enrollment_id, month, year, amount, payment_method, payment_status, receipt_path, receipt_type) 
-                                                    VALUES (?, ?, ?, ?, 'bank_transfer', 'pending', ?, ?)";
+                                                    VALUES (?, ?, ?, ?, 'bank_transfer', 'pending', ?, ?)
+                                                    ON DUPLICATE KEY UPDATE amount = VALUES(amount), payment_method = VALUES(payment_method), payment_status = 'pending', receipt_path = VALUES(receipt_path), receipt_type = VALUES(receipt_type), created_at = NOW()";
                                     $insert_stmt = $conn->prepare($insert_query);
                                     $insert_stmt->bind_param("iiiiss", $student_enrollment_id, $month, $year, $amount, $receipt_path, $file_type);
                                 }
@@ -187,12 +189,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             // Fetch Student, Subject, Stream and Teacher info
                                             $info_q = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, st.name as stream_name, t.first_name as teacher_name
                                                       FROM student_enrollment se
-                                                      JOIN users u ON se.student_id = u.user_id
+                                                      JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                                                       JOIN stream_subjects ss ON se.stream_subject_id = ss.id
                                                       JOIN subjects s ON ss.subject_id = s.id
                                                       JOIN streams st ON ss.stream_id = st.id
                                                       LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
-                                                      LEFT JOIN users t ON ta.teacher_id = t.user_id
+                                                      LEFT JOIN users t ON ta.teacher_id COLLATE utf8mb4_unicode_ci = t.user_id COLLATE utf8mb4_unicode_ci
                                                       WHERE se.id = ?";
                                             $i_stmt = $conn->prepare($info_q);
                                             $i_stmt->bind_param("i", $student_enrollment_id);

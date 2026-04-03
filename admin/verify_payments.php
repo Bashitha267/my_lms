@@ -107,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                         $info_q = "SELECT u.first_name, u.whatsapp_number, c.title as course_title, cp.amount
                                   FROM course_payments cp
                                   JOIN course_enrollments ce ON cp.course_enrollment_id = ce.id
-                                  JOIN users u ON ce.student_id = u.user_id
+                                  JOIN users u ON ce.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                                   JOIN courses c ON ce.course_id = c.id
                                   WHERE cp.id = ?";
                         $i_stmt = $conn->prepare($info_q);
@@ -159,12 +159,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                                   st.name as stream_name, t.first_name as teacher_name
                           FROM {$table} p
                           JOIN student_enrollment se ON p.student_enrollment_id = se.id
-                          JOIN users u ON se.student_id = u.user_id
+                          JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                           JOIN stream_subjects ss ON se.stream_subject_id = ss.id
                           JOIN subjects s ON ss.subject_id = s.id
                           JOIN streams st ON ss.stream_id = st.id
                           LEFT JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id AND ta.academic_year = se.academic_year AND ta.status = 'active'
-                          LEFT JOIN users t ON ta.teacher_id = t.user_id
+                          LEFT JOIN users t ON ta.teacher_id COLLATE utf8mb4_unicode_ci = t.user_id COLLATE utf8mb4_unicode_ci
                           WHERE p.id = ?";
             $info_stmt = $conn->prepare($info_query);
             $info_stmt->bind_param("i", $payment_id);
@@ -303,7 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_teacher'])) {
 
 $teacher_requests = [];
 if ($active_tab === 'teacher_req') {
-    $req_sql = "SELECT tr.*, u.first_name, u.second_name FROM teacher_payment_requests tr JOIN users u ON tr.teacher_id = u.user_id ORDER BY tr.request_date DESC";
+    $req_sql = "SELECT tr.*, u.first_name, u.second_name FROM teacher_payment_requests tr JOIN users u ON tr.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci ORDER BY tr.request_date DESC";
     $req_res = $conn->query($req_sql);
     if ($req_res) {
         while ($row = $req_res->fetch_assoc()) {
@@ -322,7 +322,7 @@ if ($active_tab === 'verify') {
                      s.name as stream_name, sub.name as subject_name
                      FROM enrollment_payments ep
                      JOIN student_enrollment se ON ep.student_enrollment_id = se.id
-                     JOIN users u ON se.student_id = u.user_id
+                     JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                      JOIN stream_subjects ss ON se.stream_subject_id = ss.id
                      JOIN streams s ON ss.stream_id = s.id
                      JOIN subjects sub ON ss.subject_id = sub.id
@@ -335,7 +335,7 @@ if ($active_tab === 'verify') {
                       s.name as stream_name, sub.name as subject_name
                       FROM monthly_payments mp
                       JOIN student_enrollment se ON mp.student_enrollment_id = se.id
-                      JOIN users u ON se.student_id = u.user_id
+                      JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                       JOIN stream_subjects ss ON se.stream_subject_id = ss.id
                       JOIN streams s ON ss.stream_id = s.id
                       JOIN subjects sub ON ss.subject_id = sub.id
@@ -374,7 +374,7 @@ if ($active_tab === 'verify') {
     $inst_query = "SELECT ip.*, ir.request_note, u.first_name, u.second_name, s.name as subject_name, 'Instructor' as stream_name
                   FROM instructor_payments ip
                   JOIN instructor_requests ir ON ip.request_id = ir.id
-                  JOIN users u ON ip.student_id = u.user_id
+                  JOIN users u ON ip.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                   JOIN subjects s ON ir.subject_id = s.id
                   WHERE ip.status = 'pending' ORDER BY ip.submitted_at DESC";
     $i_res = $conn->query($inst_query);
@@ -394,7 +394,7 @@ if ($active_tab === 'verify') {
                 s.name as stream_name, sub.name as subject_name
          FROM enrollment_payments ep
          JOIN student_enrollment se ON ep.student_enrollment_id = se.id
-         JOIN users u ON se.student_id = u.user_id
+         JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
          JOIN stream_subjects ss ON se.stream_subject_id = ss.id
          JOIN streams s ON ss.stream_id = s.id
          JOIN subjects sub ON ss.subject_id = sub.id
@@ -405,7 +405,7 @@ if ($active_tab === 'verify') {
                 s.name as stream_name, sub.name as subject_name
          FROM monthly_payments mp
          JOIN student_enrollment se ON mp.student_enrollment_id = se.id
-         JOIN users u ON se.student_id = u.user_id
+         JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
          JOIN stream_subjects ss ON se.stream_subject_id = ss.id
          JOIN streams s ON ss.stream_id = s.id
          JOIN subjects sub ON ss.subject_id = sub.id

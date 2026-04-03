@@ -45,7 +45,7 @@ if ($role === 'student') {
            JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
            JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
            JOIN subjects sub ON se.stream_subject_id = sub.id
-           JOIN users u ON ta.teacher_id = u.user_id
+           JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE se.student_id = ? AND r.is_live = 1 AND r.status = 'ongoing' AND se.status = 'active'";
     $st1 = $conn->prepare($q1);
     $st1->bind_param("s", $user_id);
@@ -61,7 +61,7 @@ if ($role === 'student') {
            JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
            JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
            JOIN subjects sub ON se.stream_subject_id = sub.id
-           JOIN users u ON ta.teacher_id = u.user_id
+           JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE se.student_id = ? AND zc.status = 'ongoing' AND se.status = 'active'";
     $st2 = $conn->prepare($q2);
     $st2->bind_param("s", $user_id);
@@ -77,7 +77,7 @@ if ($role === 'student') {
            FROM recordings r
            JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
            JOIN subjects sub ON ta.stream_subject_id = sub.id
-           JOIN users u ON ta.teacher_id = u.user_id
+           JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE ta.teacher_id = ? AND r.is_live = 1 AND r.status = 'ongoing'";
     $st1 = $conn->prepare($q1);
     $st1->bind_param("s", $user_id);
@@ -92,7 +92,7 @@ if ($role === 'student') {
            FROM zoom_classes zc
            JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
            JOIN subjects sub ON ta.stream_subject_id = sub.id
-           JOIN users u ON ta.teacher_id = u.user_id
+           JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE ta.teacher_id = ? AND zc.status = 'ongoing'";
     $st2 = $conn->prepare($q2);
     $st2->bind_param("s", $user_id);
@@ -194,6 +194,22 @@ if ($role === 'student') {
     $days_left = 30 - date('j');
     $payment_due_msg = "Due in " . $days_left . " days";
     $payment_due_msg_sinhala = "තව දින " . $days_left . " කින් ගෙවිය යුතුය";
+
+    // Get latest 3 recordings (What's New) for any subject
+    $latest_recordings = [];
+    $q_lat = "SELECT r.id, r.title, sub.name as subject_name, r.thumbnail_url, 
+                     u.first_name as teacher_first, u.second_name as teacher_second,
+                     u.profile_picture as teacher_profile_picture
+              FROM recordings r
+              JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+              JOIN subjects sub ON ta.stream_subject_id = sub.id
+              JOIN users u ON ta.teacher_id = u.user_id
+              WHERE r.status = 'active'
+              ORDER BY r.id DESC LIMIT 3";
+    $res_lat = $conn->query($q_lat);
+    if ($res_lat) {
+        while($row = $res_lat->fetch_assoc()) $latest_recordings[] = $row;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -258,6 +274,11 @@ if ($role === 'student') {
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            opacity: 0;
         }
 
         .modern-card {
@@ -447,7 +468,9 @@ if ($role === 'student') {
                         <i class="fas fa-wallet text-xl"></i>
                     </div>
                     <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="ගෙවීම්">Payments</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest" data-sinhala="<?php echo $payment_due_msg_sinhala; ?>"><?php echo $days_left; ?> Days Left</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest" data-sinhala="<?php echo $role === 'student' ? $payment_due_msg_sinhala : 'කළමනාකරණය කරන ලදී'; ?>">
+                        <?php echo $role === 'student' ? ($days_left . ' Days Left') : 'Account Active'; ?>
+                    </p>
                 </a>
 
                 <!-- Exams Card -->
@@ -478,6 +501,59 @@ if ($role === 'student') {
                 </a>
             </div>
         </div>
+
+        <!-- Newly Added Recordings -->
+        <?php if ($role === 'student' && !empty($latest_recordings)): ?>
+        <div class="mb-16 animate-fade-in" style="animation-delay: 0.25s">
+            <div class="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900 tracking-tight" data-sinhala="අලුතින් එක් කළ පාඩම්">Newly Added Recordings</h2>
+                    <p class="text-slate-400 text-sm font-medium mt-1">Recently added recordings from various subjects.</p>
+                </div>
+                <a href="recordings.php" class="text-red-600 font-bold text-sm hover:underline" data-sinhala="සියල්ල බලන්න">View All <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <?php foreach ($latest_recordings as $rec): 
+                    $teacher_name = trim(($rec['teacher_first'] ?? '') . ' ' . ($rec['teacher_second'] ?? ''));
+                ?>
+                <div class="modern-card overflow-hidden group">
+                    <div class="relative h-40 overflow-hidden">
+                        <?php if (!empty($rec['thumbnail_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($rec['thumbnail_url']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail">
+                        <?php else: ?>
+                            <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500">
+                                <i class="fas fa-play-circle text-4xl opacity-20"></i>
+                            </div>
+                        <?php endif; ?>
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                        <div class="absolute bottom-3 left-4">
+                            <span class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">NEW</span>
+                        </div>
+                    </div>
+                    <div class="p-5">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1"><?php echo htmlspecialchars($rec['subject_name']); ?></p>
+                        <h3 class="text-sm font-bold text-slate-900 mb-4 line-clamp-2 h-10"><?php echo htmlspecialchars($rec['title']); ?></h3>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <?php if (!empty($rec['teacher_profile_picture'])): ?>
+                                    <img src="../<?php echo htmlspecialchars($rec['teacher_profile_picture']); ?>" class="w-6 h-6 rounded-full object-cover">
+                                <?php else: ?>
+                                    <div class="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] text-slate-400">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                <?php endif; ?>
+                                <p class="text-[10px] font-bold text-slate-600"><?php echo htmlspecialchars($teacher_name); ?></p>
+                            </div>
+                            <a href="../player/player.php?id=<?php echo $rec['id']; ?>" class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-all">
+                                <i class="fas fa-play text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
 
         <!-- Upcoming Classes Section -->

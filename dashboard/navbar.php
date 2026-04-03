@@ -151,6 +151,7 @@ else: ?>
                         </a>
                         <div class="sinhala-tooltip">මුල් පිටුව</div>
                     </div>
+                    <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>profile.php" 
                            class="<?php echo($current_page == 'profile.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-1.5 xl:px-3 py-2 rounded-md text-[8px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out whitespace-nowrap">
@@ -158,6 +159,7 @@ else: ?>
                         </a>
                         <div class="sinhala-tooltip">මගේ ගිණුම</div>
                     </div>
+                    <?php endif; ?>
                     <div class="nav-item-with-tooltip">
                         <a href="<?php echo $base_url; ?>online_courses.php" 
                            class="<?php echo($current_page == 'online_courses.php') ? 'bg-red-700' : 'hover:bg-red-700'; ?> text-white px-1.5 xl:px-3 py-2 rounded-md text-[8px] xl:text-[11px] font-medium uppercase transition duration-150 ease-in-out whitespace-nowrap">
@@ -267,15 +269,19 @@ endif; ?>
                             
                              <!-- Full Name -->
                             <div class="nav-item-with-tooltip">
-                                <a href="<?php echo $base_url; ?>profile.php" class="flex items-center space-x-2 focus:outline-none group">
+                                <<?php echo (($_SESSION['role'] ?? '') === 'admin') ? 'div' : 'a href="' . $base_url . 'profile.php"'; ?> class="flex items-center space-x-2 focus:outline-none group">
                                     <span class="text-white text-xs xl:text-sm font-medium truncate max-w-[150px] xl:max-w-[200px] group-hover:text-red-200 transition-colors">
                                         <?php echo htmlspecialchars($full_name); ?>
                                     </span>
+                                    <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
                                     <svg class="w-4 h-4 text-white group-hover:text-red-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
-                                </a>
+                                    <?php endif; ?>
+                                </<?php echo (($_SESSION['role'] ?? '') === 'admin') ? 'div' : 'a'; ?>>
+                                <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
                                 <div class="sinhala-tooltip">මගේ ගිණුම</div>
+                                <?php endif; ?>
                             </div>
                             
                             <!-- Logout Icon -->
@@ -321,14 +327,16 @@ endif; ?>
                         </div>
                         
                          <!-- Full Name (Mobile) -->
-                        <a href="<?php echo $base_url; ?>profile.php" class="flex items-center space-x-1 focus:outline-none">
+                        <<?php echo (($_SESSION['role'] ?? '') === 'admin') ? 'div' : 'a href="' . $base_url . 'profile.php"'; ?> class="flex items-center space-x-1 focus:outline-none">
                             <span class="text-white text-xs sm:text-sm font-medium truncate max-w-[80px] xs:max-w-[100px] sm:max-w-[120px]">
                                 <?php echo htmlspecialchars($full_name); ?>
                             </span>
+                            <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
                             <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
-                        </a>
+                            <?php endif; ?>
+                        </<?php echo (($_SESSION['role'] ?? '') === 'admin') ? 'div' : 'a'; ?>>
                     <?php
 endif; ?>
                     
@@ -423,11 +431,13 @@ else: ?>
                     <span>HOME</span>
                     <span class="text-[10px] text-red-100/70 font-normal">මුල් පිටුව</span>
                 </a>
+                <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
                 <a href="<?php echo $base_url; ?>profile.php" 
                    class="mobile-menu-link <?php echo($current_page == 'profile.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
                     <span>PROFILE</span>
                     <span class="text-[10px] text-red-100/70 font-normal">මගේ ගිණුම</span>
                 </a>
+                <?php endif; ?>
                 <a href="<?php echo $base_url; ?>online_courses.php" 
                    class="mobile-menu-link <?php echo($current_page == 'online_courses.php') ? 'bg-red-800' : 'hover:bg-red-800 active:bg-red-900'; ?> text-white block px-4 py-3 rounded-md text-sm font-medium uppercase transition duration-150 ease-in-out touch-manipulation min-h-[44px] flex items-center justify-between">
                     <span>ONLINE COURSES</span>

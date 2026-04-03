@@ -9,24 +9,25 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 $request_id = intval($_GET['request_id'] ?? 0);
+$instructor_id = $_GET['instructor_id'] ?? '';
 
-if (!$request_id) {
-    die("Invalid Request");
+if (!$request_id || !$instructor_id) {
+    die("Invalid Request parameters.");
 }
 
 // Fetch request details
 $stmt = $conn->prepare("
-    SELECT ir.*, s.name as subject_name, u.first_name, u.second_name, u.hourly_rate 
+    SELECT ir.*, s.name as subject_name, u.first_name, u.second_name, u.hourly_rate, u.user_id as selected_instructor
     FROM instructor_requests ir
     JOIN subjects s ON ir.subject_id = s.id
-    JOIN users u ON ir.accepted_by = u.user_id
+    JOIN users u ON u.user_id = ?
     WHERE ir.id = ? AND ir.student_id = ?
 ");
-$stmt->bind_param("is", $request_id, $user_id);
+$stmt->bind_param("sis", $instructor_id, $request_id, $user_id);
 $stmt->execute();
 $req = $stmt->get_result()->fetch_assoc();
 if (!$req) {
-    die("Request not found or not accepted yet.");
+    die("Request or Instructor not found.");
 }
 
 $success_message = '';

@@ -23,8 +23,10 @@ $error_message = '';
 if ($user_role === 'instructor') {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accept_request'])) {
         $request_id = intval($_POST['request_id']);
-        $stmt = $conn->prepare("UPDATE instructor_requests SET status = 'accepted', accepted_by = ?, accepted_at = NOW() WHERE id = ? AND status = 'pending'");
-        $stmt->bind_param("si", $user_id, $request_id);
+        
+        // Insert into acceptances table
+        $stmt = $conn->prepare("INSERT IGNORE INTO instructor_request_acceptances (request_id, instructor_id) VALUES (?, ?)");
+        $stmt->bind_param("is", $request_id, $user_id);
         
         if ($stmt->execute() && $stmt->affected_rows > 0) {
             $success_message = "Request accepted successfully!";
@@ -75,19 +77,38 @@ if ($user_role === 'student') {
 
     if (isset($_GET['check_status'])) {
         $req_id = intval($_GET['check_status']);
-        $stmt = $conn->prepare("SELECT ir.status, ir.accepted_by, u.first_name, u.second_name, u.profile_picture, u.rating, u.hourly_rate FROM instructor_requests ir LEFT JOIN users u ON ir.accepted_by = u.user_id WHERE ir.id = ?");
-        $stmt->bind_param("i", $req_id);
-        $stmt->execute();
-        $res = $stmt->get_result()->fetch_assoc();
         
-        if ($res && $res['status'] == 'pending') {
-            $check_time = $conn->query("SELECT created_at FROM instructor_requests WHERE id = $req_id")->fetch_assoc();
-            if (strtotime($check_time['created_at']) < time() - (20 * 60)) {
+        // Fetch request basic status
+        $req_q = $conn->query("SELECT status, created_at FROM instructor_requests WHERE id = $req_id");
+        $req_info = $req_q->fetch_assoc();
+        
+        if (!$req_info) {
+             echo json_encode(['status' => 'not_found']);
+             exit();
+        }
+
+        if ($req_info['status'] == 'pending') {
+            if (strtotime($req_info['created_at']) < time() - (20 * 60)) {
                 $conn->query("UPDATE instructor_requests SET status = 'rejected' WHERE id = $req_id");
-                $res['status'] = 'rejected';
+                $req_info['status'] = 'rejected';
             }
         }
-        echo json_encode($res);
+
+        // Fetch all instructors who accepted this request
+        $acceptances_q = $conn->prepare("
+            SELECT u.user_id as accepted_by, u.first_name, u.second_name, u.profile_picture, u.rating, u.hourly_rate 
+            FROM instructor_request_acceptances ira 
+            JOIN users u ON ira.instructor_id = u.user_id 
+            WHERE ira.request_id = ?
+        ");
+        $acceptances_q->bind_param("i", $req_id);
+        $acceptances_q->execute();
+        $acceptances = $acceptances_q->get_result()->fetch_all(MYSQLI_ASSOC);
+        
+        echo json_encode([
+            'status' => $req_info['status'], 
+            'acceptances' => $acceptances
+        ]);
         exit();
     }
 
@@ -208,8 +229,12 @@ if ($user_role === 'student') {
                         <button onclick="window.location.reload()" class="mt-8 text-sm font-bold text-red-600 hover:underline">වෙනත් විෂයක් තෝරන්න</button>
                     </div>
 
-                    <div id="accepted_ui" class="hidden max-w-2xl mx-auto space-y-6">
-                        <div id="accepted_list"></div>
+                    <div id="accepted_ui" class="hidden max-w-6xl mx-auto space-y-8">
+                        <div class="text-center">
+                            <h2 class="text-2xl font-black text-slate-900 mb-2">ගුරුවරුන් සම්බන්ධ වී ඇත!</h2>
+                            <p class="text-slate-400 text-sm">පහත ගුරුවරුන් ඔබේ ඉල්ලීම පිළිගෙන ඇත. ඔබට ඒ අතරින් වඩාත් සුදුසු ගුරුවරයා තෝරාගත හැක.</p>
+                        </div>
+                        <div id="accepted_grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
                     </div>
                 </div>
             </div>
@@ -265,47 +290,58 @@ if ($user_role === 'student') {
                         fetch(window.location.href + '?check_status=' + current_request_id)
                         .then(res => res.json())
                         .then(data => {
-                            if(data.status === 'accepted') {
-                                clearInterval(status_interval);
-                                showAcceptedInstructor(data);
-                            } else if (data.status === 'rejected') {
+                            if (data.status === 'rejected') {
                                 clearInterval(status_interval);
                                 document.getElementById('waiting_ui').classList.add('hidden');
                                 document.getElementById('rejected_ui').classList.remove('hidden');
+                            } else if (data.acceptances && data.acceptances.length > 0) {
+                                // Don't clear interval, keep polling for new acceptances unless desired
+                                showAcceptedInstructor(data.acceptances);
                             }
                         });
-                    }, 3000);
+                    }, 4000);
                 }
 
-                function showAcceptedInstructor(data) {
+                function showAcceptedInstructor(instructors) {
                     document.getElementById('waiting_ui').classList.add('hidden');
-                    document.getElementById('accepted_ui').classList.remove('hidden');
-                    const profile_pic = data.profile_picture ? '../' + data.profile_picture : '../assets/img/default-profile.png';
-                    const rating_html = renderStarsJS(data.rating);
+                    const accepted_ui = document.getElementById('accepted_ui');
+                    accepted_ui.classList.remove('hidden');
                     
-                    const html = `
-                        <div class="form-card animate-slide">
-                            <div class="flex flex-col md:flex-row items-center gap-8">
-                                <img src="${profile_pic}" class="w-32 h-32 rounded-2xl object-cover border-4 border-slate-50">
-                                <div class="flex-1 text-center md:text-left">
-                                    <div class="flex flex-col md:flex-row items-center gap-2 mb-2">
-                                        <h3 class="text-xl font-bold text-slate-900">${data.first_name} ${data.second_name}</h3>
-                                        <span class="bg-emerald-50 text-emerald-600 text-[9px] font-black px-2 py-0.5 rounded tracking-widest uppercase">සුදුසුකම් සහිත ගුරුවරයෙක්</span>
-                                    </div>
-                                    <div class="flex justify-center md:justify-start gap-1 mb-6">${rating_html}</div>
-                                    <div class="grid grid-cols-1 gap-4 mb-6 text-sm">
-                                        <div class="bg-slate-50 p-4 rounded-xl">
-                                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">ගාස්තුව</p>
-                                            <p class="font-bold text-slate-800">LKR ${data.hourly_rate}</p>
+                    const grid = document.getElementById('accepted_grid');
+                    grid.innerHTML = '';
+                    
+                    instructors.forEach(ins => {
+                        const profile_pic = ins.profile_picture ? '../' + ins.profile_picture : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+                        const rating_html = renderStarsJS(ins.rating);
+                        
+                        const card = `
+                            <div class="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all animate-slide">
+                                <div class="flex flex-col items-center text-center">
+                                    <div class="relative mb-4">
+                                        <img src="${profile_pic}" class="w-24 h-24 rounded-2xl object-cover border-4 border-slate-50 shadow-sm">
+                                        <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] border-2 border-white">
+                                            <i class="fas fa-check"></i>
                                         </div>
                                     </div>
-                                    <a href="inst_payment.php?request_id=${current_request_id}" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm hover:bg-red-600 transition-all flex items-center justify-center gap-2">
-                                        තහවුරු කර ගෙවීම සිදු කරන්න <i class="fas fa-arrow-right text-xs"></i>
+                                    
+                                    <h3 class="text-lg font-bold text-slate-900 mb-1 leading-tight">${ins.first_name} ${ins.second_name}</h3>
+                                    <div class="flex gap-1 mb-2">${rating_html}</div>
+                                    <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest uppercase mb-6">සුදුසුකම් සහිත ගුරුවරයෙක්</span>
+                                    
+                                    <div class="w-full bg-slate-50 rounded-xl p-4 mb-6">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-left ml-1">ගාස්තුව</p>
+                                        <p class="font-black text-xl text-slate-800 text-left ml-1">LKR ${Math.round(ins.hourly_rate)}.00</p>
+                                    </div>
+                                    
+                                    <a href="inst_payment.php?request_id=${current_request_id}&instructor_id=${ins.accepted_by}" 
+                                       class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-xs hover:bg-red-600 transition-all flex items-center justify-center gap-2 group">
+                                        තහවුරු කර ගෙවීම සිදු කරන්න 
+                                        <i class="fas fa-arrow-right text-[10px] transform group-hover:translate-x-1 transition-transform"></i>
                                     </a>
                                 </div>
-                            </div>
-                        </div>`;
-                    document.getElementById('accepted_list').innerHTML = html;
+                            </div>`;
+                        grid.innerHTML += card;
+                    });
                 }
 
                 function renderStarsJS(rating) {

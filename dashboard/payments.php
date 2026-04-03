@@ -59,11 +59,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_payment']) &&
     // Check if there are active pending requests
     $pending_query = "SELECT SUM(amount) as pending_amount FROM teacher_payment_requests WHERE teacher_id = ? AND status = 'pending'";
     $pending_stmt = $conn->prepare($pending_query);
-    $pending_stmt->bind_param("s", $user_id);
-    $pending_stmt->execute();
-    $pending_result = $pending_stmt->get_result();
-    $pending_amount = $pending_result->fetch_assoc()['pending_amount'] ?? 0;
-    $pending_stmt->close();
+    if ($pending_stmt) {
+        $pending_stmt->bind_param("s", $user_id);
+        $pending_stmt->execute();
+        $pending_result = $pending_stmt->get_result();
+        $pending_amount = $pending_result->fetch_assoc()['pending_amount'] ?? 0;
+        $pending_stmt->close();
+    } else {
+        $pending_amount = 0;
+    }
 
     $available_to_request = $current_points - $pending_amount;
 
@@ -295,7 +299,7 @@ if ($role === 'student') {
     $transactions = [];
     $trans_query = "SELECT pt.*, u.first_name, u.second_name 
                     FROM payment_transactions pt
-                    JOIN users u ON pt.student_id = u.user_id
+                    JOIN users u ON pt.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
                     WHERE pt.teacher_id = ?
                     ORDER BY pt.created_at DESC
                     LIMIT 50";
@@ -748,10 +752,7 @@ if ($role === 'student') {
                                     Total Earned: <span class="font-bold text-green-700">Rs. <?php echo number_format($teacher_earnings, 2); ?></span>
                                     <span class="text-xs text-gray-400">(1 Point = 1 Rs)</span>
                                 </p>
-                                <div class="mt-4 inline-flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-black uppercase tracking-wider">
-                                    <i class="fas fa-percent mr-2"></i>
-                                    Your Share: <?php echo number_format($commission_rate, 1); ?>%
-                                </div>
+
                             </div>
                             <div class="p-6 bg-white rounded-2xl shadow-lg">
                                 <i class="fas fa-wallet text-5xl text-green-600"></i>
@@ -794,7 +795,7 @@ if ($role === 'student') {
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Amount</th>
-                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Your Share (<?php echo number_format($commission_rate, 0); ?>%)</th>
+                                            <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Commission</th>
                                             <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                                         </tr>
                                     </thead>
@@ -817,6 +818,7 @@ if ($role === 'student') {
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
                                                     +<?php echo number_format($trans['teacher_points'], 2); ?> pts
+                                                    <span class="ml-1 text-[10px] text-gray-400 font-normal">(<?php echo number_format($trans['commission_rate_teacher'] ?? 75, 1); ?>%)</span>
                                                 </td>
                                                 <td class="px-6 py-4 whitespace-nowrap">
                                                     <span class="px-2 py-1 text-xs font-semibold rounded-full <?php 
@@ -1134,6 +1136,10 @@ if ($role === 'student') {
                                                             <div class="flex items-center text-xs font-semibold text-gray-500">
                                                                 <i class="fas fa-users mr-1.5 text-red-400"></i>
                                                                 <?php echo $assignment['student_count']; ?> Students
+                                                            </div>
+                                                            <div class="flex items-center text-xs font-semibold text-gray-500">
+                                                                <i class="fas fa-percent mr-1.5 text-blue-400"></i>
+                                                                <?php echo number_format($assignment['commission_rate'] ?? 75, 1); ?>%
                                                             </div>
                                                             <div class="text-xs font-bold text-gray-900">
                                                                 <?php 
