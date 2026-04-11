@@ -15,17 +15,21 @@ if (!isset($_SESSION['user_id'])) {
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
     // Avoid infinite loop if already on the form page or handling the submission
     $current_script = $_SERVER['SCRIPT_NAME'];
-    if (strpos($current_script, 'al_exam_form.php') === false && strpos($current_script, 'logout.php') === false) {
+    if (
+        strpos($current_script, 'al_exam_form.php') === false &&
+        strpos($current_script, 'al_results_form.php') === false &&
+        strpos($current_script, 'logout.php') === false
+    ) {
         
-        // Use a flag in session to avoid DB query on every page load if possible, 
-        // but for robustness we check DB or set session flag after first check.
-        // Check both submission status and if specifically requested
-        if (!isset($_SESSION['al_submitted']) || !isset($_SESSION['al_requested'])) {
+        // Use flags in session to avoid DB query on every page load if possible.
+        // We need both subject submission and results submission states.
+        if (!isset($_SESSION['al_subjects_submitted']) || !isset($_SESSION['al_results_submitted']) || !isset($_SESSION['al_requested'])) {
             require_once __DIR__ . '/config.php';
             
             $uid = $_SESSION['user_id'];
             $chk = $conn->prepare("SELECT 
-                (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as submitted,
+                (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as subjects_submitted,
+                (SELECT results_submitted_at FROM al_exam_submissions WHERE student_id = u.user_id) as results_submitted_at,
                 al_details_requested 
                 FROM users u WHERE user_id = ?");
             $chk->bind_param("s", $uid);
@@ -33,14 +37,23 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
             $result = $chk->get_result()->fetch_assoc();
             $chk->close();
             
-            $_SESSION['al_submitted'] = ($result['submitted'] > 0);
-            $_SESSION['al_requested'] = ($result['al_details_requested'] == 1);
+            $_SESSION['al_subjects_submitted'] = (intval($result['subjects_submitted'] ?? 0) > 0);
+            $_SESSION['al_results_submitted'] = (!empty($result['results_submitted_at']));
+            $_SESSION['al_requested'] = (intval($result['al_details_requested'] ?? 0) === 1);
         }
         
-        // ONLY force redirect if NOT submitted AND it HAS been requested
-        if (!$_SESSION['al_submitted'] && $_SESSION['al_requested']) {
-            header("Location: /lms/student/al_exam_form.php");
-            exit();
+        // Two-step enforcement when requested:
+        // 1) If subjects not submitted => force subjects form
+        // 2) If subjects submitted but results not => force results/publish form
+        if (!empty($_SESSION['al_requested'])) {
+            if (empty($_SESSION['al_subjects_submitted'])) {
+                header("Location: /lms/student/al_exam_form.php");
+                exit();
+            }
+            if (empty($_SESSION['al_results_submitted'])) {
+                header("Location: /lms/student/al_results_form.php");
+                exit();
+            }
         }
     }
 }

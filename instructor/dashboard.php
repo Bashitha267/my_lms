@@ -14,6 +14,30 @@ $user_role = $_SESSION['role'];
 $user_name = $_SESSION['first_name'] . ' ' . $_SESSION['second_name'];
 $user_wa = $_SESSION['whatsapp_number'] ?? '';
 
+// Handle Zoom Details Update — writes to instructor_sessions (separate table)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zoom'])) {
+    $rid = intval($_POST['request_id']);
+    $z_link = trim($_POST['zoom_link']);
+    $z_id   = trim($_POST['zoom_meeting_id']);
+    $z_pass = trim($_POST['zoom_password']);
+    
+    // Security: only the accepted instructor for this request
+    $auth = $conn->prepare("SELECT id FROM instructor_request_acceptances WHERE request_id = ? AND instructor_id = ?");
+    $auth->bind_param("is", $rid, $user_id);
+    $auth->execute();
+    if ($auth->get_result()->num_rows > 0) {
+        $up = $conn->prepare("INSERT INTO instructor_sessions (request_id, zoom_link, zoom_meeting_id, zoom_password, status)
+                              VALUES (?, ?, ?, ?, 'scheduled')
+                              ON DUPLICATE KEY UPDATE zoom_link = VALUES(zoom_link), zoom_meeting_id = VALUES(zoom_meeting_id), zoom_password = VALUES(zoom_password)");
+        $up->bind_param("isss", $rid, $z_link, $z_id, $z_pass);
+        if ($up->execute()) {
+            $success_message = "✅ Zoom session details updated!";
+        }
+    } else {
+        $error_message = "❌ Unauthorized.";
+    }
+}
+
 $page_title = "Instructor Dashboard";
 
 // =========================================================================
@@ -21,47 +45,61 @@ $page_title = "Instructor Dashboard";
 // =========================================================================
 if ($user_role === 'instructor') {
     
-    // Handle Acceptance
+    // Handle Acceptance — Multiple instructors CAN accept the same request
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accept_request'])) {
         $request_id = intval($_POST['request_id']);
         
-        // Atomically accept
-        $stmt = $conn->prepare("UPDATE instructor_requests SET status = 'accepted', accepted_by = ?, accepted_at = NOW() WHERE id = ? AND status = 'pending'");
-        $stmt->bind_param("si", $user_id, $request_id);
-        
-        if ($stmt->execute() && $stmt->affected_rows > 0) {
-            $success_message = "Request accepted successfully!";
-            
-            // Notify Student
-            $query = "
-                SELECT u.whatsapp_number, u.first_name, s.name as subject_name
-                FROM instructor_requests ir
-                JOIN users u ON ir.student_id = u.user_id
-                JOIN subjects s ON ir.subject_id = s.id
-                WHERE ir.id = ?
-            ";
-            $stmt_info = $conn->prepare($query);
-            $stmt_info->bind_param("i", $request_id);
-            $stmt_info->execute();
-            $req_info = $stmt_info->get_result()->fetch_assoc();
-            $stmt_info->close();
-            
-            if ($req_info && !empty($req_info['whatsapp_number'])) {
-                $msg = "✅ *Instructor Request Accepted*\n\n" .
-                       "Hello {$req_info['first_name']},\n" .
-                       "Review for *{$req_info['subject_name']}* has been accepted by instructor.\n\n" .
-                       "👤 *Instructor:* $user_name\n" .
-                       "📞 *WhatsApp:* $user_wa\n\n" .
-                       "They will contact you shortly.";
-                sendWhatsAppMessage($req_info['whatsapp_number'], $msg);
+        // Check request still exists and is pending
+        $check = $conn->prepare("SELECT id FROM instructor_requests WHERE id = ? AND status = 'pending'");
+        $check->bind_param("i", $request_id);
+        $check->execute();
+        $exists = $check->get_result()->num_rows > 0;
+        $check->close();
+
+        if ($exists) {
+            // Insert into acceptances (INSERT IGNORE prevents duplicates)
+            $stmt = $conn->prepare("INSERT IGNORE INTO instructor_request_acceptances (request_id, instructor_id) VALUES (?, ?)");
+            $stmt->bind_param("is", $request_id, $user_id);
+
+            if ($stmt->execute() && $stmt->affected_rows > 0) {
+                $success_message = "Request accepted! The student will be notified and can choose you.";
+
+                // Notify Student
+                $query = "
+                    SELECT u.whatsapp_number, u.first_name, s.name as subject_name
+                    FROM instructor_requests ir
+                    JOIN users u ON ir.student_id = u.user_id
+                    JOIN subjects s ON ir.subject_id = s.id
+                    WHERE ir.id = ?
+                ";
+                $stmt_info = $conn->prepare($query);
+                $stmt_info->bind_param("i", $request_id);
+                $stmt_info->execute();
+                $req_info = $stmt_info->get_result()->fetch_assoc();
+                $stmt_info->close();
+
+                if ($req_info && !empty($req_info['whatsapp_number'])) {
+                    $msg = "✅ *Instructor Accepted Your Request*\n\n" .
+                           "Hello {$req_info['first_name']},\n" .
+                           "An instructor has accepted your request for *{$req_info['subject_name']}*.\n\n" .
+                           "👤 *Instructor:* $user_name\n" .
+                           "📞 *WhatsApp:* $user_wa\n\n" .
+                           "Log in to the portal to review and confirm.";
+                    sendWhatsAppMessage($req_info['whatsapp_number'], $msg);
+                }
+            } elseif ($stmt->affected_rows === 0) {
+                $success_message = "You have already accepted this request.";
+            } else {
+                $error_message = "Failed to accept request. Please try again.";
             }
+            $stmt->close();
         } else {
-            $error_message = "Failed to accept. Request may have been taken or cancelled.";
+            $error_message = "This request is no longer available (it may have been cancelled or closed).";
         }
-        $stmt->close();
     }
 
-    // Fetch Pending Requests
+    // Fetch Pending Requests — show ALL pending requests for this instructor's subjects
+    // EXCLUDING ones this instructor has already accepted
     $my_subjects_query = "SELECT subject_id FROM instructor_subjects WHERE instructor_id = '" . $conn->real_escape_string($user_id) . "'";
     $pending_query = "
         SELECT 
@@ -73,29 +111,41 @@ if ($user_role === 'instructor') {
         JOIN users u ON ir.student_id = u.user_id
         WHERE ir.status = 'pending' 
         AND ir.subject_id IN ($my_subjects_query)
+        AND ir.id NOT IN (
+            SELECT request_id FROM instructor_request_acceptances WHERE instructor_id = '$user_id'
+        )
         ORDER BY ir.created_at DESC
     ";
     $pending_res = $conn->query($pending_query);
     $pending_requests = $pending_res ? $pending_res->fetch_all(MYSQLI_ASSOC) : [];
 
-    // Fetch Accepted Requests
+    // Fetch requests this instructor has accepted (awaiting student confirmation)
     $accepted_query = "
         SELECT 
-            ir.id, ir.accepted_at, ir.request_note,
+            ir.id, ir.created_at as accepted_at, ir.request_note, ir.session_date,
             s.name as subject_name,
-            u.first_name, u.second_name, u.whatsapp_number, u.mobile_number
-        FROM instructor_requests ir
+            u.first_name, u.second_name, u.whatsapp_number, u.mobile_number,
+            ir.status,
+            isess.zoom_link, isess.zoom_meeting_id, isess.zoom_password
+        FROM instructor_request_acceptances ira
+        JOIN instructor_requests ir ON ira.request_id = ir.id
         JOIN subjects s ON ir.subject_id = s.id
         JOIN users u ON ir.student_id = u.user_id
-        WHERE ir.accepted_by = ? AND ir.status = 'accepted'
-        ORDER BY ir.accepted_at DESC
+        LEFT JOIN instructor_sessions isess ON isess.request_id = ir.id
+        WHERE ira.instructor_id = ?
+        ORDER BY ir.created_at DESC
     ";
     $stmt = $conn->prepare($accepted_query);
-    $stmt->bind_param("s", $user_id);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $accepted_requests = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-    $stmt->close();
+    if ($stmt) {
+        $stmt->bind_param("s", $user_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $accepted_requests = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+    } else {
+        $accepted_requests = [];
+        $error_message = "DB error: " . $conn->error;
+    }
 }
 
 // =========================================================================
@@ -159,7 +209,8 @@ if ($user_role === 'student') {
         SELECT 
             ir.id, ir.status, ir.created_at, ir.request_note,
             s.name as subject_name,
-            u.first_name, u.second_name, u.whatsapp_number
+            u.first_name, u.second_name, u.whatsapp_number,
+            ir.zoom_link, ir.zoom_meeting_id, ir.zoom_password
         FROM instructor_requests ir
         JOIN subjects s ON ir.subject_id = s.id
         LEFT JOIN users u ON ir.accepted_by = u.user_id
@@ -277,37 +328,125 @@ function time_elapsed_string($datetime) {
                     </div>
                 </div>
 
-                <!-- Accepted Students -->
+                <!-- Accepted by Me -->
                 <div class="card">
                     <h2 class="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                        <i class="fas fa-users text-emerald-500"></i> Active Students
+                        <i class="fas fa-users text-emerald-500"></i> Requests I've Accepted
                     </h2>
                     <div class="space-y-4">
                         <?php if (empty($accepted_requests)): ?>
                             <div class="text-center py-16">
-                                <p class="text-slate-400 text-sm">No active student sessions.</p>
+                                <p class="text-slate-400 text-sm">You haven't accepted any requests yet.</p>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($accepted_requests as $req): ?>
-                                <div class="p-4 border border-emerald-100 bg-emerald-50/20 rounded-xl flex justify-between items-center">
-                                    <div>
-                                        <h3 class="font-bold text-slate-900"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></h3>
-                                        <p class="text-xs text-slate-500 font-medium uppercase tracking-tighter"><?php echo htmlspecialchars($req['subject_name']); ?></p>
+                            <?php foreach ($accepted_requests as $req): 
+                                $statusBg = match($req['status']) {
+                                    'paid'     => 'bg-indigo-100 text-indigo-700',
+                                    'accepted' => 'bg-emerald-100 text-emerald-700',
+                                    'pending'  => 'bg-amber-100 text-amber-700',
+                                    default    => 'bg-slate-100 text-slate-500',
+                                };
+                                $statusLabel = match($req['status']) {
+                                    'paid'     => 'Payment Verified ✓',
+                                    'accepted' => 'Confirmed',
+                                    'pending'  => 'Awaiting Student',
+                                    default    => ucfirst($req['status']),
+                                };
+                            ?>
+                                <div class="p-4 border border-slate-100 bg-slate-50/50 rounded-xl">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 class="font-bold text-slate-900 text-sm"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></h3>
+                                            <p class="text-xs text-slate-500 font-medium uppercase tracking-tighter"><?php echo htmlspecialchars($req['subject_name']); ?></p>
+                                            <p class="text-xs text-slate-400 mt-0.5">Session: <?php echo htmlspecialchars($req['session_date'] ?? '—'); ?></p>
+                                        </div>
+                                        <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full <?php echo $statusBg; ?>"><?php echo $statusLabel; ?></span>
                                     </div>
-                                    <div class="flex gap-2">
-                                        <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600 transition shadow-sm">
-                                            <i class="fab fa-whatsapp"></i>
+                                    <?php if ($req['status'] === 'paid'): ?>
+                                    <div class="flex flex-col gap-2 mt-4 pt-4 border-t border-slate-100">
+                                        <?php if (!empty($req['zoom_link'])): ?>
+                                            <div class="flex items-center justify-between bg-indigo-50 p-3 rounded-lg border border-indigo-100">
+                                                <span class="text-[9px] font-black text-indigo-700 uppercase tracking-widest">Zoom Link Active</span>
+                                                <button onclick="openZoomModal(<?php echo $req['id']; ?>, '<?php echo addslashes($req['zoom_link']); ?>', '<?php echo addslashes($req['zoom_meeting_id']); ?>', '<?php echo addslashes($req['zoom_password']); ?>')" class="text-[10px] font-black text-indigo-900 underline">Update</button>
+                                            </div>
+                                            <a href="../player/instructor_zoom.php?request_id=<?php echo $req['id']; ?>" class="bg-indigo-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                                                <i class="fas fa-video"></i> Start Session
+                                            </a>
+                                        <?php else: ?>
+                                            <button onclick="openZoomModal(<?php echo $req['id']; ?>)" class="bg-indigo-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                                                <i class="fas fa-plus"></i> Create Zoom Class
+                                            </button>
+                                        <?php endif; ?>
+                                        <div class="flex gap-2">
+                                            <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="flex-1 flex items-center justify-center gap-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition">
+                                                <i class="fab fa-whatsapp"></i> WhatsApp
+                                            </a>
+                                            <a href="tel:<?php echo $req['mobile_number']; ?>" class="w-10 h-10 bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-300 transition">
+                                                <i class="fas fa-phone text-xs"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <?php elseif ($req['status'] === 'accepted'): ?>
+                                    <div class="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+                                        <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="flex-1 flex items-center justify-center gap-1 bg-emerald-500 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition">
+                                            <i class="fab fa-whatsapp"></i> WhatsApp
                                         </a>
-                                        <a href="tel:<?php echo $req['mobile_number']; ?>" class="w-10 h-10 bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-300 transition shadow-sm">
-                                            <i class="fas fa-phone"></i>
+                                        <a href="tel:<?php echo $req['mobile_number']; ?>" class="w-10 h-10 bg-slate-200 text-slate-700 rounded-lg flex items-center justify-center hover:bg-slate-300 transition">
+                                            <i class="fas fa-phone text-xs"></i>
                                         </a>
                                     </div>
+                                    <?php else: ?>
+                                    <p class="text-[10px] text-amber-600 font-bold mt-2">⏳ Waiting for student to confirm and pay</p>
+                                    <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
             </div>
+
+            <!-- Zoom Modal -->
+            <div id="zoomModal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+                <div class="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl relative">
+                    <button onclick="closeZoomModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition"><i class="fas fa-times"></i></button>
+                    <h3 class="text-xl font-bold text-slate-900 mb-6">Setup Zoom Session</h3>
+                    <form method="POST" class="space-y-4">
+                        <input type="hidden" name="update_zoom" value="1">
+                        <input type="hidden" name="request_id" id="zoomReqId">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Zoom Meeting Link</label>
+                            <input type="url" name="zoom_link" id="zoomLink" required placeholder="https://zoom.us/j/..." 
+                                   class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Meeting ID</label>
+                                <input type="text" name="zoom_meeting_id" id="zoomId" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Passcode</label>
+                                <input type="text" name="zoom_password" id="zoomPass" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none transition text-sm">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-indigo-600 transition shadow-lg">Save Session Details</button>
+                    </form>
+                </div>
+            </div>
+
+            <script>
+                function openZoomModal(rid, link='', zid='', pass='') {
+                    document.getElementById('zoomReqId').value = rid;
+                    document.getElementById('zoomLink').value = link;
+                    document.getElementById('zoomId').value = zid;
+                    document.getElementById('zoomPass').value = pass;
+                    document.getElementById('zoomModal').classList.remove('hidden');
+                    document.getElementById('zoomModal').classList.add('flex');
+                }
+                function closeZoomModal() {
+                    document.getElementById('zoomModal').classList.add('hidden');
+                    document.getElementById('zoomModal').classList.remove('flex');
+                }
+            </script>
 
         <!-- ================= STUDENT VIEW ================= -->
         <?php elseif ($user_role === 'student'): ?>
@@ -355,17 +494,28 @@ function time_elapsed_string($datetime) {
                                             <span class="font-bold text-xs text-slate-800"><?php echo htmlspecialchars($req['subject_name']); ?></span>
                                             <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full <?php echo ($req['status'] === 'accepted') ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'; ?>"><?php echo $req['status']; ?></span>
                                         </div>
-                                        <?php if ($req['status'] === 'accepted'): ?>
-                                            <div class="mt-3 pt-3 border-t border-emerald-100/50 flex items-center justify-between">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-8 h-8 rounded-full bg-white border border-emerald-100 flex items-center justify-center text-xs text-emerald-600">
-                                                        <i class="fas fa-user-tie"></i>
+                                        <?php if ($req['status'] === 'paid' || $req['status'] === 'accepted'): ?>
+                                            <div class="mt-3 pt-3 border-t border-emerald-100/50">
+                                                <div class="flex items-center justify-between mb-3">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-8 h-8 rounded-full bg-white border border-emerald-100 flex items-center justify-center text-xs text-emerald-600">
+                                                            <i class="fas fa-user-tie"></i>
+                                                        </div>
+                                                        <span class="text-[11px] font-bold text-slate-700"><?php echo htmlspecialchars($req['first_name']); ?></span>
                                                     </div>
-                                                    <span class="text-[11px] font-bold text-slate-700"><?php echo htmlspecialchars($req['first_name']); ?></span>
+                                                    <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="text-emerald-600 hover:text-emerald-700 text-sm font-bold">
+                                                        Chat <i class="fab fa-whatsapp ml-1"></i>
+                                                    </a>
                                                 </div>
-                                                <a href="https://wa.me/<?php echo str_replace(['+', ' '], '', $req['whatsapp_number']); ?>" target="_blank" class="text-emerald-600 hover:text-emerald-700 text-sm font-bold">
-                                                    Chat <i class="fab fa-whatsapp ml-1"></i>
-                                                </a>
+
+                                                <?php if ($req['status'] === 'paid' && !empty($req['zoom_link'])): ?>
+                                                    <a href="<?php echo htmlspecialchars($req['zoom_link']); ?>" target="_blank" class="w-full bg-indigo-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm">
+                                                        <i class="fas fa-video"></i> Join Zoom Session
+                                                    </a>
+                                                    <?php if (!empty($req['zoom_password'])): ?>
+                                                        <p class="text-[9px] text-slate-400 mt-2 text-center">ID: <?php echo htmlspecialchars($req['zoom_meeting_id']); ?> | Passcode: <span class="font-bold text-slate-600"><?php echo htmlspecialchars($req['zoom_password']); ?></span></p>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
                                     </div>

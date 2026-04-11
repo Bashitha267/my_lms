@@ -70,6 +70,24 @@ if ($role === 'student') {
     while($row = $res2->fetch_assoc()) $ongoing_classes[] = $row;
     $st2->close();
 
+    // 3. Instructor Personal Sessions (paid, with zoom link set in instructor_sessions)
+    $q3 = "SELECT ir.id, CONCAT(s.name, ' — Private Session') as title, 'ongoing' as status,
+                  'instructor_zoom' as type, s.name as subject_name, isess.zoom_link,
+                  u.first_name as teacher_first, u.second_name as teacher_second
+           FROM instructor_requests ir
+           JOIN subjects s ON ir.subject_id = s.id
+           JOIN users u ON ir.accepted_by = u.user_id
+           JOIN instructor_sessions isess ON isess.request_id = ir.id
+           WHERE ir.student_id = ? AND ir.status = 'paid'
+             AND isess.zoom_link IS NOT NULL AND isess.zoom_link != ''
+             AND isess.status != 'completed'";
+    $st3 = $conn->prepare($q3);
+    $st3->bind_param("s", $user_id);
+    $st3->execute();
+    $res3 = $st3->get_result();
+    while($row = $res3->fetch_assoc()) $ongoing_classes[] = $row;
+    $st3->close();
+
 } elseif ($role === 'teacher') {
     // 1. YouTube Live created by this teacher
     $q1 = "SELECT r.id, r.title, r.status, 'youtube' as type, sub.name as subject_name,
@@ -100,6 +118,24 @@ if ($role === 'student') {
     $res2 = $st2->get_result();
     while($row = $res2->fetch_assoc()) $ongoing_classes[] = $row;
     $st2->close();
+
+    // 3. Instructor Personal Sessions where this user is the accepted instructor (for teacher)
+    $q3 = "SELECT ir.id, CONCAT(s.name, ' — Private Session') as title, 'ongoing' as status,
+                  'instructor_zoom' as type, s.name as subject_name, isess.zoom_link,
+                  u.first_name as teacher_first, u.second_name as teacher_second
+           FROM instructor_requests ir
+           JOIN subjects s ON ir.subject_id = s.id
+           JOIN users u ON ir.accepted_by = u.user_id
+           JOIN instructor_sessions isess ON isess.request_id = ir.id
+           WHERE ir.accepted_by = ? AND ir.status = 'paid'
+             AND isess.zoom_link IS NOT NULL AND isess.zoom_link != ''
+             AND isess.status != 'completed'";
+    $st3 = $conn->prepare($q3);
+    $st3->bind_param("s", $user_id);
+    $st3->execute();
+    $res3 = $st3->get_result();
+    while($row = $res3->fetch_assoc()) $ongoing_classes[] = $row;
+    $st3->close();
 }
 
 // Get top 3 upcoming classes (Scheduled)
@@ -401,8 +437,18 @@ if ($role === 'student') {
                                         </div>
                                     <?php endif; ?>
                                 <?php endif; ?>
+                                <?php 
+                                // Determine player URL
+                                if ($class['type'] === 'instructor_zoom') {
+                                    $join_url = '../player/instructor_zoom.php?request_id=' . $class['id'];
+                                } elseif ($class['type'] === 'zoom') {
+                                    $join_url = '../player/zoom.php?id=' . $class['id'];
+                                } else {
+                                    $join_url = '../player/player.php?id=' . $class['id'];
+                                }
+                                ?>
                                 <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center backdrop-blur-sm">
-                                    <a href="<?php echo ($class['type'] === 'zoom') ? 'live_classes.php' : '../player/player.php?id='.$class['id']; ?>" class="bg-white text-slate-900 px-8 py-3 rounded-full font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all" data-sinhala="පන්තියට එක්වන්න">Join Classroom</a>
+                                    <a href="<?php echo $join_url; ?>" class="bg-white text-slate-900 px-8 py-3 rounded-full font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all" data-sinhala="පන්තියට එක්වන්න">Join Classroom</a>
                                 </div>
                             </div>
                             <div class="p-8 flex-1 flex flex-col bg-white">

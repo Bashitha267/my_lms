@@ -57,6 +57,26 @@ if (!empty($params)) {
 $stmt->execute();
 $publications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+
+// Fetch User Orders if logged in
+$view = $_GET['view'] ?? 'browse';
+$user_orders = [];
+if ($user_logged_in && $view == 'orders') {
+    $orders_sql = "SELECT o.*, 
+                    GROUP_CONCAT(p.title SEPARATOR ', ') as titles,
+                    SUM(oi.quantity * oi.price_at_order) as total_amount
+                   FROM publication_orders o
+                   JOIN publication_order_items oi ON o.id = oi.order_id
+                   JOIN publications p ON oi.publication_id = p.id
+                   WHERE o.user_id = ?
+                   GROUP BY o.id
+                   ORDER BY o.id DESC";
+    $stmt = $conn->prepare($orders_sql);
+    $stmt->bind_param("s", $user_id);
+    $stmt->execute();
+    $user_orders = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -100,7 +120,7 @@ $stmt->close();
 
         .pub-cover {
             position: relative;
-            aspect-ratio: 3/4;
+            aspect-ratio: 16/10;
             border-radius: 20px;
             margin: 12px;
             overflow: hidden;
@@ -110,7 +130,7 @@ $stmt->close();
         .pub-cover img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
@@ -208,168 +228,202 @@ $stmt->close();
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #10b981;
+            color: #fff;
+            text-align: center;
+            border-radius: 12px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            right: 30px;
+            top: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        #toast.show {
+            visibility: visible;
+            -webkit-animation: fadeinToast 0.5s, fadeoutToast 0.5s 1.5s;
+            animation: fadeinToast 0.5s, fadeoutToast 0.5s 1.5s;
+        }
+
+        @-webkit-keyframes fadeinToast { from {top: 0; opacity: 0;} to {top: 30px; opacity: 1;} }
+        @keyframes fadeinToast { from {top: 0; opacity: 0;} to {top: 30px; opacity: 1;} }
+        @-webkit-keyframes fadeoutToast { from {top: 30px; opacity: 1;} to {top: 0; opacity: 0;} }
+        @keyframes fadeoutToast { from {top: 30px; opacity: 1;} to {top: 0; opacity: 0;} }
     </style>
 </head>
 <body class="min-h-screen">
     <?php include 'navbar.php'; ?>
 
+    <div id="toast">Order Request Sent! 🚀</div>
+
     <!-- Main Content -->
     <main class="relative hero-gradient pt-16 pb-20">
-        
-        <!-- Abstract Decorations -->
-        <div class="absolute top-0 right-0 w-96 h-96 bg-red-100 rounded-full blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-        <div class="absolute bottom-0 left-0 w-64 h-64 bg-blue-100 rounded-full blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
-
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            
-            <!-- Header Section -->
-            <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16">
-                <div class="max-w-2xl">
-                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm mb-6 animate-float">
-                        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider" data-sinhala="අධ්‍යාපනික ද්‍රව්‍ය">Premium Learning Resources</span>
-                    </div>
-                    <h1 class="text-5xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1.1] mb-6">
-                        Unlock Expert <br/> 
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400" data-sinhala="ප්‍රකාශන">Publications</span>
-                    </h1>
-                    <p class="text-lg text-slate-500 font-medium leading-relaxed" data-sinhala="අපගේ ඉහළම උපදේශකයින් විසින් සකස් කරන ලද පෙළපොත්, මාර්ගෝපදේශ සහ අධ්‍යයන ද්‍රව්‍ය.">
-                        Elevate your learning experience with textbooks, curated guides, and specialized study materials crafted by our elite instructors.
-                    </p>
-                </div>
-
-                <!-- Search & Filter Controls -->
-                <div class="w-full lg:max-w-md">
-                    <form action="publications.php" method="GET" class="search-container flex flex-col sm:flex-row gap-2">
-                        <div class="flex-1 relative">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" name="search" value="<?php echo htmlspecialchars($search_query); ?>" 
-                                   placeholder="Search resources..." data-sinhala="නිබන්ධන සොයන්න..."
-                                   class="w-full pl-11 pr-4 py-3 bg-transparent outline-none text-slate-700 font-medium placeholder:text-slate-400">
-                        </div>
-                        <div class="flex gap-2">
-                            <select name="category" onchange="this.form.submit()" class="bg-slate-50 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 outline-none border-none cursor-pointer hover:bg-slate-100 transition-colors">
-                                <option value="0" data-sinhala="සියලුම කාණ්ඩ">All Topics</option>
-                                <?php foreach($categories as $cat): ?>
-                                    <option value="<?php echo $cat['id']; ?>" <?php echo $category_filter == $cat['id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($cat['name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <button type="submit" class="bg-slate-900 text-white p-3.5 rounded-xl hover:bg-black transition-all">
-                                <i class="fas fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </form>
-                    <?php if (!empty($search_query) || $category_filter > 0): ?>
-                        <div class="mt-4 flex justify-end">
-                            <a href="publications.php" class="text-xs font-bold text-red-600 hover:text-red-700 underline underline-offset-4 flex items-center gap-1">
-                                <i class="fas fa-times-circle"></i> Clear Filters
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <!-- Stats & Breadcrumbs -->
-            <div class="flex items-center gap-6 mb-10 overflow-x-auto pb-2 border-b border-slate-200">
-                <div class="flex items-center gap-2 text-sm">
-                    <span class="text-slate-400 font-bold">FOUND</span>
-                    <span class="bg-slate-900 text-white px-2.5 py-0.5 rounded-md text-xs font-black"><?php echo count($publications); ?></span>
-                    <span class="text-slate-600 font-bold uppercase tracking-widest text-[10px]">RESOURCES</span>
-                </div>
-                <?php if($category_filter > 0): ?>
-                    <div class="h-4 w-px bg-slate-300"></div>
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-tag text-red-500 text-xs"></i>
-                        <span class="text-xs font-bold text-slate-500 uppercase"><?php 
-                            foreach($categories as $c) if($c['id'] == $category_filter) echo htmlspecialchars($c['name']); 
-                        ?></span>
-                    </div>
+            <!-- Tabs Header -->
+            <div class="flex items-center gap-8 mb-12 border-b border-slate-200">
+                <a href="publications.php" class="<?php echo $view == 'browse' ? 'text-slate-900 border-b-4 border-red-600' : 'text-slate-400 hover:text-slate-600'; ?> pb-4 text-lg font-black transition-all">Our Publications</a>
+                <?php if($user_logged_in): ?>
+                    <a href="publications.php?view=orders" class="<?php echo $view == 'orders' ? 'text-slate-900 border-b-4 border-red-600' : 'text-slate-400 hover:text-slate-600'; ?> pb-4 text-lg font-black transition-all">My Orders (<?php echo count($user_orders); ?>)</a>
                 <?php endif; ?>
             </div>
 
-            <!-- Publications Grid -->
-            <?php if(empty($publications)): ?>
-                <div class="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-200">
-                    <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                        <i class="fas fa-search text-3xl text-slate-300"></i>
+            <!-- Publications Header -->
+            <div class="flex flex-col md:flex-row md:items-center justify-end gap-6 mb-12 <?php echo $view != 'browse' ? 'hidden' : ''; ?>">
+
+                <!-- Category Dropdown -->
+                <div class="relative min-w-[220px]">
+                    <select onchange="window.location.href='publications.php?category=' + this.value" 
+                            class="appearance-none w-full bg-white border border-slate-200 text-slate-700 font-bold py-3.5 px-6 pr-12 rounded-2xl shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 cursor-pointer transition-all">
+                        <option value="0">All Categories</option>
+                        <?php foreach($categories as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>" <?php echo $category_filter == $cat['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($cat['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-slate-400">
+                        <i class="fas fa-chevron-down text-xs"></i>
                     </div>
-                    <h2 class="text-3xl font-black text-slate-800 mb-4">No Matches Found</h2>
-                    <p class="text-slate-500 max-w-sm mx-auto font-medium mb-8">Try adjusting your filters or search keywords to find what you're looking for.</p>
-                    <a href="publications.php" class="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-200">
-                        Explore All Publications
-                    </a>
                 </div>
-            <?php else: ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                    <?php foreach($publications as $pub):
-                        $final_price = $pub['price'] - $pub['discount'];
-                        $discount_pct = $pub['price'] > 0 ? round(($pub['discount'] / $pub['price']) * 100) : 0;
-                    ?>
-                        <div class="pub-card flex flex-col group">
-                            <!-- Image Section -->
-                            <div class="pub-cover group">
-                                <?php if(!empty($pub['image_path'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($pub['image_path']); ?>" 
-                                         alt="<?php echo htmlspecialchars($pub['title']); ?>">
-                                <?php else: ?>
-                                    <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
-                                        <i class="fas fa-book-open text-slate-300 text-6xl"></i>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <span class="cat-badge" data-sinhala="කාණ්ඩය"><?php echo htmlspecialchars($pub['category_name']); ?></span>
-                                
-                                <?php if($pub['discount'] > 0): ?>
-                                    <span class="discount-badge" data-sinhala="වට්ටම්">-<?php echo $discount_pct; ?>%</span>
-                                <?php endif; ?>
+            </div>
 
-                                <!-- Quick Overlay on Hover -->
-                                <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm flex items-center justify-center">
-                                    <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
-                                        'id'    => $pub['id'],
-                                        'title' => $pub['title'],
-                                        'price' => $final_price
-                                    ])); ?>)" class="bg-white text-slate-900 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform">
-                                        <i class="fas fa-shopping-basket text-xl"></i>
-                                    </button>
-                                </div>
-                            </div>
 
-                            <!-- Content Section -->
-                            <div class="px-6 pb-6 pt-2 flex-1 flex flex-col">
-                                <h3 class="text-lg font-black text-slate-800 line-clamp-2 leading-tight mb-3 min-h-[3rem]">
-                                    <?php echo htmlspecialchars($pub['title']); ?>
-                                </h3>
-                                <p class="text-sm text-slate-500 font-medium line-clamp-2 mb-6 flex-1">
-                                    <?php echo htmlspecialchars($pub['description']); ?>
-                                </p>
-
-                                <!-- Price & Action -->
-                                <div class="flex items-end justify-between mt-auto pt-6 border-t border-slate-100">
-                                    <div>
-                                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">BEST PRICE</p>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-2xl font-black text-slate-900 tracking-tighter">Rs.<?php echo number_format($final_price, 0); ?></span>
-                                            <?php if($pub['discount'] > 0): ?>
-                                                <span class="text-sm text-slate-300 line-through font-bold">Rs.<?php echo number_format($pub['price'], 0); ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
-                                        'id'    => $pub['id'],
-                                        'title' => $pub['title'],
-                                        'price' => $final_price
-                                    ])); ?>)" data-sinhala="දැන් ලබාගන්න"
-                                            class="bg-red-600 text-white w-12 h-12 rounded-2xl flex items-center justify-center hover:bg-slate-900 transition-all shadow-lg shadow-red-100 group-hover:-translate-y-1">
-                                        <i class="fas fa-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
+            <!-- Publications Grid -->
+            <?php if($view == 'browse'): ?>
+                <?php if(empty($publications)): ?>
+                    <div class="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-200">
+                        <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8">
+                            <i class="fas fa-search text-3xl text-slate-300"></i>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                        <h2 class="text-3xl font-black text-slate-800 mb-4">No Matches Found</h2>
+                        <p class="text-slate-500 max-w-sm mx-auto font-medium mb-8">Try adjusting your filters or search keywords to find what you're looking for.</p>
+                        <a href="publications.php" class="inline-flex items-center gap-3 bg-red-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-200">
+                            Explore All Publications
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="grid grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
+                        <?php foreach($publications as $pub):
+                            $final_price = $pub['price'] - $pub['discount'];
+                            $discount_pct = $pub['price'] > 0 ? round(($pub['discount'] / $pub['price']) * 100) : 0;
+                        ?>
+                            <div class="pub-card flex flex-col group">
+                                <!-- Image Section -->
+                                <div class="pub-cover group">
+                                    <?php if(!empty($pub['image_path'])): ?>
+                                        <img src="../<?php echo htmlspecialchars($pub['image_path']); ?>" 
+                                             alt="<?php echo htmlspecialchars($pub['title']); ?>">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+                                            <i class="fas fa-book-open text-slate-300 text-6xl"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <span class="cat-badge" data-sinhala="කාණ්ඩය"><?php echo htmlspecialchars($pub['category_name']); ?></span>
+                                    
+                                    <?php if($pub['discount'] > 0): ?>
+                                        <span class="discount-badge" data-sinhala="වට්ටම්">-<?php echo $discount_pct; ?>%</span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Content Section -->
+                                <div class="px-6 pb-6 pt-2 flex-1 flex flex-col">
+                                    <h3 class="text-lg md:text-xl font-bold text-slate-800 line-clamp-2 leading-tight mb-4 min-h-[3.5rem]">
+                                        <?php echo htmlspecialchars($pub['title']); ?>
+                                    </h3>
+                                    
+                                    <div class="mt-auto flex items-end justify-between gap-3">
+                                        <div class="flex flex-col">
+                                            <?php if($pub['discount'] > 0): ?>
+                                                <span class="text-xs text-slate-400 line-through font-bold mb-0.5">Rs.<?php echo number_format($pub['price'], 0); ?></span>
+                                            <?php endif; ?>
+                                            <span class="text-xl md:text-2xl font-black text-red-600 tracking-tight">Rs.<?php echo number_format($final_price, 0); ?></span>
+                                        </div>
+                                        <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
+                                            'id'    => $pub['id'],
+                                            'title' => $pub['title'],
+                                            'price' => $final_price
+                                        ])); ?>)" class="bg-[#121826] text-white px-5 py-3 rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg active:scale-95">
+                                            Buy Now
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
+            <?php elseif($view == 'orders' && $user_logged_in): ?>
+                <!-- Orders Tab Content -->
+                <?php if(empty($user_orders)): ?>
+                    <div class="bg-white rounded-[40px] p-20 text-center border-2 border-dashed border-slate-200">
+                        <i class="fas fa-shopping-bag text-4xl text-slate-200 mb-6"></i>
+                        <h2 class="text-2xl font-black text-slate-800 mb-2">No Orders Yet</h2>
+                        <p class="text-slate-500 mb-8">You haven't placed any publication orders yet.</p>
+                        <a href="publications.php" class="bg-red-600 text-white px-8 py-4 rounded-2xl font-bold">Start Shopping</a>
+                    </div>
+                <?php else: ?>
+                    <div class="bg-white rounded-[32px] overflow-hidden border border-slate-200 shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Details</th>
+                                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Payment</th>
+                                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach($user_orders as $order): ?>
+                                        <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                                            <td class="px-8 py-6">
+                                                <p class="text-xs font-black text-slate-400 mb-1">ID: #<?php echo $order['id']; ?></p>
+                                                <h4 class="font-bold text-slate-900"><?php echo $order['titles']; ?></h4>
+                                            </td>
+                                            <td class="px-8 py-6 text-center">
+                                                <span class="inline-block px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-600 uppercase">
+                                                    <?php echo str_replace('_', ' ', $order['payment_method']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-8 py-6 text-center">
+                                                <?php
+                                                    $status_colors = [
+                                                        'pending'   => 'bg-amber-100 text-amber-700',
+                                                        'completed' => 'bg-emerald-100 text-emerald-700',
+                                                        'cancelled' => 'bg-rose-100 text-rose-700'
+                                                    ];
+                                                    $color = $status_colors[$order['status']] ?? 'bg-slate-100 text-slate-600';
+                                                ?>
+                                                <span class="inline-block px-4 py-1.5 <?php echo $color; ?> rounded-full text-xs font-bold uppercase tracking-tight">
+                                                    <?php echo $order['status']; ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-8 py-6 text-right font-black text-slate-900">
+                                                Rs.<?php echo number_format($order['total_amount'], 0); ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </main>
@@ -510,21 +564,7 @@ $stmt->close();
         </div>
     </div>
 
-    <!-- SUCCESS NOTIFICATION -->
-    <div id="successModal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-slate-900 flex items-center justify-center">
-            <div class="text-center">
-                <div class="w-32 h-32 bg-red-600 rounded-[40px] flex items-center justify-center mx-auto mb-10 shadow-[0_30px_60px_-10px_rgba(239,68,68,0.5)] rotate-12">
-                    <i class="fas fa-check text-5xl text-white"></i>
-                </div>
-                <h3 class="text-5xl font-black text-white tracking-tight mb-4">Request Sent!</h3>
-                <p class="text-slate-400 text-lg max-w-sm mx-auto font-medium mb-12">We've received your order. One of our team members will contact you on WhatsApp shortly.</p>
-                <button onclick="window.location.reload()" class="bg-white text-slate-900 px-10 py-5 rounded-full font-black hover:scale-110 transition-transform">
-                    AWESOME! 🎊
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- SUCCESS NOTIFICATION REMOVED -->
 
     <script>
         let selectedPaymentMethod = '';
@@ -592,7 +632,10 @@ $stmt->close();
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    document.getElementById('successModal').classList.remove('hidden');
+                    const toast = document.getElementById('toast');
+                    toast.className = 'show';
+                    setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 2000);
+                    closeOrderModal();
                 } else {
                     feedback.innerHTML = `<span class="text-red-500">${data.message}</span>`;
                     btn.disabled = false;

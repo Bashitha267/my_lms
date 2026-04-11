@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                     // Let's go to verified_payment or back to pending so student can re-upload or instructor can accept again?
                     // Usually if payment fails, request should probably stay in a specific state or reset.
                     // Request status: 'pending','accepted','payment_pending','verified_payment','rejected','completed'
-                    $up_status = $action === 'approve' ? 'verified_payment' : 'pending';
+                    $up_status = $action === 'approve' ? 'paid' : 'pending';
                     $conn->query("UPDATE instructor_requests SET status = '$up_status' WHERE id = $req_id");
                     
                     // WhatsApp Notifications
@@ -371,19 +371,25 @@ if ($active_tab === 'verify') {
     }
 
     // Pending Instructor Sessions
-    $inst_query = "SELECT ip.*, ir.request_note, u.first_name, u.second_name, s.name as subject_name, 'Instructor' as stream_name
+    $inst_query = "SELECT ip.*, ir.request_note, 
+                          COALESCE(u.first_name, 'Unknown') as first_name, 
+                          COALESCE(u.second_name, '') as second_name, 
+                          s.name as subject_name, 'Instructor' as stream_name
                   FROM instructor_payments ip
                   JOIN instructor_requests ir ON ip.request_id = ir.id
-                  JOIN users u ON ip.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
+                  LEFT JOIN users u ON ip.student_id = u.user_id
                   JOIN subjects s ON ir.subject_id = s.id
-                  WHERE ip.status = 'pending' ORDER BY ip.submitted_at DESC";
+                  WHERE ip.status = 'pending' ORDER BY ip.created_at DESC";
     $i_res = $conn->query($inst_query);
     if ($i_res) {
         while ($row = $i_res->fetch_assoc()) {
             $row['payment_type'] = 'instructor';
-            $row['created_at'] = $row['submitted_at']; // Alias for display
+            // created_at already present in instructor_payments, no alias needed
             $pending_payments[] = $row;
         }
+    } else {
+        // Log query error for debugging
+        error_log("Instructor payments query error: " . $conn->error);
     }
 
     // History (Last 10 Approved)
@@ -410,6 +416,15 @@ if ($active_tab === 'verify') {
          JOIN streams s ON ss.stream_id = s.id
          JOIN subjects sub ON ss.subject_id = sub.id
          WHERE mp.payment_status = 'paid')
+        UNION ALL
+        (SELECT ip.id, ip.amount, ip.status as payment_status, ip.created_at, ip.receipt_path, 'instructor' as type,
+                u.first_name, u.second_name,
+                'Instructor' as stream_name, s.name as subject_name
+         FROM instructor_payments ip
+         JOIN instructor_requests ir ON ip.request_id = ir.id
+         JOIN users u ON ip.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
+         JOIN subjects s ON ir.subject_id = s.id
+         WHERE ip.status = 'verified')
         ORDER BY created_at DESC LIMIT 10
     ";
     

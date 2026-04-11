@@ -33,7 +33,18 @@ if (!$req) {
 $success_message = '';
 $error_message = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt'])) {
+// Check if payment already submitted
+$existing_payment = null;
+$ep_stmt = $conn->prepare("SELECT id, status, created_at, receipt_path FROM instructor_payments WHERE request_id = ? AND instructor_id = ? AND student_id = ?");
+$ep_stmt->bind_param("iss", $request_id, $instructor_id, $user_id);
+$ep_stmt->execute();
+$ep_res = $ep_stmt->get_result();
+if ($ep_res->num_rows > 0) {
+    $existing_payment = $ep_res->fetch_assoc();
+}
+$ep_stmt->close();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt']) && !$existing_payment) {
     $upload_dir = '../uploads/instructor_payments/';
     if (!file_exists($upload_dir)) mkdir($upload_dir, 0777, true);
     
@@ -46,14 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt'])) {
         
         $conn->begin_transaction();
         try {
+            // Use $instructor_id from URL (the one the student chose), NOT $req['accepted_by']
             $ps = $conn->prepare("INSERT INTO instructor_payments (request_id, student_id, instructor_id, amount, receipt_path, status) VALUES (?, ?, ?, ?, ?, 'pending')");
-            $ps->bind_param("issds", $request_id, $user_id, $req['accepted_by'], $req['hourly_rate'], $receipt_path);
+            $ps->bind_param("issds", $request_id, $user_id, $instructor_id, $req['hourly_rate'], $receipt_path);
             $ps->execute();
             $payment_id = $conn->insert_id;
             
-            $conn->query("UPDATE instructor_requests SET status = 'payment_pending', payment_id = $payment_id WHERE id = $request_id");
+            $conn->query("UPDATE instructor_requests SET status = 'payment_pending', payment_id = $payment_id, accepted_by = '$instructor_id' WHERE id = $request_id");
             $conn->commit();
             $success_message = "Payment proof submitted successfully! Admin will verify shortly.";
+            // Reload existing_payment so the UI updates
+            $existing_payment = ['id' => $payment_id, 'status' => 'pending', 'created_at' => date('Y-m-d H:i:s'), 'receipt_path' => $receipt_path];
         } catch (Exception $e) {
             $conn->rollback();
             $error_message = "Error: " . $e->getMessage();
@@ -96,6 +110,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt'])) {
                     <h2 class="text-lg font-bold text-emerald-900 mb-2">Proof Uploaded Successfully</h2>
                     <p class="text-emerald-700 text-sm italic"><?php echo $success_message; ?></p>
                     <a href="instructors.php" class="inline-block mt-8 bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 transition">Back to Dashboard</a>
+                </div>
+            <?php elseif ($existing_payment): ?>
+                <?php
+                $status_cfg = match($existing_payment['status']) {
+                    'verified' => ['bg' => 'bg-emerald-50', 'border' => 'border-emerald-100', 'icon_bg' => 'bg-emerald-500', 'icon' => 'fa-check-circle', 'title' => 'Payment Approved!', 'msg' => 'Your payment has been verified by the admin. Your session is confirmed.', 'badge' => 'bg-emerald-100 text-emerald-700'],
+                    'rejected' => ['bg' => 'bg-rose-50',    'border' => 'border-rose-100',    'icon_bg' => 'bg-rose-500',    'icon' => 'fa-times-circle', 'title' => 'Payment Denied',    'msg' => 'Your payment was not verified. Please contact support or re-submit.', 'badge' => 'bg-rose-100 text-rose-700'],
+                    default    => ['bg' => 'bg-amber-50',   'border' => 'border-amber-100',   'icon_bg' => 'bg-amber-500',   'icon' => 'fa-clock',        'title' => 'Payment Pending',   'msg' => 'Your receipt has been submitted and is awaiting admin verification.', 'badge' => 'bg-amber-100 text-amber-700'],
+                };
+                ?>
+                <div class="<?= $status_cfg['bg'] ?> border <?= $status_cfg['border'] ?> p-8 rounded-xl text-center">
+                    <div class="w-14 h-14 <?= $status_cfg['icon_bg'] ?> text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
+                        <i class="fas <?= $status_cfg['icon'] ?>"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-900 mb-2"><?= $status_cfg['title'] ?></h2>
+                    <p class="text-slate-600 text-sm mb-4"><?= $status_cfg['msg'] ?></p>
+                    <span class="inline-block px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest <?= $status_cfg['badge'] ?>">
+                        <?= ucfirst($existing_payment['status']) ?> &bull; <?= date('M d, Y', strtotime($existing_payment['created_at'])) ?>
+                    </span>
+                    <div class="mt-8">
+                        <a href="instructors.php" class="inline-block bg-slate-900 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-800 transition">Back to Dashboard</a>
+                    </div>
                 </div>
             <?php else: ?>
                 <div class="space-y-6">

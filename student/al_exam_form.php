@@ -34,12 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already_submitted) {
     $subject1 = trim($_POST['subject_1']);
     $subject2 = trim($_POST['subject_2']);
     $subject3 = trim($_POST['subject_3']);
-    $district = trim($_POST['district']);
+    $district = trim($_POST['district'] ?? '');
     $index_number = trim($_POST['index_number'] ?? '');
+    $agreed_to_publish = isset($_POST['agreed_to_publish']) ? 1 : 0;
     
     // Validate
-    if (empty($subject1) || empty($subject2) || empty($subject3) || empty($district)) {
-        $error_message = "Please fill in all required fields.";
+    // Only subjects are required (district/index/photo/publish are optional)
+    if (empty($subject1) || empty($subject2) || empty($subject3)) {
+        $error_message = "Please fill in all required fields (Subjects 1, 2, and 3).";
     } else {
         // Handle Photo Upload
         $photo_path = null;
@@ -67,24 +69,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already_submitted) {
         }
         
         if (empty($error_message)) {
-            // Insert into Database
-            $insert_query = "INSERT INTO al_exam_submissions (student_id, subject_1, subject_2, subject_3, index_number, district, photo_path) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $stmt = $conn->prepare($insert_query);
-            $stmt->bind_param("sssssss", $user_id, $subject1, $subject2, $subject3, $index_number, $district, $photo_path);
+            // Insert into Database (schema-safe)
+            $has_publish_column = false;
+            $col_check = $conn->query("SHOW COLUMNS FROM al_exam_submissions LIKE 'agreed_to_publish'");
+            if ($col_check && $col_check->num_rows > 0) {
+                $has_publish_column = true;
+            }
+
+            if ($has_publish_column) {
+                $insert_query = "INSERT INTO al_exam_submissions (student_id, subject_1, subject_2, subject_3, index_number, district, photo_path, agreed_to_publish) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($insert_query);
+                $stmt->bind_param("sssssssi", $user_id, $subject1, $subject2, $subject3, $index_number, $district, $photo_path, $agreed_to_publish);
+            } else {
+                $insert_query = "INSERT INTO al_exam_submissions (student_id, subject_1, subject_2, subject_3, index_number, district, photo_path) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $stmt = $conn->prepare($insert_query);
+                $stmt->bind_param("sssssss", $user_id, $subject1, $subject2, $subject3, $index_number, $district, $photo_path);
+            }
             
             if ($stmt->execute()) {
-                // Clear the requested flag in DB
-                $clear_request = $conn->prepare("UPDATE users SET al_details_requested = 0 WHERE user_id = ?");
-                $clear_request->bind_param("s", $user_id);
-                $clear_request->execute();
-                $clear_request->close();
-
                 $success_message = "Details submitted successfully!";
                 $already_submitted = true;
-                $_SESSION['al_submitted'] = true;
-                $_SESSION['al_requested'] = false; // Also clear session flag
-                // Redirect after 2 seconds
-                header("refresh:2;url=../dashboard/dashboard.php");
+                $_SESSION['al_subjects_submitted'] = true;
+                // Redirect after 2 seconds to results/publish page (student can skip there)
+                header("refresh:2;url=al_results_form.php");
             } else {
                 $error_message = "Database error: " . $conn->error;
             }
@@ -161,14 +168,19 @@ $al_subjects = [
                 <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
                     <p class="font-bold">Success!</p>
                     <p><?php echo $success_message; ?></p>
-                    <p class="text-sm mt-1">Redirecting to dashboard...</p>
+                    <p class="text-sm mt-1">Redirecting to results/publish page...</p>
                 </div>
             <?php elseif ($already_submitted): ?>
                  <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 text-center" role="alert">
                     <p class="font-bold mb-2">You have already submitted your details.</p>
-                    <a href="../dashboard/dashboard.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                        Go to Dashboard
-                    </a>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <a href="al_results_form.php" class="inline-block bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-semibold">
+                            Submit Results / Publish (Optional)
+                        </a>
+                        <a href="../dashboard/dashboard.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                            Go to Dashboard
+                        </a>
+                    </div>
                 </div>
             <?php else: ?>
 
@@ -219,8 +231,8 @@ $al_subjects = [
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">District *</label>
-                        <select name="district" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">District (Optional)</label>
+                        <select name="district"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors">
                             <option value="">Select District</option>
                             <option value="Ampara">Ampara</option>
@@ -267,6 +279,20 @@ $al_subjects = [
                                 <p class="text-xs text-gray-500">PNG, JPG up to 5MB</p>
                                 <p id="file-name" class="text-xs text-gray-700 font-bold mt-2"></p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Publish Consent (Optional) -->
+                <div class="pt-2">
+                    <div class="flex items-start">
+                        <div class="flex items-center h-5">
+                            <input id="agreed_to_publish" name="agreed_to_publish" type="checkbox"
+                                   class="h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                        </div>
+                        <div class="ml-3 text-sm">
+                            <label for="agreed_to_publish" class="font-semibold text-gray-700">Publish publicly on the website (Optional)</label>
+                            <p class="text-gray-500">Tick this only if you agree to display your A/L results publicly on the site when results are added.</p>
                         </div>
                     </div>
                 </div>

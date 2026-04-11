@@ -13,6 +13,19 @@ if ($role !== 'admin' && $role !== 'teacher') {
 $type = $_GET['type'] ?? ''; // 'stream' or 'class'
 $id = intval($_GET['id'] ?? 0);
 
+function has_column(mysqli $conn, string $table, string $column): bool {
+    $safe_table = $conn->real_escape_string($table);
+    $safe_column = $conn->real_escape_string($column);
+    $res = $conn->query("SHOW COLUMNS FROM `{$safe_table}` LIKE '{$safe_column}'");
+    return ($res && $res->num_rows > 0);
+}
+
+$has_district_rank = has_column($conn, 'al_exam_submissions', 'district_rank');
+$has_island_rank = has_column($conn, 'al_exam_submissions', 'island_rank');
+
+$district_rank_select = $has_district_rank ? 'als.district_rank' : 'NULL AS district_rank';
+$island_rank_select = $has_island_rank ? 'als.island_rank' : 'NULL AS island_rank';
+
 if ($id <= 0 || ($type !== 'stream' && $type !== 'class')) {
     header('Location: request_al_details.php');
     exit;
@@ -56,7 +69,8 @@ if ($type === 'stream') {
 $query = "SELECT u.user_id, u.first_name, u.second_name, u.whatsapp_number,
                  als.id as submission_id, als.subject_1, als.subject_2, als.subject_3, 
                  als.index_number, als.district, als.photo_path, als.created_at,
-                 als.result_1, als.result_2, als.result_3, als.results_submitted_at
+                 als.result_1, als.result_2, als.result_3, als.results_submitted_at,
+                 als.agreed_to_publish, {$district_rank_select}, {$island_rank_select}
           FROM users u
           INNER JOIN student_enrollment se ON u.user_id = se.student_id
           LEFT JOIN al_exam_submissions als ON u.user_id = als.student_id
@@ -67,7 +81,8 @@ if ($type === 'stream') {
     $query = "SELECT DISTINCT u.user_id, u.first_name, u.second_name, u.whatsapp_number,
                  als.id as submission_id, als.subject_1, als.subject_2, als.subject_3, 
                  als.index_number, als.district, als.photo_path, als.created_at,
-                 als.result_1, als.result_2, als.result_3, als.results_submitted_at
+                 als.result_1, als.result_2, als.result_3, als.results_submitted_at,
+                 als.agreed_to_publish, {$district_rank_select}, {$island_rank_select}
           FROM users u
           INNER JOIN student_enrollment se ON u.user_id = se.student_id
           INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
@@ -87,6 +102,8 @@ $result = $stmt->get_result();
 $students = [];
 $responded_count = 0;
 $results_submitted_count = 0;
+$published_count = 0;
+$not_published_count = 0;
 $total_count = 0;
 $grade_counts = ['A' => 0, 'B' => 0, 'C' => 0, 'S' => 0, 'F' => 0, 'AB' => 0];
 
@@ -100,6 +117,11 @@ while ($row = $result->fetch_assoc()) {
     // Logic to update grades
     if (!empty($row['results_submitted_at'])) {
         $results_submitted_count++;
+        if (!empty($row['agreed_to_publish'])) {
+            $published_count++;
+        } else {
+            $not_published_count++;
+        }
         
         $grade = null;
         
@@ -165,6 +187,14 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                     <span class="block text-2xl font-bold text-blue-600"><?php echo $response_rate; ?>%</span>
                     <span class="text-xs text-gray-500 font-semibold uppercase">Rate</span>
                 </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <span class="block text-2xl font-bold text-emerald-600"><?php echo $published_count; ?></span>
+                    <span class="text-xs text-gray-500 font-semibold uppercase">Published</span>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 text-center">
+                    <span class="block text-2xl font-bold text-slate-600"><?php echo $not_published_count; ?></span>
+                    <span class="text-xs text-gray-500 font-semibold uppercase">Not Published</span>
+                </div>
             </div>
         </div>
 
@@ -194,6 +224,8 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                 <?php endif; ?>
                 <option value="responded">Responded</option>
                 <option value="pending">Pending Response</option>
+                <option value="published">Published Only</option>
+                <option value="unpublished">Not Published Only</option>
             </select>
         </div>
 
@@ -207,6 +239,9 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                             <th class="px-6 py-4">User ID</th>
                             <th class="px-6 py-4">Response Status</th>
                             <th class="px-6 py-4">Result Status</th>
+                            <th class="px-6 py-4">District Rank</th>
+                            <th class="px-6 py-4">Island Rank</th>
+                            <th class="px-6 py-4">Publish</th>
                             <th class="px-6 py-4 text-center">Action</th>
                         </tr>
                     </thead>
@@ -214,7 +249,8 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                         <?php foreach ($students as $student): ?>
                         <tr class="hover:bg-gray-50/50 transition-colors student-row" 
                             data-grade="<?php echo $student['subject_grade'] ?? ''; ?>"
-                            data-responded="<?php echo !empty($student['submission_id']) ? 'yes' : 'no'; ?>">
+                            data-responded="<?php echo !empty($student['submission_id']) ? 'yes' : 'no'; ?>"
+                            data-published="<?php echo !empty($student['agreed_to_publish']) ? 'yes' : 'no'; ?>">
                             
                             <td class="px-6 py-4 font-medium text-gray-900">
                                 <?php echo htmlspecialchars($student['first_name'] . ' ' . $student['second_name']); ?>
@@ -250,6 +286,19 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                                     }
                                 ?>
                             </td>
+                            <td class="px-6 py-4 text-sm text-gray-700"><?php echo !empty($student['district_rank']) ? htmlspecialchars($student['district_rank']) : '-'; ?></td>
+                            <td class="px-6 py-4 text-sm text-gray-700"><?php echo !empty($student['island_rank']) ? htmlspecialchars($student['island_rank']) : '-'; ?></td>
+                            <td class="px-6 py-4">
+                                <?php if (!empty($student['results_submitted_at'])): ?>
+                                    <?php if (!empty($student['agreed_to_publish'])): ?>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Published</span>
+                                    <?php else: ?>
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Not Published</span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-gray-400 text-xs italic">Waiting</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="px-6 py-4 text-center">
                                 <?php if (!empty($student['submission_id'])): ?>
                                     <button onclick='viewDetails(<?php echo json_encode($student); ?>)' 
@@ -265,7 +314,7 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                         
                         <?php if (empty($students)): ?>
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                            <td colspan="8" class="px-6 py-12 text-center text-gray-400">
                                 <i class="fas fa-users-slash text-4xl mb-3"></i>
                                 <p>No students found.</p>
                             </td>
@@ -304,6 +353,19 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                             <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider block mb-1">District</span>
                             <p id="modalDistrict" class="font-medium text-gray-900">Waiting...</p>
                         </div>
+                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider block mb-1">District Rank</span>
+                            <p id="modalDistrictRank" class="font-medium text-gray-900">Waiting...</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                            <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider block mb-1">Island Rank</span>
+                            <p id="modalIslandRank" class="font-medium text-gray-900">Waiting...</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <span class="text-xs text-gray-500 font-semibold uppercase tracking-wider block mb-1">Publish Status</span>
+                        <p id="modalPublish" class="font-medium text-gray-900">Waiting...</p>
                     </div>
                     
                     <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -330,6 +392,9 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
             
             document.getElementById('modalIndex').textContent = data.index_number || 'Not provided';
             document.getElementById('modalDistrict').textContent = data.district;
+            document.getElementById('modalDistrictRank').textContent = data.district_rank || '-';
+            document.getElementById('modalIslandRank').textContent = data.island_rank || '-';
+            document.getElementById('modalPublish').textContent = data.results_submitted_at ? (data.agreed_to_publish == 1 ? 'Published' : 'Not Published') : 'Waiting';
             
             document.getElementById('modalSub1').textContent = data.subject_1;
             document.getElementById('modalSub2').textContent = data.subject_2;
@@ -368,6 +433,7 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
             for (i = 1; i < tr.length; i++) {
                 var grade = tr[i].getAttribute('data-grade');
                 var responded = tr[i].getAttribute('data-responded');
+                var published = tr[i].getAttribute('data-published');
                 
                 var show = false;
                 
@@ -377,6 +443,10 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
                    if (responded === "yes") show = true;
                 } else if (filter === "pending") {
                    if (responded === "no") show = true;
+                     } else if (filter === "published") {
+                         if (responded === "yes" && published === "yes") show = true;
+                     } else if (filter === "unpublished") {
+                         if (responded === "yes" && published === "no") show = true;
                 } else {
                    // Specific grade filter
                    if (grade === filter) show = true;

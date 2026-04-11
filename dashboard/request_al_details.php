@@ -57,21 +57,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
     $result = $stmt->get_result();
     
     $count = 0;
-    $link = "https://" . $_SERVER['HTTP_HOST'] . "/lms/student/al_exam_form.php"; 
+    $details_link = "https://" . $_SERVER['HTTP_HOST'] . "/lms/student/al_exam_form.php";
+    $results_link = "https://" . $_SERVER['HTTP_HOST'] . "/lms/student/al_results_form.php";
     
     while ($student = $result->fetch_assoc()) {
         if (!empty($student['whatsapp_number'])) {
             $context = ($request_type === 'stream') ? "Stream / ධාරාව: $name" : "Class / පන්තිය: $name";
             
-            $msg = "📢 *Action Required / අනිවාර්යයෙන් පුරවන්න*\n\n" .
-                   "🎓 *A/L Exam Details Collection*\n" .
-                   "📌 *$context*\n\n" .
-                   "Dear Student,\n" .
-                   "Please update your A/L exam details (Subjects, Index Number, District) immediately using the link below.\n\n" .
-                   "ඔබගේ උසස් පෙළ විභාග තොරතුරු (විෂයන්, විභාග අංකය, දිස්ත්‍රික්කය) පහත සබැඳිය භාවිතා කර වහාම යාවත්කාලීන කරන්න.\n\n" .
-                   "🔗 *Link:* $link\n\n" .
-                   "⚠️ *Note:* You will not be able to access the LMS until you complete this form.\n" .
-                   "මෙම පෝරමය පුරවන තෙක් ඔබට LMS වෙත පිවිසිය නොහැක.";
+                 $msg = "📢 *Action Required / අනිවාර්යයෙන් පුරවන්න*\n\n" .
+                     "🎓 *A/L Details Collection*\n" .
+                     "📌 *$context*\n\n" .
+                     "Dear Student,\n" .
+                     "Please submit your A/L subjects using the link below.\n" .
+                     "✅ *Only Subjects 1/2/3 are required.*\n" .
+                     "(Index Number, District, Photo & Publish option are optional.)\n\n" .
+                     "සිසුනි, පහත සබැඳියෙන් ඔබගේ උසස් පෙළ විෂයන් යාවත්කාලීන කරන්න.\n" .
+                     "✅ *අනිවාර්ය වන්නේ විෂය 1/2/3 පමණි.*\n" .
+                     "(විභාග අංකය, දිස්ත්‍රික්කය, ඡායාරූපය සහ Public publish කිරීම විකල්පයි.)\n\n" .
+                       "🔗 *Subjects Form:* $details_link\n" .
+                       "🔗 *Results + Publish (Optional):* $results_link\n\n" .
+                     "⚠️ *Note:* This form must be submitted to access the LMS.\n" .
+                     "මෙම පෝරමය යොමු කරන තුරු ඔබට LMS වෙත පිවිසිය නොහැක.";
             
             sendWhatsAppMessage($student['whatsapp_number'], $msg);
             

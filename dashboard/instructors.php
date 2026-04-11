@@ -42,8 +42,27 @@ if ($user_role === 'instructor') {
     $pending_res = $conn->query("SELECT ir.*, s.name as subject_name, u.first_name as student_name FROM instructor_requests ir JOIN subjects s ON ir.subject_id = s.id JOIN users u ON ir.student_id = u.user_id WHERE ir.status = 'pending' AND ir.subject_id IN (SELECT subject_id FROM instructor_subjects WHERE instructor_id = '$user_id') ORDER BY ir.created_at DESC");
     $pending_requests = $pending_res ? $pending_res->fetch_all(MYSQLI_ASSOC) : [];
     
-    $my_students_res = $conn->query("SELECT ir.*, s.name as subject_name, u.first_name, u.second_name, u.whatsapp_number FROM instructor_requests ir JOIN subjects s ON ir.subject_id = s.id JOIN users u ON ir.student_id = u.user_id WHERE ir.accepted_by = '$user_id' ORDER BY ir.accepted_at DESC");
+    $my_students_res = $conn->query("SELECT ir.*, s.name as subject_name, u.first_name, u.second_name, u.whatsapp_number FROM instructor_requests ir JOIN subjects s ON ir.subject_id = s.id JOIN users u ON ir.student_id = u.user_id WHERE ir.accepted_by = '$user_id' AND ir.status = 'paid' ORDER BY ir.accepted_at DESC");
     $my_students = $my_students_res ? $my_students_res->fetch_all(MYSQLI_ASSOC) : [];
+
+    // Handle Zoom Details Update
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_zoom'])) {
+        $rid = intval($_POST['request_id']);
+        $z_link = trim($_POST['zoom_link']);
+        $z_id = trim($_POST['zoom_meeting_id']);
+        $z_pass = trim($_POST['zoom_password']);
+        
+        $up = $conn->prepare("UPDATE instructor_requests SET zoom_link = ?, zoom_meeting_id = ?, zoom_password = ? WHERE id = ? AND accepted_by = ?");
+        $up->bind_param("sssis", $z_link, $z_id, $z_pass, $rid, $user_id);
+        if ($up->execute()) {
+            $success_message = "Zoom session details updated!";
+            // Optional: WhatsApp student
+        }
+    }
+
+    // History: all requests the instructor has ever acted on (accepted) plus rejected ones in their subjects
+    $inst_history_res = $conn->query("SELECT ir.*, s.name as subject_name, u.first_name as student_name, u.second_name as student_last FROM instructor_requests ir JOIN subjects s ON ir.subject_id = s.id JOIN users u ON ir.student_id = u.user_id WHERE ir.subject_id IN (SELECT subject_id FROM instructor_subjects WHERE instructor_id = '$user_id') AND ir.status IN ('accepted','rejected') ORDER BY ir.created_at DESC LIMIT 100");
+    $inst_history = $inst_history_res ? $inst_history_res->fetch_all(MYSQLI_ASSOC) : [];
 }
 
 // =========================================================================
@@ -94,11 +113,15 @@ if ($user_role === 'student') {
             }
         }
 
-        // Fetch all instructors who accepted this request
+        // Fetch all instructors who accepted this request + their payment status
         $acceptances_q = $conn->prepare("
-            SELECT u.user_id as accepted_by, u.first_name, u.second_name, u.profile_picture, u.rating, u.hourly_rate 
+            SELECT u.user_id as accepted_by, u.first_name, u.second_name, u.profile_picture, u.rating, u.hourly_rate,
+                   ip.status as payment_status, isess.zoom_link, isess.zoom_meeting_id, isess.zoom_password
             FROM instructor_request_acceptances ira 
             JOIN users u ON ira.instructor_id = u.user_id 
+            JOIN instructor_requests ir ON ira.request_id = ir.id
+            LEFT JOIN instructor_payments ip ON ira.request_id = ip.request_id AND ira.instructor_id = ip.instructor_id
+            LEFT JOIN instructor_sessions isess ON isess.request_id = ira.request_id
             WHERE ira.request_id = ?
         ");
         $acceptances_q->bind_param("i", $req_id);
@@ -114,6 +137,38 @@ if ($user_role === 'student') {
 
     $all_subjects_res = $conn->query("SELECT s.* FROM subjects s WHERE s.id IN (SELECT DISTINCT subject_id FROM instructor_subjects) AND s.status = 1 ORDER BY s.name");
     $all_subjects = $all_subjects_res ? $all_subjects_res->fetch_all(MYSQLI_ASSOC) : [];
+
+    // Student past requests history with acceptances
+    $student_history_res = $conn->query("
+        SELECT ir.id, ir.status, ir.session_date, ir.request_note, ir.created_at,
+               s.name as subject_name
+        FROM instructor_requests ir
+        JOIN subjects s ON ir.subject_id = s.id
+        WHERE ir.student_id = '$user_id'
+        ORDER BY ir.created_at DESC
+    ");
+    $student_history = $student_history_res ? $student_history_res->fetch_all(MYSQLI_ASSOC) : [];
+
+    // For each request, fetch instructors who accepted, sorted by rating DESC
+    foreach ($student_history as &$h) {
+        $rid = intval($h['id']);
+        $acc_res = $conn->query("
+            SELECT u.user_id, u.first_name, u.second_name,
+                   u.profile_picture, u.rating, u.hourly_rate,
+                   ip.status as payment_status,
+                   isess.zoom_link, isess.zoom_meeting_id, isess.zoom_password
+            FROM instructor_request_acceptances ira
+            JOIN users u ON ira.instructor_id = u.user_id
+            JOIN instructor_requests ir ON ira.request_id = ir.id
+            LEFT JOIN instructor_payments ip ON ira.request_id = ip.request_id AND ira.instructor_id = ip.instructor_id
+            LEFT JOIN instructor_sessions isess ON isess.request_id = ira.request_id
+            WHERE ira.request_id = $rid
+            ORDER BY u.rating DESC
+        ");
+        $h['acceptances'] = $acc_res ? $acc_res->fetch_all(MYSQLI_ASSOC) : [];
+        // Zoom is stored in instructor_sessions table now, not on instructor_requests
+    }
+    unset($h);
 }
 ?>
 <!DOCTYPE html>
@@ -149,7 +204,14 @@ if ($user_role === 'student') {
     </div>
 
     <div class="max-w-7xl mx-auto px-4 -mt-6">
+
         <?php if ($user_role === 'student'): ?>
+        <!-- Student Tabs -->
+        <div class="flex gap-2 mb-6">
+            <button id="tab_new" onclick="switchTab('new')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">🆕 නව ඉල්ලීම</button>
+            <button id="tab_hist" onclick="switchTab('hist')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 transition shadow-sm">🕑 ඉතිහාසය</button>
+        </div>
+        <div id="panel_new">
             <!-- Multi-step Wizard UI -->
             <div id="mentor_wizard" class="space-y-6">
                 
@@ -238,6 +300,136 @@ if ($user_role === 'student') {
                     </div>
                 </div>
             </div>
+        </div><!-- /panel_new -->
+
+        <!-- Student History Panel -->
+        <div id="panel_hist" class="hidden">
+            <div class="space-y-3">
+                <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-4">
+                    <i class="fas fa-history text-red-500"></i> අතීත ඉල්ලීම්
+                    <span class="text-xs font-normal text-slate-400">— ඉල්ලීමක් ක්ලික් කර ගුරුවරුන් බලන්න</span>
+                </h2>
+                <?php if (empty($student_history)): ?>
+                    <div class="form-card text-center py-10">
+                        <p class="text-slate-400 text-sm">තවම ඉල්ලීම් ඉතිහාසයක් නොමැත.</p>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($student_history as $h):
+                        $badge = match($h['status']) {
+                            'accepted' => ['bg-emerald-100 text-emerald-700', 'පිළිගත් ✓'],
+                            'rejected' => ['bg-red-100 text-red-600', 'ප්‍රතික්ෂේප ✗'],
+                            default    => ['bg-amber-100 text-amber-700', 'බලාපොරොත්තුවෙන්'],
+                        };
+                    ?>
+                    <!-- Request Card -->
+                    <div class="form-card cursor-pointer select-none" onclick="toggleHistory(<?= $h['id'] ?>)">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-book-open text-sm"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-900 text-sm"><?= htmlspecialchars($h['subject_name']) ?></p>
+                                    <p class="text-xs text-slate-400 mt-0.5"><?= htmlspecialchars($h['session_date']) ?> &nbsp;·&nbsp; <?= date('Y-m-d', strtotime($h['created_at'])) ?></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black <?= $badge[0] ?>"><?= $badge[1] ?></span>
+                                <span class="text-xs font-bold text-slate-400"><?= count($h['acceptances']) ?> ගුරු</span>
+                                <i id="arr_<?= $h['id'] ?>" class="fas fa-chevron-down text-slate-300 text-xs transition-transform"></i>
+                            </div>
+                        </div>
+
+                        <!-- Instructors accordion -->
+                        <div id="hist_detail_<?= $h['id'] ?>" class="hidden mt-5 pt-5 border-t border-slate-100" onclick="event.stopPropagation()">
+                            <?php if (empty($h['acceptances'])): ?>
+                                <p class="text-sm text-slate-400 text-center py-4">මෙම ඉල්ලීම කිසිදු ගුරුවරයෙකු විසින් පිළිගෙන නොමැත.</p>
+                            <?php else: ?>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">ඉල්ලීම පිළිගත් ගුරුවරුන් (ශ්‍රේණිගතකිරීම අනුව)</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    <?php foreach ($h['acceptances'] as $ins):
+                                        $pic = $ins['profile_picture'] ? '../'.$ins['profile_picture'] : 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+                                        $stars = '';
+                                        for ($s = 1; $s <= 5; $s++) {
+                                            $stars .= '<i class="fas fa-star text-xs ' . ($s <= round($ins['rating'] ?? 0) ? 'text-amber-400' : 'text-slate-200') . '"></i>';
+                                        }
+                                    ?>
+                                    <div class="bg-slate-50 rounded-2xl p-5 flex flex-col items-center text-center border border-slate-100 hover:shadow-md transition">
+                                        <div class="relative mb-3">
+                                            <img src="<?= htmlspecialchars($pic) ?>" class="w-16 h-16 rounded-xl object-cover border-2 border-white shadow">
+                                            <div class="absolute -bottom-1 -right-1 bg-emerald-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[9px] border border-white">
+                                                <i class="fas fa-check"></i>
+                                            </div>
+                                        </div>
+                                        <h4 class="font-bold text-slate-900 text-sm leading-tight"><?= htmlspecialchars($ins['first_name'].' '.$ins['second_name']) ?></h4>
+                                        <div class="flex gap-0.5 my-1.5"><?= $stars ?></div>
+                                        <p class="text-xs font-black text-slate-600 mb-2">LKR <?= number_format($ins['hourly_rate']) ?>/hr</p>
+                                        
+                                        <!-- Payment Status Indicator -->
+                                        <?php if ($ins['payment_status'] === 'approved'): ?>
+                                            <div class="mb-4 flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                                <i class="fas fa-check-circle text-xs"></i>
+                                                <span class="text-[9px] font-black uppercase tracking-wider">Payment Approved</span>
+                                            </div>
+                                        <?php elseif ($ins['payment_status'] === 'pending'): ?>
+                                            <div class="mb-4 flex items-center gap-1.5 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-100">
+                                                <i class="fas fa-clock text-xs"></i>
+                                                <span class="text-[9px] font-black uppercase tracking-wider">Payment Pending</span>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php if ($ins['payment_status']): ?>
+                                            <?php 
+                                            $badge_class = match($ins['payment_status']) {
+                                                'verified' => 'bg-emerald-100 text-emerald-700',
+                                                'pending'  => 'bg-amber-100 text-amber-700',
+                                                'rejected' => 'bg-rose-100 text-rose-700',
+                                                default    => 'bg-slate-100 text-slate-500'
+                                            };
+                                            $badge_text = match($ins['payment_status']) {
+                                                'verified' => 'Payment Approved ✓',
+                                                'pending'  => 'Payment Pending...',
+                                                'rejected' => 'Payment Denied ❌',
+                                                default    => ucfirst($ins['payment_status'])
+                                            };
+                                            ?>
+                                            <div class="w-full text-center py-2 rounded-xl text-[10px] font-black uppercase tracking-widest <?= $badge_class ?> mb-2">
+                                                <?= $badge_text ?>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php 
+                                            // Is this specific instructor's session completed? 
+                                            // The whole request status $h['status'] is completed, OR payment is verified.
+                                            // Actually, if the request status is completed, the payment was already verified.
+                                            $is_completed = ($h['status'] === 'completed' && $ins['payment_status'] === 'verified');
+                                        ?>
+                                        <?php if ($ins['payment_status'] === 'verified' && !empty($ins['zoom_link'])): ?>
+                                            <a href="../player/instructor_zoom.php?request_id=<?= $h['id'] ?>"
+                                               class="w-full <?= $is_completed ? 'bg-slate-800 hover:bg-slate-900' : 'bg-indigo-600 hover:bg-indigo-700' ?> text-white py-2.5 rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 mb-2">
+                                                <i class="fas <?= $is_completed ? 'fa-star text-amber-400' : 'fa-video' ?>"></i> 
+                                                <?= $is_completed ? 'View Completed Session' : 'Join Zoom Class' ?>
+                                            </a>
+                                        <?php endif; ?>
+
+                                        <?php if (!$is_completed): ?>
+                                            <a href="inst_payment.php?request_id=<?= $h['id'] ?>&instructor_id=<?= $ins['user_id'] ?>"
+                                               class="w-full bg-slate-900 text-white py-2.5 rounded-xl text-xs font-extrabold hover:bg-red-600 transition flex items-center justify-center gap-2">
+                                                <?= $ins['payment_status'] ? 'View / Update Payment' : 'ගෙවීම සිදු කරන්න' ?> <i class="fas fa-arrow-right text-[10px]"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <p class="text-xs font-bold text-slate-400 mt-2"><i class="fas fa-check-circle text-emerald-500"></i> Course Completed</p>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div><!-- /panel_hist -->
 
             <script>
                 let current_subject_id = null;
@@ -326,18 +518,48 @@ if ($user_role === 'student') {
                                     
                                     <h3 class="text-lg font-bold text-slate-900 mb-1 leading-tight">${ins.first_name} ${ins.second_name}</h3>
                                     <div class="flex gap-1 mb-2">${rating_html}</div>
-                                    <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest uppercase mb-6">සුදුසුකම් සහිත ගුරුවරයෙක්</span>
+                                    
+                                    ${ins.payment_status === 'approved' ? `
+                                        <div class="mb-3 flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-100">
+                                            <i class="fas fa-check-circle text-xs"></i>
+                                            <span class="text-[9px] font-black uppercase tracking-wider">Payment Approved</span>
+                                        </div>
+                                    ` : ins.payment_status === 'pending' ? `
+                                        <div class="mb-3 flex items-center gap-1.5 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-100">
+                                            <i class="fas fa-clock text-xs"></i>
+                                            <span class="text-[9px] font-black uppercase tracking-wider">Payment Pending</span>
+                                        </div>
+                                    ` : `
+                                        <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest uppercase mb-3">සුදුසුකම් සහිත ගුරුවරයෙක්</span>
+                                    `}
                                     
                                     <div class="w-full bg-slate-50 rounded-xl p-4 mb-6">
                                         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 text-left ml-1">ගාස්තුව</p>
                                         <p class="font-black text-xl text-slate-800 text-left ml-1">LKR ${Math.round(ins.hourly_rate)}.00</p>
                                     </div>
                                     
+                                    ${ins.payment_status ? `
+                                        <div class="w-full text-center py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest mb-3 ${
+                                            ins.payment_status === 'verified' ? 'bg-emerald-100 text-emerald-700' : 
+                                            ins.payment_status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                                        }">
+                                            ${ins.payment_status === 'verified' ? 'Payment Approved ✓' : 
+                                              ins.payment_status === 'rejected' ? 'Payment Denied ❌' : 'Payment Pending...'}
+                                        </div>
+                                    ` : ''}
+
                                     <a href="inst_payment.php?request_id=${current_request_id}&instructor_id=${ins.accepted_by}" 
-                                       class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-xs hover:bg-red-600 transition-all flex items-center justify-center gap-2 group">
-                                        තහවුරු කර ගෙවීම සිදු කරන්න 
+                                       class="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-xs hover:bg-red-600 transition-all flex items-center justify-center gap-2 group mb-2">
+                                        ${ins.payment_status ? 'View / Update Payment' : 'තහවුරු කර ගෙවීම සිදු කරන්න'}
                                         <i class="fas fa-arrow-right text-[10px] transform group-hover:translate-x-1 transition-transform"></i>
                                     </a>
+                                    
+                                    ${ins.payment_status === 'verified' && ins.zoom_link ? `
+                                        <a href="../player/instructor_zoom.php?request_id=${current_request_id}"
+                                           class="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                                            <i class="fas fa-video text-[10px]"></i> Join Zoom Class
+                                        </a>
+                                    ` : ''}
                                 </div>
                             </div>`;
                         grid.innerHTML += card;
@@ -353,77 +575,203 @@ if ($user_role === 'student') {
                     }
                     return stars;
                 }
+                const TAB_ACTIVE   = 'tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm';
+                const TAB_INACTIVE = 'tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 transition shadow-sm';
+                function switchTab(tab) {
+                    ['new','hist'].forEach(t => {
+                        document.getElementById('panel_' + t).classList.toggle('hidden', t !== tab);
+                        document.getElementById('tab_' + t).className = (t === tab) ? TAB_ACTIVE : TAB_INACTIVE;
+                    });
+                }
+                function toggleHistory(id) {
+                    const detail = document.getElementById('hist_detail_' + id);
+                    const arrow  = document.getElementById('arr_' + id);
+                    const isOpen = !detail.classList.contains('hidden');
+                    detail.classList.toggle('hidden', isOpen);
+                    arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
             </script>
 
         <?php elseif ($user_role === 'instructor'): ?>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Pending Inbox -->
-                <div class="space-y-6">
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fas fa-inbox text-red-500"></i> නව ඉල්ලීම්
-                    </h2>
-                    <div class="space-y-4">
-                        <?php if (empty($pending_requests)): ?>
-                            <div class="form-card text-center py-12">
-                                <p class="text-slate-400 text-sm">කිසිදු නව ඉල්ලීමක් නොමැත.</p>
-                            </div>
-                        <?php else: ?>
-                            <?php foreach ($pending_requests as $req): ?>
-                                <div class="form-card animate-slide">
-                                    <div class="flex justify-between items-start mb-4">
-                                        <div class="flex items-center gap-4">
-                                            <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-500"><?php echo substr($req['student_name'], 0, 1); ?></div>
-                                            <div>
-                                                <h4 class="font-bold text-slate-900 text-sm"><?php echo htmlspecialchars($req['student_name']); ?></h4>
-                                                <div class="flex gap-2 mt-0.5">
-                                                    <span class="text-[9px] font-black text-red-600 uppercase tracking-widest"><?php echo htmlspecialchars($req['subject_name']); ?></span>
-                                                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">• <?php echo $req['session_date']; ?></span>
-                                                </div>
-                                            </div>
+        <!-- Instructor Tabs -->
+        <div class="flex gap-2 mb-6">
+            <button id="itab_new" onclick="iSwitchTab('new')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">📥 නව ඉල්ලීම්</button>
+            <button id="itab_contacts" onclick="iSwitchTab('contacts')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">✅ මගේ සම්බන්ධතා</button>
+            <button id="itab_hist" onclick="iSwitchTab('hist')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">🕑 ඉතිහාසය</button>
+        </div>
+        <!-- Instructor: New Requests Panel -->
+        <div id="ipanel_new">
+            <div class="space-y-4">
+                <?php if (empty($pending_requests)): ?>
+                    <div class="form-card text-center py-12"><p class="text-slate-400 text-sm">කිසිදු නව ඉල්ලීමක් නොමැත.</p></div>
+                <?php else: ?>
+                    <?php foreach ($pending_requests as $req): ?>
+                        <div class="form-card animate-slide">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-500"><?= substr($req['student_name'],0,1) ?></div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-900 text-sm"><?= htmlspecialchars($req['student_name']) ?></h4>
+                                        <div class="flex gap-2 mt-0.5">
+                                            <span class="text-[9px] font-black text-red-600 uppercase tracking-widest"><?= htmlspecialchars($req['subject_name']) ?></span>
+                                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">• <?= $req['session_date'] ?></span>
                                         </div>
                                     </div>
-                                    <div class="bg-slate-50 p-4 rounded-xl mb-6 text-xs text-slate-600 font-medium italic border border-slate-100">
-                                        "<?php echo htmlspecialchars($req['request_note'] ?: 'විශේෂ කරුණු කිසිවක් නොමැත.'); ?>"
-                                    </div>
-                                    <form method="POST">
-                                        <input type="hidden" name="request_id" value="<?php echo $req['id']; ?>">
-                                        <button type="submit" name="accept_request" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-600 transition shadow-sm">
-                                            පිළිගන්න
-                                        </button>
-                                    </form>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <!-- Confirmed Contacts -->
-                <div class="space-y-6">
-                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fas fa-check-circle text-emerald-500"></i> මගේ සම්බන්ධතා
-                    </h2>
-                    <div class="space-y-4">
-                        <?php if (empty($my_students)): ?>
-                            <div class="form-card text-center py-12">
-                                <p class="text-slate-400 text-sm">තවමත් තහවුරු කළ සම්බන්ධතා නොමැත.</p>
                             </div>
-                        <?php else: ?>
-                            <?php foreach ($my_students as $req): ?>
-                                <div class="form-card flex items-center justify-between py-4">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center font-bold text-slate-300"><?php echo substr($req['first_name'], 0, 1); ?></div>
-                                        <div>
-                                            <h4 class="font-bold text-sm text-slate-900"><?php echo htmlspecialchars($req['first_name'] . ' ' . $req['second_name']); ?></h4>
-                                            <span class="text-[9px] font-black text-emerald-600 uppercase tracking-widest"><?php echo htmlspecialchars($req['subject_name']); ?></span>
-                                        </div>
-                                    </div>
-                                    <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $req['whatsapp_number']); ?>" class="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center transition hover:bg-emerald-600"><i class="fab fa-whatsapp"></i></a>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
+                            <div class="bg-slate-50 p-4 rounded-xl mb-4 text-xs text-slate-600 font-medium italic border border-slate-100">"<?= htmlspecialchars($req['request_note'] ?: 'විශේෂ කරුණු කිසිවක් නොමැත.') ?>"</div>
+                            <form method="POST">
+                                <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                                <button type="submit" name="accept_request" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold text-xs hover:bg-emerald-600 transition shadow-sm">පිළිගන්න</button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
+        </div>
+
+        <!-- Instructor: Contacts Panel -->
+        <div id="ipanel_contacts" class="hidden">
+            <div class="space-y-4">
+                <?php if (empty($my_students)): ?>
+                    <div class="form-card text-center py-12"><p class="text-slate-400 text-sm">තවමත් තහවුරු කළ සම්බන්ධතා නොමැත.</p></div>
+                <?php else: ?>
+                    <?php foreach ($my_students as $req): ?>
+                        <div class="form-card animate-slide">
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center font-bold text-slate-300"><?= substr($req['first_name'],0,1) ?></div>
+                                    <div>
+                                        <h4 class="font-bold text-sm text-slate-900"><?= htmlspecialchars($req['first_name'].' '.$req['second_name']) ?></h4>
+                                        <div class="flex gap-2">
+                                            <span class="text-[9px] font-black text-emerald-600 uppercase tracking-widest"><?= htmlspecialchars($req['subject_name']) ?></span>
+                                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">• <?= $req['session_date'] ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <a href="https://wa.me/<?= preg_replace('/[^0-9]/','', $req['whatsapp_number']) ?>" class="w-10 h-10 bg-emerald-500 text-white rounded-lg flex items-center justify-center transition hover:bg-emerald-600 shadow-sm"><i class="fab fa-whatsapp"></i></a>
+                                </div>
+                            </div>
+                            
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <?php if (!empty($req['zoom_link'])): ?>
+                                    <div class="flex-1 bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex items-center justify-between">
+                                        <div class="text-[9px] font-bold text-indigo-700 uppercase tracking-widest">
+                                            Zoom Session Active
+                                        </div>
+                                        <button onclick="openZoomModal(<?= $req['id'] ?>, '<?= addslashes($req['zoom_link']) ?>', '<?= addslashes($req['zoom_meeting_id']) ?>', '<?= addslashes($req['zoom_password']) ?>')" 
+                                                class="text-[10px] font-black text-indigo-900 hover:underline">Edit</button>
+                                    </div>
+                                    <a href="<?= htmlspecialchars($req['zoom_link']) ?>" target="_blank" class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                                        <i class="fas fa-video"></i> Start Meeting
+                                    </a>
+                                <?php else: ?>
+                                    <button onclick="openZoomModal(<?= $req['id'] ?>)" class="w-full bg-indigo-600 text-white py-3 rounded-xl text-xs font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-md">
+                                        <i class="fas fa-plus"></i> Create Zoom Class
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Zoom Modal -->
+        <div id="zoom_modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl animate-slide">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-black text-slate-900">Zoom Class Details</h3>
+                    <button onclick="closeZoomModal()" class="text-slate-400 hover:text-red-600 transition"><i class="fas fa-times"></i></button>
+                </div>
+                <form method="POST" class="space-y-5">
+                    <input type="hidden" name="update_zoom" value="1">
+                    <input type="hidden" name="request_id" id="modal_rid">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Zoom Meeting Link *</label>
+                        <input type="url" name="zoom_link" id="modal_link" required placeholder="https://zoom.us/j/..." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-sm font-medium transition">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Meeting ID</label>
+                            <input type="text" name="zoom_meeting_id" id="modal_zid" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-sm font-medium transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Passcode</label>
+                            <input type="text" name="zoom_password" id="modal_pass" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none text-sm font-medium transition">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg active:scale-[0.98]">Save Details</button>
+                </form>
+            </div>
+        </div>
+        
+        <script>
+            function openZoomModal(rid, link='', zid='', pass='') {
+                document.getElementById('modal_rid').value = rid;
+                document.getElementById('modal_link').value = link;
+                document.getElementById('modal_zid').value = zid;
+                document.getElementById('modal_pass').value = pass;
+                document.getElementById('zoom_modal').classList.remove('hidden');
+            }
+            function closeZoomModal() {
+                document.getElementById('zoom_modal').classList.add('hidden');
+            }
+        </script>
+
+        <!-- Instructor: History Panel -->
+        <div id="ipanel_hist" class="hidden">
+            <div class="form-card">
+                <h2 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2"><i class="fas fa-history text-red-500"></i> ඉල්ලීම් ඉතිහාසය</h2>
+                <?php if (empty($inst_history)): ?>
+                    <p class="text-center text-slate-400 text-sm py-10">ඉතිහාסයක් නොමැත.</p>
+                <?php else: ?>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left border-b border-slate-100">
+                                <th class="pb-3 pr-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">සිසුවා</th>
+                                <th class="pb-3 pr-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">විෂය</th>
+                                <th class="pb-3 pr-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">සැසි දිනය</th>
+                                <th class="pb-3 pr-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">තත්ත්වය</th>
+                                <th class="pb-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">ඉල්ලූ දිනය</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                        <?php foreach ($inst_history as $h): ?>
+                            <?php
+                                $badge = match($h['status']) {
+                                    'accepted' => ['bg-emerald-100 text-emerald-700', 'පිළිගත් ✓'],
+                                    'rejected' => ['bg-red-100 text-red-600', 'ප්‍රතික්ෂේප ✗'],
+                                    default    => ['bg-amber-100 text-amber-700', 'බලාපොරොත්තුවෙන්'],
+                                };
+                            ?>
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="py-3 pr-4 font-semibold text-slate-800"><?= htmlspecialchars($h['student_name'].' '.$h['student_last']) ?></td>
+                                <td class="py-3 pr-4 text-slate-600"><?= htmlspecialchars($h['subject_name']) ?></td>
+                                <td class="py-3 pr-4 text-slate-500"><?= htmlspecialchars($h['session_date']) ?></td>
+                                <td class="py-3 pr-4"><span class="px-2 py-0.5 rounded text-[10px] font-black <?= $badge[0] ?>"><?= $badge[1] ?></span></td>
+                                <td class="py-3 text-slate-400 text-xs"><?= date('Y-m-d', strtotime($h['created_at'])) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <script>
+            const ITAB_ACTIVE   = 'itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm';
+            const ITAB_INACTIVE = 'itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 transition shadow-sm';
+            function iSwitchTab(tab) {
+                ['new','contacts','hist'].forEach(t => {
+                    document.getElementById('ipanel_'+t).classList.toggle('hidden', t !== tab);
+                    document.getElementById('itab_'+t).className = (t === tab) ? ITAB_ACTIVE : ITAB_INACTIVE;
+                });
+            }
+        </script>
         <?php endif; ?>
     </div>
 </body>

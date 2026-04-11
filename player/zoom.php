@@ -7,6 +7,30 @@ require_once '../config.php';
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
+// If A/L details were requested, enforce completion for logged-in students even on player pages
+if (!empty($user_id) && $role === 'student') {
+    $current_script = $_SERVER['SCRIPT_NAME'] ?? '';
+    // Avoid loops (these pages handle their own flow)
+    if (strpos($current_script, 'al_exam_form.php') === false && strpos($current_script, 'al_results_form.php') === false) {
+        $chk = $conn->prepare("SELECT 
+            (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as submitted,
+            al_details_requested
+            FROM users u WHERE user_id = ?");
+        $chk->bind_param("s", $user_id);
+        $chk->execute();
+        $al_state = $chk->get_result()->fetch_assoc();
+        $chk->close();
+
+        $al_submitted = !empty($al_state) && intval($al_state['submitted'] ?? 0) > 0;
+        $al_requested = !empty($al_state) && intval($al_state['al_details_requested'] ?? 0) === 1;
+
+        if ($al_requested && !$al_submitted) {
+            header("Location: /lms/student/al_exam_form.php");
+            exit();
+        }
+    }
+}
+
 // If not logged in and not a guest who submitted details, redirect to login
 if (empty($user_id) && empty($_SESSION['guest_name'])) {
     header("Location: /lms/login.php");
