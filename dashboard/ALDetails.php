@@ -75,7 +75,7 @@ sort($streams, SORT_NATURAL | SORT_FLAG_CASE);
 $exam_years = array_keys($exam_years);
 rsort($exam_years, SORT_NUMERIC);
 
-$default_exam_year = !empty($exam_years) ? $exam_years[0] : 'all';
+$default_exam_year = 'all';
 
 // Get filters from URL
 $filter_stream = isset($_GET['stream']) ? trim($_GET['stream']) : 'all';
@@ -172,7 +172,7 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
             <div class="w-full md:w-auto">
                 <form method="GET" class="flex flex-wrap items-center gap-2">
                     <label for="exam_year" class="text-sm font-semibold text-gray-700">Exam Year:</label>
-                    <select id="exam_year" name="exam_year" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[140px] focus:outline-none">
+                    <select id="exam_year" name="exam_year" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[140px] focus:outline-none" onchange="this.form.submit()">
                         <?php if (empty($exam_years)): ?>
                             <option value="all" selected>All Years</option>
                         <?php else: ?>
@@ -186,7 +186,7 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                     </select>
 
                     <label for="stream" class="text-sm font-semibold text-gray-700">Stream:</label>
-                    <select id="stream" name="stream" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[220px] focus:outline-none">
+                    <select id="stream" name="stream" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[220px] focus:outline-none" onchange="this.form.submit()">
                         <option value="all" <?php echo $filter_stream === 'all' ? 'selected' : ''; ?>>All Streams</option>
                         <?php foreach ($streams as $stream): ?>
                             <option value="<?php echo htmlspecialchars($stream); ?>" <?php echo $filter_stream === $stream ? 'selected' : ''; ?>>
@@ -195,9 +195,6 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                         <?php endforeach; ?>
                     </select>
 
-                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
-                        Filter
-                    </button>
                 </form>
             </div>
         </div>

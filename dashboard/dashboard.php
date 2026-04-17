@@ -183,10 +183,10 @@ if ($is_logged_in && $role === 'student') {
                                 <div class="h-1 w-16 bg-gradient-to-r from-red-600 to-red-700 mx-auto rounded-full"></div>
                             </div>
                             <p class="text-xs lg:text-[18px] text-gray-500 mt-1 leading-relaxed">
-                                ලංකාවේ සාර්ථකම ඔන්ලිනෙ ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සදහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා  Password  නිවැරදිව ලබා දී Login වෙන්න.
+                                ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සදහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා  Password  නිවැරදිව ලබා දී Login වෙන්න.
                             </p>
                             <p class="mt-4 pt-2 text-gray-500 font-semibold text-[10px] lg:text-[14px] border-t border-gray-100">
-                                අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක ක්ලික් කරන්න.
+                                අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක click කරන්න.
                             </p>
                         </div>
                         

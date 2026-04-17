@@ -437,27 +437,6 @@ for ($m = 1; $m <= 12; $m++) {
             </div>
         </div>
 
-        <!-- Commission Rate Setting -->
-        <div class="report-card p-5 mb-6 no-print flex flex-col sm:flex-row sm:items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
-                    <i class="fas fa-percent"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-semibold text-gray-700">Institute Commission Rate</p>
-                    <p class="text-xs text-gray-400">% taken from total student payments as institute income</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3 sm:ml-auto">
-                <input type="number" id="commissionRateInput" value="<?php echo $commission_rate; ?>" min="0" max="100" step="0.5"
-                       class="border border-gray-200 rounded-xl px-3 py-2 text-sm w-24 text-center font-bold focus:ring-2 focus:ring-blue-500 outline-none">
-                <span class="text-gray-500 text-sm font-bold">%</span>
-                <button onclick="saveCommission()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-sm">
-                    Save
-                </button>
-                <span id="commissionSaved" class="hidden text-green-600 text-xs font-bold"><i class="fas fa-check"></i> Saved</span>
-            </div>
-        </div>
 
         <!-- ═══ Stats Overview ═══ -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -772,23 +751,6 @@ for ($m = 1; $m <= 12; $m++) {
                 setTimeout(() => { doc.style.display = 'none'; }, 500);
             }, 150);
         }
-
-        // ── Save commission rate ─────────────────────────────
-        function saveCommission() {
-            const rate = document.getElementById('commissionRateInput').value;
-            fetch('reports_api.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `action=save_commission&commission_rate=${rate}`
-            }).then(r => r.json()).then(d => {
-                if (d.success) {
-                    const el = document.getElementById('commissionSaved');
-                    el.classList.remove('hidden');
-                    setTimeout(() => { el.classList.add('hidden'); location.reload(); }, 1200);
-                }
-            });
-        }
-
         // ── Edit expense row ─────────────────────────────────
         function editRow(btn) {
             const row = btn.closest('tr.expense-row');
