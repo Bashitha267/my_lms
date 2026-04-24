@@ -235,21 +235,24 @@ if ($role === 'student') {
     $payment_due_msg = "Due in " . $days_left . " days";
     $payment_due_msg_sinhala = "තව දින " . $days_left . " කින් ගෙවිය යුතුය";
 
-    // Get latest 3 recordings (What's New) for any subject
+    // Get latest 3 recordings (What's New) for ENROLLED subjects
     $latest_recordings = [];
     $q_lat = "SELECT r.id, r.title, sub.name as subject_name, r.thumbnail_url, 
                      u.first_name as teacher_first, u.second_name as teacher_second,
                      u.profile_picture as teacher_profile_picture
               FROM recordings r
               JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+              JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
               JOIN subjects sub ON ta.stream_subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
-              WHERE r.status = 'active'
+              WHERE r.status = 'active' AND se.student_id = ? AND se.status = 'active'
               ORDER BY r.id DESC LIMIT 3";
-    $res_lat = $conn->query($q_lat);
-    if ($res_lat) {
-        while($row = $res_lat->fetch_assoc()) $latest_recordings[] = $row;
-    }
+    $st_lat = $conn->prepare($q_lat);
+    $st_lat->bind_param("s", $user_id);
+    $st_lat->execute();
+    $res_lat = $st_lat->get_result();
+    while($row = $res_lat->fetch_assoc()) $latest_recordings[] = $row;
+    $st_lat->close();
 }
 ?>
 <!DOCTYPE html>
@@ -381,27 +384,6 @@ if ($role === 'student') {
 
     <main class="w-full px-4 sm:px-6 lg:px-12 py-8 flex-grow">
         
-        <!-- Top Notification Bar (Exam/Notice) -->
-        <?php if (!empty($upcoming_exams)): 
-            $exam = $upcoming_exams[0];
-            $deadline = date('M d, Y h:i A', strtotime($exam['deadline']));
-        ?>
-        <div class="mb-8 animate-fade-in">
-            <a href="exam_center.php" class="block bg-[#f0f7ff] border border-[#e0efff] rounded-2xl p-4 md:p-5 flex items-center justify-between group transition-all hover:shadow-md">
-                <div class="flex items-center space-x-4 md:space-x-6">
-                    <span class="bg-[#8b0000] text-white text-[10px] font-bold px-2.5 py-1 rounded flex-shrink-0" data-sinhala="අලුත්">NEW</span>
-                    <div class="flex flex-col md:flex-row md:items-center md:space-x-4">
-                        <p class="text-[#1a2b3c] text-sm md:text-base font-medium" data-sinhala="විෂය සඳහා පවත්වනු ලබන අවසාන විභාගය සඳහා දැන් පෙනී සිටිය හැක.">Final Exam for <span class="font-bold underline"><?php echo htmlspecialchars($exam['subject_name']); ?></span> is scheduled. Deadline: <span class="text-red-600 font-bold"><?php echo $deadline; ?></span></p>
-                        <span class="hidden md:block h-1 w-1 bg-gray-300 rounded-full"></span>
-                        <p class="text-gray-500 text-xs md:text-sm" data-sinhala="ගුරුවරයා">Instructor: <?php echo htmlspecialchars($exam['teacher_first'] . ' ' . $exam['teacher_second']); ?></p>
-                    </div>
-                </div>
-                <div class="hidden sm:flex items-center text-[#1a2b3c] font-semibold text-sm group-hover:translate-x-1 transition-transform" data-sinhala="විභාගය බලන්න">
-                    View Exam <i class="fas fa-chevron-right ml-2 text-xs"></i>
-                </div>
-            </a>
-        </div>
-        <?php endif; ?>
 
         <!-- Welcome Greeting -->
         <div class="mb-10 animate-fade-in" style="animation-delay: 0.05s">
@@ -534,47 +516,6 @@ if ($role === 'student') {
                 </div>
                 <?php endif; ?>
 
-                <!-- Quick Access Section (Icons) -->
-                <div class="animate-fade-in" style="animation-delay: 0.2s">
-                    <div class="mb-8 border-b border-slate-100 pb-4">
-                        <h2 class="text-2xl font-black text-slate-900 tracking-tight" data-sinhala="ඉක්මන් ප්‍රවේශ">Quick Tools</h2>
-                        <p class="text-slate-400 text-xs font-medium mt-1">Essential learning resources.</p>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        <!-- Live Card -->
-                        <a href="live_classes.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
-                            <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-red-600 group-hover:text-white transition-all">
-                                <i class="fas fa-tv text-lg"></i>
-                            </div>
-                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="සජීවී පන්ති">Live Classes</h3>
-                        </a>
-
-                        <!-- Recordings Card -->
-                        <a href="recordings.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
-                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                <i class="fas fa-photo-video text-lg"></i>
-                            </div>
-                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="පසුගිය පන්ති">Recordings</h3>
-                        </a>
-
-                        <!-- Payments Card -->
-                        <a href="payments.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
-                            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-rose-600 group-hover:text-white transition-all">
-                                <i class="fas fa-wallet text-lg"></i>
-                            </div>
-                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="ගෙවීම්">Payments</h3>
-                        </a>
-
-                        <!-- Exams Card -->
-                        <a href="exam_center.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
-                            <div class="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-violet-600 group-hover:text-white transition-all">
-                                <i class="fas fa-clipboard-list text-lg"></i>
-                            </div>
-                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="විභාග">Exams</h3>
-                        </a>
-                    </div>
-                </div>
             </div>
 
             <!-- Right Side: Sidebar (4 columns) -->

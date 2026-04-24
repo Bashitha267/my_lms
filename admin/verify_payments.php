@@ -42,10 +42,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                 
                 if ($r_info) {
                     $req_id = $r_info['request_id'];
-                    $new_req_status = $action === 'approve' ? 'verified_payment' : 'pending'; // Back to pending if rejected? Or stay in payment_pending?
-                    // Let's go to verified_payment or back to pending so student can re-upload or instructor can accept again?
-                    // Usually if payment fails, request should probably stay in a specific state or reset.
-                    // Request status: 'pending','accepted','payment_pending','verified_payment','rejected','completed'
+                    $instructor_id = $r_info['accepted_by'];
+                    $amount = $r_info['amount'];
+
+                    if ($action === 'approve') {
+                        // 3. Update Instructor Wallet
+                        // Check if wallet exists
+                        $w_check = $conn->prepare("SELECT id FROM instructor_wallet WHERE instructor_id = ?");
+                        $w_check->bind_param("s", $instructor_id);
+                        $w_check->execute();
+                        if ($w_check->get_result()->num_rows === 0) {
+                            $w_init = $conn->prepare("INSERT INTO instructor_wallet (instructor_id) VALUES (?)");
+                            $w_init->bind_param("s", $instructor_id);
+                            $w_init->execute();
+                            $w_init->close();
+                        }
+                        $w_check->close();
+
+                        $w_up = $conn->prepare("UPDATE instructor_wallet SET total_points = total_points + ?, total_earned = total_earned + ? WHERE instructor_id = ?");
+                        $w_up->bind_param("dds", $amount, $amount, $instructor_id);
+                        $w_up->execute();
+                        $w_up->close();
+                    }
+
                     $up_status = $action === 'approve' ? 'paid' : 'pending';
                     $conn->query("UPDATE instructor_requests SET status = '$up_status' WHERE id = $req_id");
                     
@@ -228,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
 }
 
 // Handle paying teacher requests
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_teacher'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['pay_teacher'] ?? '0') === '1') {
     $request_id = intval($_POST['request_id'] ?? 0);
     $pay_amount = floatval($_POST['pay_amount'] ?? 0);
     $payment_method = $_POST['payment_method'] ?? 'cash';
@@ -293,10 +312,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_teacher'])) {
             $conn->rollback();
             $error_message = "Error: " . $e->getMessage();
         }
+
+
     } else {
         $error_message = "Invalid amount or request.";
     }
 }
+
+
+// Handle paying instructor requests
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['pay_instructor'] ?? '0') === '1') {
+    $request_id = intval($_POST['request_id'] ?? 0);
+    $pay_amount = floatval($_POST['pay_amount'] ?? 0);
+    $payment_method = $_POST['payment_method'] ?? 'cash';
+    $admin_notes = $_POST['admin_notes'] ?? '';
+    
+    if ($request_id > 0 && $pay_amount > 0) {
+        $conn->begin_transaction();
+        try {
+            // Get request info
+            $req_stmt = $conn->prepare("SELECT instructor_id, amount, status FROM instructor_payout_requests WHERE id = ? FOR UPDATE");
+            $req_stmt->bind_param("i", $request_id);
+            $req_stmt->execute();
+            $req_result = $req_stmt->get_result();
+            if ($req_result->num_rows > 0) {
+                $req_row = $req_result->fetch_assoc();
+                if ($req_row['status'] === 'pending') {
+                    // Update request status
+                    $update_stmt = $conn->prepare("UPDATE instructor_payout_requests SET status = 'paid', amount = ?, payment_method = ?, admin_notes = ?, processed_date = NOW(), processed_by = ? WHERE id = ?");
+                    $update_stmt->bind_param("dsssi", $pay_amount, $payment_method, $admin_notes, $admin_id, $request_id);
+                    $update_stmt->execute();
+                    $update_stmt->close();
+                    
+                    // Deduct from instructor wallet
+                    $wallet_stmt = $conn->prepare("UPDATE instructor_wallet SET total_points = total_points - ?, total_withdrawn = total_withdrawn + ? WHERE instructor_id = ?");
+                    $wallet_stmt->bind_param("dds", $pay_amount, $pay_amount, $req_row['instructor_id']);
+                    $wallet_stmt->execute();
+                    $wallet_stmt->close();
+                    
+                    $conn->commit();
+                    $success_message = "Instructor payment request processed successfully!";
+                    
+                    // Add script to automatically open print dialog for invoice
+                    echo "<script>
+                        window.onload = function() {
+                            const printWindow = window.open('', '', 'width=600,height=600');
+                            printWindow.document.write(`
+                                <html><head><title>Payment Receipt</title>
+                                <style>body{font-family: Arial, sans-serif; padding:20px;} .header{text-align:center; font-weight:bold; font-size:24px; margin-bottom:20px;}
+                                .details{margin-bottom:10px;} .amount{font-size:20px; font-weight:bold; margin-top:20px;} </style>
+                                </head><body>
+                                <div class='header'>Instructor Payment Receipt</div>
+                                <div class='details'><b>Date:</b> ` + new Date().toLocaleString() + `</div>
+                                <div class='details'><b>Instructor ID:</b> " . htmlspecialchars($req_row['instructor_id']) . "</div>
+                                <div class='details'><b>Payment Method:</b> " . htmlspecialchars(ucfirst($payment_method)) . "</div>
+                                <div class='details'><b>Admin Notes:</b> " . htmlspecialchars($admin_notes) . "</div>
+                                <div class='amount'>Paid Amount: Rs. " . number_format($pay_amount, 2) . "</div>
+                                <hr>
+                                <div style='text-align:center; margin-top:30px;'>Thank You</div>
+                                <script>window.print(); window.setTimeout(function(){window.close();}, 500);<\/script>
+                                </body></html>
+                            `);
+                        }
+                    </script>";
+                } else {
+                    throw new Exception("Request is not pending.");
+                }
+            } else {
+                throw new Exception("Request not found.");
+            }
+            $req_stmt->close();
+        } catch (Exception $e) {
+            $conn->rollback();
+            $error_message = "Error: " . $e->getMessage();
+        }
+    } else {
+        $error_message = "Invalid amount or request.";
+    }
+}
+
 
 
 // --- DATA FETCHING ---
@@ -308,6 +402,17 @@ if ($active_tab === 'teacher_req') {
     if ($req_res) {
         while ($row = $req_res->fetch_assoc()) {
             $teacher_requests[] = $row;
+        }
+    }
+}
+
+$instructor_requests = [];
+if ($active_tab === 'inst_req') {
+    $req_sql = "SELECT ir.*, u.first_name, u.second_name FROM instructor_payout_requests ir JOIN users u ON ir.instructor_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci ORDER BY ir.request_date DESC";
+    $req_res = $conn->query($req_sql);
+    if ($req_res) {
+        while ($row = $req_res->fetch_assoc()) {
+            $instructor_requests[] = $row;
         }
     }
 }
@@ -505,8 +610,12 @@ $selected_course = null;
                         Verify Pending Requests
                     </a>
                     <a href="?tab=teacher_req" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'teacher_req' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
-                        Teacher Verify Pendings
+                        Teacher Payouts
                     </a>
+                    <a href="?tab=inst_req" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'inst_req' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
+                        Instructor Payouts
+                    </a>
+
                 </nav>
             </div>
         </div>
@@ -722,6 +831,62 @@ $selected_course = null;
             </div>
         <?php endif; ?>
 
+        <!-- TAB 2: INSTRUCTOR PAYMENT REQUESTS -->
+        <?php if ($active_tab === 'inst_req'): ?>
+            <div class="space-y-8">
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900">Instructor Payout Requests</h2>
+                    </div>
+                    <?php if (empty($instructor_requests)): ?>
+                        <div class="p-12 text-center text-gray-500">No requests found.</div>
+                    <?php else: ?>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Instructor</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php foreach ($instructor_requests as $req): ?>
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 text-sm font-medium text-gray-900"><?php echo htmlspecialchars($req['first_name'].' '.$req['second_name']); ?></td>
+                                            <td class="px-6 py-4 text-sm font-bold text-green-600">Rs. <?php echo number_format($req['amount'], 2); ?></td>
+                                            <td class="px-6 py-4">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium <?php echo $req['status'] === 'pending' ? 'bg-yellow-100 text-yellow-800' : ($req['status'] === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'); ?>">
+                                                    <?php echo ucfirst($req['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-500"><?php echo date('M d, Y H:i', strtotime($req['request_date'])); ?></td>
+                                            <td class="px-6 py-4 text-center">
+                                                <?php if ($req['status'] === 'pending'): ?>
+                                                    <button onclick="openPayModal('<?php echo $req['id']; ?>', '<?php echo htmlspecialchars($req['first_name'].' '.$req['second_name']); ?>', '<?php echo $req['amount']; ?>', true)" class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">Pay</button>
+                                                <?php else: ?>
+                                                    <div class="flex flex-col items-center justify-center gap-1">
+                                                        <span class="text-gray-400 text-sm">Paid on <?php echo $req['processed_date'] ? date('M d', strtotime($req['processed_date'])) : 'Unknown'; ?></span>
+                                                        <button onclick="printReceipt('<?php echo $req['instructor_id']; ?>', '<?php echo ucfirst(htmlspecialchars($req['payment_method'])); ?>', '<?php echo htmlspecialchars(addslashes($req['admin_notes'])); ?>', '<?php echo $req['amount']; ?>', '<?php echo $req['processed_date']; ?>', true)" class="text-blue-600 hover:text-blue-800 text-xs flex items-center">
+                                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                                            Print Receipt
+                                                        </button>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+
         <!-- TAB 1.5: TEACHER PAYMENT REQUESTS -->
         <?php if ($active_tab === 'teacher_req'): ?>
             <div class="space-y-8">
@@ -775,74 +940,84 @@ $selected_course = null;
                     <?php endif; ?>
                 </div>
             </div>
-            
-            <!-- Pay Modal -->
-            <div id="payModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="bg-white rounded-lg p-6 w-full max-w-md">
-                    <h3 class="text-xl font-bold mb-4">Process Payment for <span id="modalTeacherName"></span></h3>
-                    <form method="POST">
-                        <input type="hidden" name="pay_teacher" value="1">
-                        <input type="hidden" name="request_id" id="modalRequestId" value="">
-                        
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Pay (Rs.)</label>
-                            <input type="number" step="0.01" name="pay_amount" id="modalPayAmount" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500" required>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                            <select name="payment_method" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500">
-                                <option value="cash">Cash</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="cheque">Cheque</option>
-                            </select>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Admin Notes (Optional)</label>
-                            <textarea name="admin_notes" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500" rows="3"></textarea>
-                        </div>
-                        
-                        <div class="flex justify-end space-x-2">
-                            <button type="button" onclick="closePayModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Confirm & Print</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-            <script>
-                function openPayModal(id, name, amount) {
-                    document.getElementById('modalRequestId').value = id;
-                    document.getElementById('modalTeacherName').textContent = name;
-                    document.getElementById('modalPayAmount').value = amount;
-                    document.getElementById('payModal').classList.remove('hidden');
-                }
-                function closePayModal() {
-                    document.getElementById('payModal').classList.add('hidden');
-                }
-                function printReceipt(teacherId, method, notes, amount, dateStr) {
-                    const printWindow = window.open('', '', 'width=600,height=600');
-                    const paymentDate = new Date(dateStr).toLocaleString();
-                    printWindow.document.write(`
-                        <html><head><title>Payment Receipt</title>
-                        <style>body{font-family: Arial, sans-serif; padding:20px;} .header{text-align:center; font-weight:bold; font-size:24px; margin-bottom:20px;}
-                        .details{margin-bottom:10px;} .amount{font-size:20px; font-weight:bold; margin-top:20px;} </style>
-                        </head><body>
-                        <div class='header'>Teacher Payment Receipt</div>
-                        <div class='details'><b>Date:</b> ` + paymentDate + `</div>
-                        <div class='details'><b>Teacher ID:</b> ` + teacherId + `</div>
-                        <div class='details'><b>Payment Method:</b> ` + method + `</div>
-                        <div class='details'><b>Admin Notes:</b> ` + notes + `</div>
-                        <div class='amount'>Paid Amount: Rs. ` + parseFloat(amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + `</div>
-                        <hr>
-                        <div style='text-align:center; margin-top:30px;'>Thank You</div>
-                        <script>window.print(); window.setTimeout(function(){window.close();}, 500);<\/script>
-                        </body></html>
-                    `);
-                    printWindow.document.close();
-                }
-            </script>
         <?php endif; ?>
 
+        <!-- Payout Process Modal (Used for both Teachers and Instructors) -->
+        <div id="payModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-xl font-bold mb-4">Process <span id="modalRoleType">Teacher</span> Payment for <span id="modalTeacherName"></span></h3>
+                <form method="POST">
+                    <input type="hidden" name="pay_teacher" id="modalPayTeacherFlag" value="1">
+                    <input type="hidden" name="pay_instructor" id="modalPayInstructorFlag" value="0">
+                    <input type="hidden" name="request_id" id="modalRequestId" value="">
 
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Pay (Rs.)</label>
+                        <input type="number" step="0.01" name="pay_amount" id="modalPayAmount" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                        <select name="payment_method" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Admin Notes (Optional)</label>
+                        <textarea name="admin_notes" class="w-full border-gray-300 rounded focus:ring-green-500 focus:border-green-500" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" onclick="closePayModal()" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Confirm & Print</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            function openPayModal(id, name, amount, isInstructor = false) {
+                document.getElementById('modalRequestId').value = id;
+                document.getElementById('modalTeacherName').textContent = name;
+                document.getElementById('modalPayAmount').value = amount;
+                document.getElementById('modalRoleType').textContent = isInstructor ? 'Instructor' : 'Teacher';
+                document.getElementById('modalPayTeacherFlag').value = isInstructor ? '0' : '1';
+                document.getElementById('modalPayInstructorFlag').value = isInstructor ? '1' : '0';
+                document.getElementById('payModal').classList.remove('hidden');
+            }
+            function closePayModal() {
+                document.getElementById('payModal').classList.add('hidden');
+            }
+            function printReceipt(userId, method, notes, amount, dateStr, isInstructor = false) {
+                const printWindow = window.open('', '', 'width=600,height=600');
+                const paymentDate = new Date(dateStr).toLocaleString();
+                const title = isInstructor ? 'Instructor Payment Receipt' : 'Teacher Payment Receipt';
+                const userLabel = isInstructor ? 'Instructor ID' : 'Teacher ID';
+                printWindow.document.write(`
+                    <html><head><title>${title}</title>
+                    <style>
+                        body{font-family: Arial, sans-serif; padding:20px; color: #333;} 
+                        .header{text-align:center; font-weight:bold; font-size:24px; margin-bottom:20px; color: #1a2b3c;}
+                        .details{margin-bottom:10px; font-size: 14px;} 
+                        .amount{font-size:22px; font-weight:bold; margin-top:20px; color: #16a34a;}
+                        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+                    </style>
+                    </head><body>
+                    <div class='header'>${title}</div>
+                    <div class='details'><b>Date:</b> ${paymentDate}</div>
+                    <div class='details'><b>${userLabel}:</b> ${userId}</div>
+                    <div class='details'><b>Payment Method:</b> ${method}</div>
+                    <div class='details'><b>Admin Notes:</b> ${notes}</div>
+                    <div class='amount'>Paid Amount: Rs. ${parseFloat(amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+                    <hr>
+                    <div style='text-align:center; margin-top:30px; font-size: 12px; color: #999;'>Generated by LearnerX Administration System</div>
+                    <script>window.print(); window.setTimeout(function(){window.close();}, 1000);<\/script>
+                    </body></html>
+                `);
+                printWindow.document.close();
+            }
+        </script>
 
     </div>
 </body>

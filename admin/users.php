@@ -118,11 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get filter parameters
+// Get active tab and filter parameters
+$active_tab = $_GET['tab'] ?? 'pending'; // Default to pending as requested
 $filter_role = $_GET['filter'] ?? 'all';
 $filter_status = $_GET['status'] ?? 'all';
 $filter_approved = $_GET['approved'] ?? 'all';
 $search = $_GET['search'] ?? '';
+
+if ($active_tab === 'pending') {
+    $filter_approved = '0';
+}
 
 // Build query
 $query = "SELECT user_id, email, role, first_name, second_name, mobile_number, whatsapp_number, status, approved, registering_date FROM users WHERE 1=1";
@@ -311,9 +316,35 @@ $stats = $stats_result->fetch_assoc();
                 </div>
             <?php endif; ?>
 
+            <!-- Tab Navigation -->
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8">
+                    <a href="?tab=pending&search=<?php echo urlencode($search); ?>&filter=<?php echo urlencode($filter_role); ?>&status=<?php echo urlencode($filter_status); ?>" 
+                       class="<?php echo $active_tab === 'pending' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'; ?> whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Pending Approvals
+                        <?php if ($stats['pending'] > 0): ?>
+                            <span class="ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                <?php echo $stats['pending']; ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
+                    <a href="?tab=all&search=<?php echo urlencode($search); ?>&filter=<?php echo urlencode($filter_role); ?>&status=<?php echo urlencode($filter_status); ?>&approved=<?php echo urlencode($filter_approved === '0' && $active_tab === 'pending' ? 'all' : $filter_approved); ?>" 
+                       class="<?php echo $active_tab === 'all' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'; ?> whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        All Users
+                    </a>
+                </nav>
+            </div>
+
             <!-- Filters and Search -->
             <div class="bg-white rounded-lg shadow p-6 mb-6">
                 <form method="GET" action="" id="filterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <input type="hidden" name="tab" value="<?php echo htmlspecialchars($active_tab); ?>">
                     <!-- Search -->
                     <div class="md:col-span-2">
                         <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
@@ -344,7 +375,8 @@ $stats = $stats_result->fetch_assoc();
                         </select>
                     </div>
 
-                    <!-- Approved Filter -->
+                    <!-- Approved Filter (Only in All tab) -->
+                    <?php if ($active_tab === 'all'): ?>
                     <div>
                         <label for="approved" class="block text-sm font-medium text-gray-700 mb-1">Approval</label>
                         <select id="approved" name="approved" onchange="this.form.submit()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
@@ -353,10 +385,11 @@ $stats = $stats_result->fetch_assoc();
                             <option value="0" <?php echo $filter_approved === '0' ? 'selected' : ''; ?>>Pending</option>
                         </select>
                     </div>
+                    <?php endif; ?>
                     
                     <!-- Clear Filters -->
-                    <div class="md:col-span-4 flex justify-end">
-                        <a href="users.php" class="px-4 py-2 text-red-600 hover:text-red-800 font-medium flex items-center">
+                    <div class="<?php echo $active_tab === 'all' ? 'md:col-span-4' : 'md:col-span-4'; ?> flex justify-end">
+                        <a href="users.php?tab=<?php echo $active_tab; ?>" class="px-4 py-2 text-red-600 hover:text-red-800 font-medium flex items-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>

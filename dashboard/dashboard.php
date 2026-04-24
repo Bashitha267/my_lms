@@ -162,11 +162,11 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class="w-full pt-2 pb-12">
+    <div class="w-full pt-1 pb-12">
         <?php if (!$is_logged_in): ?>
             <!-- Login Section for Guests -->
             <!-- Hero Section with Slideshow and Login - 50/50 Split -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 px-1 mb-2">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 px-1 mb-1">
                 <!-- Left Side: Image -->
                 <div class="bg-gray-900 overflow-hidden relative h-[350px] lg:h-[calc(100vh-75px)] lg:col-span-8 group">
                     <div class="absolute inset-0">

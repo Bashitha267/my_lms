@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 11, 2026 at 05:51 PM
+-- Generation Time: Apr 24, 2026 at 04:25 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -45,15 +45,17 @@ CREATE TABLE `al_exam_submissions` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   `district_rank` int(11) DEFAULT NULL,
-  `island_rank` int(11) DEFAULT NULL
+  `island_rank` int(11) DEFAULT NULL,
+  `exam_year` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Stores A/L exam details submitted by students';
 
 --
 -- Dumping data for table `al_exam_submissions`
 --
 
-INSERT INTO `al_exam_submissions` (`id`, `student_id`, `subject_1`, `result_1`, `subject_2`, `result_2`, `subject_3`, `result_3`, `index_number`, `district`, `stream`, `photo_path`, `agreed_to_publish`, `results_submitted_at`, `created_at`, `updated_at`, `district_rank`, `island_rank`) VALUES
-(1, 'stu_1000', 'Combined Mathematics', 'A', 'Physics', 'A', 'Chemistry', 'A', '', 'Gampaha', NULL, 'uploads/al_photos/stu_1000_al_1772720811.jpg', 1, '2026-04-11 14:24:41', '2026-03-05 14:26:51', '2026-04-11 14:24:41', 25, 620);
+INSERT INTO `al_exam_submissions` (`id`, `student_id`, `subject_1`, `result_1`, `subject_2`, `result_2`, `subject_3`, `result_3`, `index_number`, `district`, `stream`, `photo_path`, `agreed_to_publish`, `results_submitted_at`, `created_at`, `updated_at`, `district_rank`, `island_rank`, `exam_year`) VALUES
+(1, 'stu_1001', 'Combined Mathematics', NULL, 'Physics', NULL, 'Chemistry', NULL, '', 'Gampaha', NULL, NULL, 1, NULL, '2026-04-24 10:25:35', '2026-04-24 10:25:35', NULL, NULL, NULL),
+(2, 'stu_1000', 'Combined Mathematics', 'A', 'Physics', 'A', 'Chemistry', 'A', '123456', 'Gampaha', 'Physical Science', '0', 1, '2026-04-24 14:24:23', '2026-04-24 14:23:50', '2026-04-24 14:24:23', 24, 325, 2025);
 
 -- --------------------------------------------------------
 
@@ -86,13 +88,6 @@ CREATE TABLE `budget_expenses` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `budget_expenses`
---
-
-INSERT INTO `budget_expenses` (`id`, `name`, `amount`, `is_fixed`, `month`, `year`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'Whatsapp API', 1000.00, 1, NULL, NULL, '', '2026-03-19 14:55:36', '2026-03-19 14:55:36');
-
 -- --------------------------------------------------------
 
 --
@@ -111,16 +106,6 @@ CREATE TABLE `chat_messages` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Message update timestamp'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Chat messages between students and teachers for recordings';
 
---
--- Dumping data for table `chat_messages`
---
-
-INSERT INTO `chat_messages` (`id`, `recording_id`, `sender_id`, `sender_role`, `message`, `video_timestamp`, `status`, `created_at`, `updated_at`) VALUES
-(1, 1, 'tea_1000', 'teacher', 'hiiii', NULL, 'sent', '2026-03-05 14:04:40', '2026-03-05 14:04:40'),
-(2, 1, 'stu_1000', 'student', 'hey', NULL, 'sent', '2026-03-05 14:05:22', '2026-03-05 14:05:22'),
-(3, 1, 'tea_1000', 'teacher', 'helooo', NULL, 'sent', '2026-03-05 14:05:34', '2026-03-05 14:05:34'),
-(4, 2, 'stu_1000', 'student', 'hello', NULL, 'sent', '2026-03-05 14:17:09', '2026-03-05 14:17:09');
-
 -- --------------------------------------------------------
 
 --
@@ -138,6 +123,13 @@ CREATE TABLE `courses` (
   `created_at` datetime DEFAULT current_timestamp(),
   `duration` varchar(100) DEFAULT NULL COMMENT 'e.g. 8 weeks, 20 hours'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `courses`
+--
+
+INSERT INTO `courses` (`id`, `teacher_id`, `title`, `description`, `price`, `cover_image`, `status`, `created_at`, `duration`) VALUES
+(1, 'tea_1000', 'Python for Beginners', '', 25000.00, 'uploads/courses/course_69eb1b48a60a1.webp', 1, '2026-04-24 12:57:04', '6 weeks');
 
 -- --------------------------------------------------------
 
@@ -240,10 +232,7 @@ CREATE TABLE `enrollment_fees` (
 --
 
 INSERT INTO `enrollment_fees` (`id`, `teacher_assignment_id`, `enrollment_fee`, `monthly_fee`, `created_at`, `updated_at`) VALUES
-(1, 1, 1000.00, 2000.00, '2026-03-05 13:56:52', '2026-03-05 13:56:52'),
-(2, 2, 500.00, 1000.00, '2026-03-05 17:49:59', '2026-03-05 17:49:59'),
-(3, 3, 1000.00, 1200.00, '2026-03-05 17:51:05', '2026-03-05 17:51:05'),
-(4, 4, 0.00, 2500.00, '2026-03-28 10:25:18', '2026-03-28 10:25:18');
+(1, 1, 1000.00, 2100.00, '2026-04-24 07:29:36', '2026-04-24 07:29:36');
 
 -- --------------------------------------------------------
 
@@ -273,8 +262,8 @@ CREATE TABLE `enrollment_payments` (
 --
 
 INSERT INTO `enrollment_payments` (`id`, `student_enrollment_id`, `amount`, `payment_method`, `payment_status`, `payment_date`, `card_number`, `receipt_path`, `receipt_type`, `verified_by`, `verified_at`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 1, 1000.00, 'bank_transfer', 'paid', NULL, NULL, 'uploads/payments/payment_stu_1000_1772719078.png', 'image', NULL, NULL, NULL, '2026-03-05 13:57:58', '2026-03-05 14:10:37'),
-(2, 3, 0.00, '', 'paid', '2026-03-06', NULL, NULL, NULL, NULL, NULL, NULL, '2026-03-06 07:25:36', '2026-03-06 07:25:36');
+(1, 1, 1000.00, 'card', 'paid', NULL, '1111', NULL, NULL, NULL, NULL, 'Card: ****1111, Holder: 222222', '2026-04-24 07:53:06', '2026-04-24 07:53:40'),
+(2, 2, 1000.00, 'bank_transfer', 'paid', NULL, NULL, 'uploads/payments/payment_stu_1000_1777040074.jpg', 'image', NULL, NULL, NULL, '2026-04-24 14:14:34', '2026-04-24 14:14:43');
 
 --
 -- Triggers `enrollment_payments`
@@ -368,6 +357,38 @@ CREATE TABLE `exam_questions` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `home_posts`
+--
+
+CREATE TABLE `home_posts` (
+  `id` int(11) NOT NULL,
+  `image_path` varchar(255) NOT NULL,
+  `title` varchar(100) DEFAULT NULL,
+  `display_order` int(11) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `home_posts`
+--
+
+INSERT INTO `home_posts` (`id`, `image_path`, `title`, `display_order`, `created_at`) VALUES
+(1, 'uploads/posts/post_1777014559_293.jpeg', '', 0, '2026-04-24 07:09:19'),
+(2, 'uploads/posts/post_1777014568_872.jpeg', '', 0, '2026-04-24 07:09:28'),
+(3, 'uploads/posts/post_1777014575_658.jpeg', '', 0, '2026-04-24 07:09:35'),
+(4, 'uploads/posts/post_1777014583_402.jpeg', '', 0, '2026-04-24 07:09:43'),
+(5, 'uploads/posts/post_1777014587_664.jpeg', '', 0, '2026-04-24 07:09:47'),
+(6, 'uploads/posts/post_1777014603_859.jpeg', '', 0, '2026-04-24 07:10:03'),
+(7, 'uploads/posts/post_1777014630_304.jpeg', '', 0, '2026-04-24 07:10:30'),
+(8, 'uploads/posts/post_1777014638_310.jpeg', '', 0, '2026-04-24 07:10:38'),
+(9, 'uploads/posts/post_1777014649_415.jpeg', '', 0, '2026-04-24 07:10:49'),
+(10, 'uploads/posts/post_1777014656_133.jpeg', '', 0, '2026-04-24 07:10:56'),
+(11, 'uploads/posts/post_1777014663_961.jpeg', '', 0, '2026-04-24 07:11:03'),
+(12, 'uploads/posts/post_1777014691_408.jpeg', '', 0, '2026-04-24 07:11:31');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `institute_settings`
 --
 
@@ -376,13 +397,6 @@ CREATE TABLE `institute_settings` (
   `setting_value` varchar(255) NOT NULL,
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `institute_settings`
---
-
-INSERT INTO `institute_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
-('commission_rate', '10', '2026-03-19 14:43:32');
 
 -- --------------------------------------------------------
 
@@ -397,13 +411,6 @@ CREATE TABLE `institute_wallet` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `institute_wallet`
---
-
-INSERT INTO `institute_wallet` (`id`, `total_points`, `total_earned`, `created_at`, `updated_at`) VALUES
-(1, 1750.00, 1750.00, '2026-03-05 09:04:54', '2026-04-03 11:24:14');
 
 -- --------------------------------------------------------
 
@@ -429,10 +436,33 @@ CREATE TABLE `instructor_payments` (
 --
 
 INSERT INTO `instructor_payments` (`id`, `request_id`, `student_id`, `instructor_id`, `amount`, `receipt_path`, `status`, `created_at`, `verified_at`, `verified_by`) VALUES
-(1, 1, 'stu_1000', 'ins_1000', 0.00, 'uploads/instructor_payments/PAY_1_1774777476.png', 'verified', '2026-03-29 09:44:36', '2026-04-11 20:36:23', 'adm_1000'),
-(2, 5, 'stu_1000', 'ins_1001', 1500.00, '', '', '2026-04-05 10:37:08', NULL, NULL),
-(3, 9, 'stu_1000', 'ins_1001', 1500.00, 'uploads/instructor_payments/PAY_9_1775920160.png', 'verified', '2026-04-11 15:09:20', '2026-04-11 21:09:35', 'adm_1000'),
-(4, 10, 'stu_1000', 'ins_1000', 0.00, 'uploads/instructor_payments/PAY_10_1775921957.png', 'verified', '2026-04-11 15:39:17', '2026-04-11 21:09:40', 'adm_1000');
+(1, 1, 'stu_1001', 'ins_1000', 0.00, 'uploads/instructor_payments/PAY_1_1777026125.webp', 'verified', '2026-04-24 10:22:05', '2026-04-24 15:52:21', '1'),
+(2, 2, 'stu_1000', 'ins_1002', 1500.00, 'uploads/instructor_payments/PAY_2_1777039676.jpeg', 'verified', '2026-04-24 14:07:56', '2026-04-24 19:44:40', 'adm_1000');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_payout_requests`
+--
+
+CREATE TABLE `instructor_payout_requests` (
+  `id` int(11) NOT NULL,
+  `instructor_id` varchar(20) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` enum('pending','paid','rejected') DEFAULT 'pending',
+  `payment_method` varchar(50) DEFAULT NULL,
+  `admin_notes` text DEFAULT NULL,
+  `request_date` timestamp NOT NULL DEFAULT current_timestamp(),
+  `processed_date` timestamp NULL DEFAULT NULL,
+  `processed_by` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `instructor_payout_requests`
+--
+
+INSERT INTO `instructor_payout_requests` (`id`, `instructor_id`, `amount`, `status`, `payment_method`, `admin_notes`, `request_date`, `processed_date`, `processed_by`) VALUES
+(1, 'ins_1002', 1000.00, 'paid', 'cash', '', '2026-04-24 14:15:49', '2026-04-24 14:19:20', 'adm_1000');
 
 -- --------------------------------------------------------
 
@@ -456,7 +486,7 @@ CREATE TABLE `instructor_ratings` (
 --
 
 INSERT INTO `instructor_ratings` (`id`, `request_id`, `instructor_id`, `student_id`, `rating`, `review`, `comment`, `created_at`) VALUES
-(1, 10, 'ins_1000', 'stu_1000', 4, '', NULL, '2026-04-11 15:49:02');
+(1, 1, 'ins_1000', 'stu_1001', 4, '', NULL, '2026-04-24 10:34:14');
 
 -- --------------------------------------------------------
 
@@ -486,16 +516,8 @@ CREATE TABLE `instructor_requests` (
 --
 
 INSERT INTO `instructor_requests` (`id`, `student_id`, `subject_id`, `session_date`, `status`, `payment_id`, `accepted_by`, `accepted_at`, `request_note`, `created_at`, `updated_at`, `zoom_link`, `zoom_meeting_id`, `zoom_password`) VALUES
-(1, 'stu_1000', 2, '2026-03-04', 'paid', NULL, 'ins_1000', '2026-03-29 15:12:02', 'heeee', '2026-03-29 09:41:53', '2026-04-11 15:01:17', NULL, NULL, NULL),
-(2, 'stu_1000', 2, '2026-04-04', 'accepted', NULL, 'ins_1000', '2026-04-03 16:15:38', 'hiii', '2026-04-03 10:43:06', '2026-04-03 10:45:38', NULL, NULL, NULL),
-(3, 'stu_1000', 2, '2026-04-09', 'accepted', NULL, 'ins_1001', '2026-04-03 16:24:55', 'helllo this is testng', '2026-04-03 10:54:45', '2026-04-03 10:54:55', NULL, NULL, NULL),
-(4, 'stu_1000', 2, '2026-04-09', 'accepted', NULL, 'ins_1000', '2026-04-03 16:35:24', 'lllll', '2026-04-03 11:05:08', '2026-04-03 11:05:24', NULL, NULL, NULL),
-(5, 'stu_1000', 2, '2026-04-06', 'paid', NULL, 'ins_1001', '2026-04-05 16:05:49', 'jooo', '2026-04-05 10:35:36', '2026-04-05 10:37:08', NULL, NULL, NULL),
-(6, 'stu_1000', 2, '2026-04-15', 'accepted', NULL, 'ins_1000', '2026-04-05 16:09:41', '24555', '2026-04-05 10:39:31', '2026-04-05 10:39:41', NULL, NULL, NULL),
-(7, 'stu_1000', 2, '2026-04-08', 'accepted', NULL, NULL, NULL, '445555', '2026-04-05 10:44:34', '2026-04-05 10:49:54', NULL, NULL, NULL),
-(8, 'stu_1000', 2, '2026-04-05', 'accepted', NULL, 'ins_1001', '2026-04-05 16:51:05', 'last', '2026-04-05 11:20:26', '2026-04-05 11:21:05', NULL, NULL, NULL),
-(9, 'stu_1000', 2, '2026-04-13', 'paid', 3, 'ins_1001', NULL, 'dddd', '2026-04-11 14:51:59', '2026-04-11 15:39:35', 'https://us05web.zoom.us/j/82902389662?pwd=vzVb0YfaYpikHzBfmPhIUwOWYIaD3a.1', '82902389662', 'vzVb0YfaYpikHzBfmPhIUwOWYIaD3a.1'),
-(10, 'stu_1000', 2, '2026-04-30', 'completed', 4, 'ins_1000', NULL, 'ghjjjjjjjjjjkkkkkkkkkkkk', '2026-04-11 15:38:45', '2026-04-11 15:43:44', NULL, NULL, NULL);
+(1, 'stu_1001', 1, '2026-04-25', 'completed', 1, 'ins_1000', NULL, 'testing 123', '2026-04-24 10:20:10', '2026-04-24 10:23:54', NULL, NULL, NULL),
+(2, 'stu_1000', 1, '2026-04-25', 'paid', 2, 'ins_1002', NULL, 'testinggg', '2026-04-24 14:07:05', '2026-04-24 14:10:48', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -515,11 +537,9 @@ CREATE TABLE `instructor_request_acceptances` (
 --
 
 INSERT INTO `instructor_request_acceptances` (`id`, `request_id`, `instructor_id`, `accepted_at`) VALUES
-(1, 7, 'ins_1000', '2026-04-05 16:19:54'),
-(2, 7, 'ins_1001', '2026-04-05 16:20:12'),
-(3, 9, 'ins_1001', '2026-04-11 20:22:13'),
-(5, 9, 'ins_1000', '2026-04-11 20:22:40'),
-(6, 10, 'ins_1000', '2026-04-11 21:08:57');
+(1, 1, 'ins_1000', '2026-04-24 15:50:44'),
+(2, 2, 'ins_1002', '2026-04-24 19:37:18'),
+(3, 2, 'ins_1000', '2026-04-24 19:37:43');
 
 -- --------------------------------------------------------
 
@@ -545,8 +565,7 @@ CREATE TABLE `instructor_sessions` (
 --
 
 INSERT INTO `instructor_sessions` (`id`, `request_id`, `zoom_link`, `zoom_meeting_id`, `zoom_password`, `status`, `started_at`, `ended_at`, `created_at`, `updated_at`) VALUES
-(1, 9, 'https://us05web.zoom.us/j/82902389662?pwd=vzVb0YfaYpikHzBfmPhIUwOWYIaD3a.1', '82902389662', 'vzVb0YfaYpikHzBfmPhIUwOWYIaD3a.1', 'completed', NULL, '2026-04-11 21:00:00', '2026-04-11 15:17:36', '2026-04-11 15:30:00'),
-(4, 10, 'https://us05web.zoom.us/j/82902389662?pwd=vzVb0YfaYpikHzBfmPhIUwOWYIaD3a.1', 'gghhh', 'ffggg', 'completed', NULL, '2026-04-11 21:13:44', '2026-04-11 15:40:01', '2026-04-11 15:43:44');
+(1, 1, 'https://zoom.us/j/1234567890?pwd=abcdef123456', 'wwww', 'www', 'completed', NULL, '2026-04-24 15:53:54', '2026-04-24 10:23:33', '2026-04-24 10:23:54');
 
 -- --------------------------------------------------------
 
@@ -566,8 +585,33 @@ CREATE TABLE `instructor_subjects` (
 --
 
 INSERT INTO `instructor_subjects` (`id`, `instructor_id`, `subject_id`, `assigned_at`) VALUES
-(1, 'ins_1000', 2, '2026-03-28 10:39:43'),
-(3, 'ins_1001', 2, '2026-04-03 10:50:49');
+(1, 'ins_1000', 2, '2026-04-24 10:15:18'),
+(2, 'ins_1000', 1, '2026-04-24 10:15:24'),
+(3, 'ins_1001', 2, '2026-04-24 10:15:31'),
+(4, 'ins_1001', 1, '2026-04-24 10:15:36'),
+(5, 'ins_1002', 1, '2026-04-24 14:02:29');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `instructor_wallet`
+--
+
+CREATE TABLE `instructor_wallet` (
+  `id` int(11) NOT NULL,
+  `instructor_id` varchar(20) NOT NULL,
+  `total_points` decimal(10,2) DEFAULT 0.00,
+  `total_earned` decimal(10,2) DEFAULT 0.00,
+  `total_withdrawn` decimal(10,2) DEFAULT 0.00
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `instructor_wallet`
+--
+
+INSERT INTO `instructor_wallet` (`id`, `instructor_id`, `total_points`, `total_earned`, `total_withdrawn`) VALUES
+(1, 'ins_1002', 500.00, 1500.00, 1000.00),
+(2, 'ins_1000', 0.00, 0.00, 0.00);
 
 -- --------------------------------------------------------
 
@@ -600,14 +644,6 @@ CREATE TABLE `live_class_participants` (
   `left_at` timestamp NULL DEFAULT NULL COMMENT 'When student left the live class (NULL = still online)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `live_class_participants`
---
-
-INSERT INTO `live_class_participants` (`id`, `recording_id`, `student_id`, `joined_at`, `left_at`) VALUES
-(1, 1, 'stu_1000', '2026-03-05 14:07:23', '2026-03-05 14:09:04'),
-(2, 3, 'stu_1000', '2026-04-03 06:33:57', '2026-04-03 07:35:04');
-
 -- --------------------------------------------------------
 
 --
@@ -638,8 +674,7 @@ CREATE TABLE `monthly_payments` (
 --
 
 INSERT INTO `monthly_payments` (`id`, `student_enrollment_id`, `month`, `year`, `amount`, `payment_method`, `payment_status`, `payment_date`, `card_number`, `receipt_path`, `receipt_type`, `verified_by`, `verified_at`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 1, 3, 2026, 2000.00, 'bank_transfer', 'paid', NULL, NULL, 'uploads/payments/payment_stu_1000_1772720024.jpg', 'image', NULL, NULL, NULL, '2026-03-05 14:13:44', '2026-03-05 14:15:13'),
-(2, 1, 4, 2026, 2000.00, 'bank_transfer', 'paid', NULL, '2222', 'uploads/payments/payment_stu_1000_1775214818.jpeg', 'image', NULL, NULL, 'Card: ****2222, Holder: lllllll', '2026-04-03 11:13:38', '2026-04-03 11:24:14');
+(1, 2, 4, 2026, 2100.00, 'bank_transfer', 'paid', NULL, NULL, 'uploads/payments/payment_stu_1000_1777040060.jpg', 'image', NULL, NULL, NULL, '2026-04-24 14:14:20', '2026-04-24 14:14:45');
 
 --
 -- Triggers `monthly_payments`
@@ -702,9 +737,9 @@ CREATE TABLE `payment_transactions` (
 --
 
 INSERT INTO `payment_transactions` (`id`, `payment_type`, `payment_id`, `teacher_id`, `student_id`, `total_amount`, `teacher_points`, `institute_points`, `commission_rate_teacher`, `commission_rate_institute`, `transaction_status`, `created_at`, `updated_at`) VALUES
-(1, 'enrollment', 1, 'tea_1000', 'stu_1000', 1000.00, 750.00, 250.00, 75.00, 25.00, 'completed', '2026-03-05 14:10:37', '2026-03-05 14:10:37'),
-(2, 'monthly', 1, 'tea_1000', 'stu_1000', 2000.00, 1500.00, 500.00, 75.00, 25.00, 'completed', '2026-03-05 14:15:13', '2026-03-05 14:15:13'),
-(3, 'monthly', 2, 'tea_1000', 'stu_1000', 2000.00, 1000.00, 1000.00, 50.00, 50.00, 'completed', '2026-04-03 11:24:14', '2026-04-03 11:24:14');
+(1, 'enrollment', 1, 'tea_1000', 'stu_1001', 1000.00, 750.00, 250.00, 75.00, 25.00, 'completed', '2026-04-24 07:53:40', '2026-04-24 07:53:40'),
+(2, 'enrollment', 2, 'tea_1000', 'stu_1000', 1000.00, 750.00, 250.00, 75.00, 25.00, 'completed', '2026-04-24 14:14:43', '2026-04-24 14:14:43'),
+(3, 'monthly', 1, 'tea_1000', 'stu_1000', 2100.00, 1575.00, 525.00, 75.00, 25.00, 'completed', '2026-04-24 14:14:45', '2026-04-24 14:14:45');
 
 -- --------------------------------------------------------
 
@@ -747,7 +782,7 @@ CREATE TABLE `publications` (
 --
 
 INSERT INTO `publications` (`id`, `category_id`, `title`, `description`, `price`, `discount`, `image_path`, `created_at`) VALUES
-(1, 1, '2000-2025 History Pastpapers O/L', '', 1800.00, 100.00, 'uploads/publications/pub_69aa8236061a0.jpg', '2026-03-06 07:28:54');
+(1, 1, 'Python Learning', 'this is testing publication', 1000.00, 100.00, 'uploads/publications/pub_69eb26a1f0ee5.webp', '2026-04-24 08:15:29');
 
 -- --------------------------------------------------------
 
@@ -766,7 +801,7 @@ CREATE TABLE `publication_categories` (
 --
 
 INSERT INTO `publication_categories` (`id`, `name`, `created_at`) VALUES
-(1, 'O/L Pastpaper', '2026-03-06 07:28:04');
+(1, 'OL', '2026-04-24 08:15:02');
 
 -- --------------------------------------------------------
 
@@ -783,7 +818,7 @@ CREATE TABLE `publication_orders` (
   `district` varchar(100) NOT NULL,
   `payment_method` enum('card','bank_transfer') NOT NULL,
   `bank_receipt_path` varchar(255) DEFAULT NULL,
-  `status` enum('pending','preparing','hand_order_to_delivery','canceled','completed') NOT NULL DEFAULT 'pending',
+  `status` enum('pending','preparing','hand_order_to_delivery','canceled','completed','return_requested') NOT NULL DEFAULT 'pending',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -792,8 +827,7 @@ CREATE TABLE `publication_orders` (
 --
 
 INSERT INTO `publication_orders` (`id`, `user_id`, `name`, `contact_number`, `address`, `district`, `payment_method`, `bank_receipt_path`, `status`, `created_at`) VALUES
-(1, 'stu_1000', 'Nipuna Diyalagoda', '0762962048', '2225/2\r\nhenpitagedara marandahamula', 'gampaha', 'bank_transfer', 'uploads/receipts/publications/receipt_pub_69aa8289628b2.jpg', 'pending', '2026-03-06 07:30:17'),
-(2, NULL, 'thejani traders', '0770080391', 'Chilaw', 'gampaha', 'card', NULL, 'pending', '2026-04-11 14:41:43');
+(1, 'stu_1001', 'Sugath Perera', '072848575', 'dsadasd', 'Gampaha', 'card', NULL, 'return_requested', '2026-04-24 08:15:50');
 
 -- --------------------------------------------------------
 
@@ -814,8 +848,7 @@ CREATE TABLE `publication_order_items` (
 --
 
 INSERT INTO `publication_order_items` (`id`, `order_id`, `publication_id`, `quantity`, `price_at_order`) VALUES
-(1, 1, 1, 1, 1700.00),
-(2, 2, 1, 1, 1700.00);
+(1, 1, 1, 1, 900.00);
 
 -- --------------------------------------------------------
 
@@ -880,9 +913,10 @@ CREATE TABLE `recordings` (
 --
 
 INSERT INTO `recordings` (`id`, `teacher_assignment_id`, `is_live`, `title`, `description`, `youtube_video_id`, `youtube_url`, `duration`, `thumbnail_url`, `view_count`, `free_video`, `watch_limit`, `status`, `scheduled_start_time`, `actual_start_time`, `end_time`, `created_at`, `updated_at`) VALUES
-(1, 1, 1, 'Basic Algebra', 'Introduction to basic algebra', 'HffngrDGIxE', 'https://www.youtube.com/live/HffngrDGIxE?si=iHFfYJYQdJHzbj_t', NULL, 'https://img.youtube.com/vi/HffngrDGIxE/maxresdefault.jpg', 0, 0, 3, 'ended', '2026-03-05 20:00:00', '2026-03-05 19:33:46', '2026-03-05 19:39:19', '2026-03-05 14:02:19', '2026-03-05 14:09:19'),
-(2, 1, 0, 'Test Recording', 'dsdsdsdsds', 'b24oG7qCwp4', 'https://youtu.be/b24oG7qCwp4?si=WvvMyoXI-89Zjy5X', NULL, 'https://img.youtube.com/vi/b24oG7qCwp4/maxresdefault.jpg', 0, 0, 3, 'active', NULL, NULL, NULL, '2026-03-04 18:30:00', '2026-03-05 14:13:05'),
-(3, 1, 1, 'testing live 1', 'this is tesging live class description', 'xRdy4buEEY8', 'https://www.youtube.com/live/xRdy4buEEY8?si=0tM6QblIK61yAmzk', NULL, 'https://img.youtube.com/vi/xRdy4buEEY8/maxresdefault.jpg', 0, 1, 3, 'ended', '2026-04-03 11:51:00', '2026-04-03 11:56:15', '2026-04-03 13:05:21', '2026-04-03 06:20:11', '2026-04-03 07:35:21');
+(1, 1, 1, 'Econ 1', 'this is test econ 1 kdsakldskldsd ddjdjjjd ddddaa adasdsd adasdw fasfsf', 'Eoj0w67pNOw', 'https://www.youtube.com/live/Eoj0w67pNOw?si=n0Q9cLr3BCj5Q2nt', NULL, 'https://img.youtube.com/vi/Eoj0w67pNOw/maxresdefault.jpg', 0, 0, 3, 'scheduled', '2026-04-24 13:30:00', NULL, NULL, '2026-04-24 07:33:39', '2026-04-24 07:33:39'),
+(2, 1, 0, 'Econ 2 rec', 'this is test recording 123', 'tS_fJJxMjn4', 'https://youtu.be/tS_fJJxMjn4?si=89_AGL4IM7s4e7BR', NULL, 'https://img.youtube.com/vi/tS_fJJxMjn4/maxresdefault.jpg', 0, 0, 3, 'active', NULL, NULL, NULL, '2026-04-23 18:30:00', '2026-04-24 07:34:25'),
+(3, 1, 0, 'Econ 2', 'this is alos stesitng', 'eYdYnSHocXM', 'https://youtu.be/eYdYnSHocXM?si=4z9g6TahRszkoD8q', NULL, 'https://img.youtube.com/vi/eYdYnSHocXM/maxresdefault.jpg', 0, 0, 3, 'active', NULL, NULL, NULL, '2026-04-23 18:30:00', '2026-04-24 08:10:37'),
+(4, 1, 0, 'Econ 4', 'dsdasdasdasds', 'FSoK7VVN7JQ', 'https://youtu.be/FSoK7VVN7JQ?si=_u3mPyqs7H__5_JH', NULL, 'https://img.youtube.com/vi/FSoK7VVN7JQ/maxresdefault.jpg', 0, 0, 3, 'active', NULL, NULL, NULL, '2026-04-23 18:30:00', '2026-04-24 08:11:28');
 
 -- --------------------------------------------------------
 
@@ -908,10 +942,7 @@ CREATE TABLE `recording_files` (
 --
 
 INSERT INTO `recording_files` (`id`, `recording_id`, `uploaded_by`, `file_name`, `file_path`, `file_size`, `file_type`, `file_extension`, `upload_date`, `status`) VALUES
-(1, 1, 'stu_1000', 'RL91JiCm4Bpx5QjUIW_z0Yej73YWLbJGys9l6qkE7QqtGH7YxpWnRXF4AVPwPdPcb4qKP6bhfnoT1IG0sqibO2oJ5XkyKajufBFr10zQ0aU5mmSMnxPfd2LU04Oeb_9uGgOgj36HJ6tzWCcd0dYg6nTwel6bNAxILMYoR3eC1evz5AfX6rfla7iuCJPgC8Z-ucYwxWKzNgWcBx.png', 'uploads/recordings/1/stu_1000_1772719558_69a98dc63db5e.png', 26514, 'image/png', 'png', '2026-03-05 14:05:58', 1),
-(2, 1, 'stu_1000', '89ef5768ada38b95bdd077e38b74af0f_xeankj.jpg', 'uploads/recordings/1/stu_1000_1772719587_69a98de3aeb84.jpg', 97938, 'image/jpeg', 'jpg', '2026-03-05 14:06:27', 1),
-(3, 1, 'tea_1000', 'Untitled design (9).jpg', 'uploads/recordings/1/tea_1000_1772719615_69a98dffb26eb.jpg', 91062, 'image/jpeg', 'jpg', '2026-03-05 14:06:55', 1),
-(4, 2, 'tea_1000', 'amex.png', 'uploads/recordings/2/tea_1000_1774497052_69c4ad1cc659c.png', 6188, 'image/png', 'png', '2026-03-26 03:50:52', 1);
+(1, 3, 'stu_1000', 'banner1.jpeg', 'uploads/recordings/3/stu_1000_1777039967_69eb7a5f063d6.jpeg', 156976, 'image/jpeg', 'jpeg', '2026-04-24 14:12:47', 1);
 
 -- --------------------------------------------------------
 
@@ -933,9 +964,7 @@ CREATE TABLE `streams` (
 --
 
 INSERT INTO `streams` (`id`, `name`, `description`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'A/L 2021 Sinhala Medium', NULL, 1, '2026-03-05 13:33:55', '2026-03-05 13:33:55'),
-(2, 'Grade 6', NULL, 1, '2026-03-05 17:49:59', '2026-03-05 17:49:59'),
-(3, 'Grade 07', NULL, 1, '2026-03-05 17:51:05', '2026-03-05 17:51:05');
+(1, '2027 A/L Commerce', NULL, 1, '2026-04-24 07:28:32', '2026-04-24 07:28:32');
 
 -- --------------------------------------------------------
 
@@ -957,9 +986,7 @@ CREATE TABLE `stream_subjects` (
 --
 
 INSERT INTO `stream_subjects` (`id`, `stream_id`, `subject_id`, `status`, `created_at`, `updated_at`) VALUES
-(1, 1, 1, 1, '2026-03-05 13:34:13', '2026-03-05 13:34:13'),
-(2, 2, 2, 1, '2026-03-05 17:49:59', '2026-03-05 17:49:59'),
-(3, 3, 2, 1, '2026-03-05 17:51:05', '2026-03-05 17:51:05');
+(1, 1, 1, 1, '2026-04-24 07:28:32', '2026-04-24 07:28:32');
 
 -- --------------------------------------------------------
 
@@ -1003,9 +1030,8 @@ CREATE TABLE `student_enrollment` (
 --
 
 INSERT INTO `student_enrollment` (`id`, `student_id`, `stream_subject_id`, `academic_year`, `batch_name`, `enrolled_date`, `status`, `payment_status`, `payment_method`, `payment_date`, `payment_amount`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 'stu_1000', 1, 2026, NULL, '2026-03-05', 'active', 'pending', NULL, NULL, NULL, NULL, '2026-03-05 13:37:44', '2026-03-05 13:37:44'),
-(2, 'stu_1000', 2, 2026, NULL, '2026-03-06', 'active', 'pending', NULL, NULL, NULL, NULL, '2026-03-06 06:46:17', '2026-03-06 06:46:17'),
-(3, 'stu_1000', 3, 2027, NULL, '2026-03-06', 'active', 'paid', NULL, NULL, NULL, NULL, '2026-03-06 07:25:36', '2026-03-06 07:25:36');
+(1, 'stu_1001', 1, 2026, NULL, '2026-04-24', 'active', 'pending', NULL, NULL, NULL, NULL, '2026-04-24 07:31:05', '2026-04-24 07:31:05'),
+(2, 'stu_1000', 1, 2026, NULL, '2026-04-24', 'active', 'pending', NULL, NULL, NULL, NULL, '2026-04-24 14:09:59', '2026-04-24 14:09:59');
 
 -- --------------------------------------------------------
 
@@ -1028,8 +1054,8 @@ CREATE TABLE `subjects` (
 --
 
 INSERT INTO `subjects` (`id`, `name`, `code`, `description`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'Combined Maths', 'cm2021', NULL, 1, '2026-03-05 13:34:13', '2026-03-05 13:34:13'),
-(2, 'Science', '', NULL, 1, '2026-03-05 17:49:59', '2026-03-05 17:49:59');
+(1, 'Economics', '', NULL, 1, '2026-04-24 07:28:32', '2026-04-24 07:28:32'),
+(2, 'Science', '', NULL, 1, '2026-04-24 10:15:11', '2026-04-24 10:15:11');
 
 -- --------------------------------------------------------
 
@@ -1075,10 +1101,7 @@ CREATE TABLE `teacher_assignments` (
 --
 
 INSERT INTO `teacher_assignments` (`id`, `teacher_id`, `stream_subject_id`, `academic_year`, `batch_name`, `status`, `assigned_date`, `start_date`, `end_date`, `notes`, `created_at`, `updated_at`, `cover_image`, `commission_rate`) VALUES
-(1, 'tea_1000', 1, 2026, NULL, 'active', '2026-03-05', NULL, NULL, NULL, '2026-03-05 13:34:17', '2026-04-03 11:21:15', NULL, 50.00),
-(2, 'tea_1000', 2, 2026, NULL, 'active', '2026-03-05', NULL, NULL, NULL, '2026-03-05 17:49:59', '2026-03-05 17:49:59', 'uploads/subject_covers/69a9c24703245.jpeg', 75.00),
-(3, 'tea_1000', 3, 2026, NULL, 'active', '2026-03-05', NULL, NULL, NULL, '2026-03-05 17:51:05', '2026-03-05 17:51:05', 'uploads/subject_covers/69a9c2894bbec.jpeg', 75.00),
-(4, 'tea_1000', 3, 2027, NULL, 'active', NULL, NULL, NULL, NULL, '2026-03-06 07:25:36', '2026-03-06 07:25:36', NULL, 75.00);
+(1, 'tea_1000', 1, 2026, NULL, 'active', '2026-04-24', NULL, NULL, NULL, '2026-04-24 07:29:35', '2026-04-24 07:29:35', 'uploads/subject_covers/69eb1bdff3434.jpg', 75.00);
 
 -- --------------------------------------------------------
 
@@ -1099,13 +1122,6 @@ CREATE TABLE `teacher_education` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Record update timestamp'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Stores education details for teachers';
 
---
--- Dumping data for table `teacher_education`
---
-
-INSERT INTO `teacher_education` (`id`, `teacher_id`, `qualification`, `institution`, `year_obtained`, `field_of_study`, `grade_or_class`, `certificate_path`, `created_at`, `updated_at`) VALUES
-(1, 'tea_1000', 'BSc (Engineering – Electrical & Electronic)', 'University of Moratuwa, Sri Lanka', 2025, 'Mathematics', 'A', NULL, '2026-03-05 13:34:17', '2026-03-05 13:34:17');
-
 -- --------------------------------------------------------
 
 --
@@ -1116,18 +1132,20 @@ CREATE TABLE `teacher_payment_requests` (
   `id` int(11) NOT NULL,
   `teacher_id` varchar(20) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
-  `status` enum('pending','approved','rejected') DEFAULT 'pending',
+  `status` enum('pending','paid','approved','rejected') DEFAULT 'pending',
+  `payment_method` varchar(50) DEFAULT NULL,
   `request_date` timestamp NOT NULL DEFAULT current_timestamp(),
-  `processed_at` timestamp NULL DEFAULT NULL,
-  `notes` text DEFAULT NULL
+  `processed_date` timestamp NULL DEFAULT NULL,
+  `admin_notes` text DEFAULT NULL,
+  `processed_by` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `teacher_payment_requests`
 --
 
-INSERT INTO `teacher_payment_requests` (`id`, `teacher_id`, `amount`, `status`, `request_date`, `processed_at`, `notes`) VALUES
-(1, 'tea_1000', 2000.00, 'pending', '2026-04-03 11:36:16', NULL, NULL);
+INSERT INTO `teacher_payment_requests` (`id`, `teacher_id`, `amount`, `status`, `payment_method`, `request_date`, `processed_date`, `admin_notes`, `processed_by`) VALUES
+(1, 'tea_1000', 650.00, 'paid', 'cash', '2026-04-24 13:52:52', '2026-04-24 13:57:44', 'ddd', 'adm_1000');
 
 -- --------------------------------------------------------
 
@@ -1150,7 +1168,7 @@ CREATE TABLE `teacher_wallet` (
 --
 
 INSERT INTO `teacher_wallet` (`id`, `teacher_id`, `total_points`, `total_earned`, `total_withdrawn`, `created_at`, `updated_at`) VALUES
-(1, 'tea_1000', 3250.00, 3250.00, 0.00, '2026-03-05 14:10:37', '2026-04-03 11:24:14');
+(1, 'tea_1000', 2425.00, 3075.00, 650.00, '2026-04-24 07:53:40', '2026-04-24 14:14:45');
 
 -- --------------------------------------------------------
 
@@ -1198,11 +1216,13 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `email`, `password`, `role`, `first_name`, `second_name`, `dob`, `school_name`, `exam_year`, `closest_town`, `district`, `address`, `nic_no`, `mobile_number`, `whatsapp_number`, `gender`, `profile_picture`, `registering_date`, `status`, `approved`, `al_details_requested`, `verification_method`, `created_at`, `updated_at`, `session_token`, `session_created_at`, `commission_rate`, `requested_commission_rate`, `rating`, `hourly_rate`, `rating_count`, `total_rating`) VALUES
-('adm_1000', 'admin@lms.com', '$2y$12$vvcpuoPPEE/dyEnn7WI4GuRAWiMyCb77Sbsg.j.h3LOgxGAruiSnO', 'admin', 'Admin', 'User', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '0768368202', NULL, NULL, NULL, '2026-03-05', 1, 1, 0, 'none', '2026-03-05 13:19:28', '2026-04-11 14:55:12', '3b53df3e7a935e343e11fc0d1df0c5d0536276a20954441ae9d9002e0b26aa40', '2026-04-11 20:25:12', 75.00, 75.00, 0.00, 0.00, 0, 0.00),
-('ins_1000', 'ds@gmail.com', '$2y$10$x3K7GeqL7gKMmsGi.FwkA.T7gX0dnEJ/4xP3mRSQYJsbq4U1s9.NO', 'instructor', 'Instructor', 'test', NULL, NULL, NULL, NULL, NULL, 'Chilaw', '200214702375', '0766302421', '0766302421', 'male', NULL, '2026-03-28', 1, 1, 0, 'none', '2026-03-28 10:34:03', '2026-04-11 15:49:02', '667f710c3c0c716a9b6e0c6f0844199a7c4bef304a106ab3bfcab4808c23fa29', '2026-04-11 21:02:58', 75.00, 75.00, 4.00, 0.00, 0, 0.00),
+('adm_1000', 'admin@lms.com', '$2y$12$vvcpuoPPEE/dyEnn7WI4GuRAWiMyCb77Sbsg.j.h3LOgxGAruiSnO', 'admin', 'Admin', 'User', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '0768368202', NULL, NULL, NULL, '2026-03-05', 1, 1, 0, 'none', '2026-03-05 13:19:28', '2026-04-24 14:19:45', NULL, NULL, 75.00, 75.00, 0.00, 0.00, 0, 0.00),
+('ins_1000', 'ds@gmail.com', '$2y$10$x3K7GeqL7gKMmsGi.FwkA.T7gX0dnEJ/4xP3mRSQYJsbq4U1s9.NO', 'instructor', 'Instructor', 'test', NULL, NULL, NULL, NULL, NULL, 'Chilaw', '200214702375', '0766302421', '0766302421', 'male', NULL, '2026-03-28', 1, 1, 0, 'none', '2026-03-28 10:34:03', '2026-04-24 14:15:18', NULL, NULL, 75.00, 75.00, 4.00, 0.00, 0, 0.00),
 ('ins_1001', NULL, '$2y$10$u1hbgnxCS9BR.6PQjxxUKOxTasdtVmX1aqc8qCgEEitOQnsJKhlA6', 'instructor', 'ins', '123', NULL, NULL, NULL, NULL, NULL, 'gampaha', '14789655', '123456', '123456', 'male', NULL, '2026-04-03', 1, 1, 0, 'none', '2026-04-03 10:49:04', '2026-04-11 15:32:43', NULL, NULL, 75.00, 75.00, NULL, 1500.00, 0, 0.00),
-('stu_1000', 'nipuna@gmail.com', '$2y$10$7OTFo0auCydJhY3Nwd3dM.dWraEL1HJJHWFyu0CEd2ctAIUqduobK', 'student', 'Nipuna', 'Diyalagoda', '2015-12-29', NULL, NULL, NULL, NULL, 'Veyangoda', NULL, '0762962048', '076 296 2048', 'male', 'uploads/profiles/stu_1000_1772717864.jpg', '2026-03-05', 1, 1, 0, 'mobile', '2026-03-05 13:37:44', '2026-04-11 15:50:25', NULL, NULL, 75.00, 75.00, 0.00, 0.00, 0, 0.00),
-('tea_1000', 'kamal@gmail.com', '$2y$10$4lsTvZczFYtUNWuTP6meheKGJxA/bdg9Jk0ToR37/z/UJbnqvcfge', 'teacher', 'Kamal', 'Perera', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '0763255307', '0763255307', NULL, 'uploads/profiles/tea_1000_1772717657.jpg', '2026-03-05', 1, 1, 0, 'none', '2026-03-05 13:34:17', '2026-04-11 15:50:28', 'a075cb0919476d4a170a3d13b78da84bc6c319ec39fb0ba62d6eb912c7426ca5', '2026-04-11 21:20:28', 75.00, 75.00, 0.00, 0.00, 0, 0.00);
+('ins_1002', NULL, '$2y$10$bcefdQL9EBL0z6vHIykMjuZ93n8D8esRlZBW1mEBYQaggYg/P.m46', 'instructor', 'kamal', 'Fernando', NULL, NULL, NULL, NULL, NULL, 'gampaha', '14782223kdd', '124578', '124578', 'male', NULL, '2026-04-24', 1, 1, 0, 'none', '2026-04-24 14:02:29', '2026-04-24 14:20:47', NULL, NULL, 75.00, 75.00, 0.00, 1500.00, 0, 0.00),
+('stu_1000', 'nipuna@gmail.com', '$2y$10$7OTFo0auCydJhY3Nwd3dM.dWraEL1HJJHWFyu0CEd2ctAIUqduobK', 'student', 'Nipuna', 'Diyalagoda', '2015-12-29', NULL, NULL, NULL, NULL, 'Veyangoda', NULL, '0762962048', '076 296 2048', 'male', 'uploads/profiles/stu_1000_1772717864.jpg', '2026-03-05', 1, 1, 0, 'mobile', '2026-03-05 13:37:44', '2026-04-24 14:25:13', NULL, NULL, 75.00, 75.00, 0.00, 0.00, 0, 0.00),
+('stu_1001', NULL, '$2y$10$llRSHupDYgWWK./7x6WGR.lJ/fG9KVdLjpE67F/kOvxlw.sZNsfMq', 'student', 'Sugath', 'Perera', '2002-05-26', 'dsdsad', NULL, NULL, 'Gampaha', 'chilaw', '200214702390', '072848575', '072848575', 'male', NULL, '2026-04-24', 1, 1, 1, 'nic', '2026-04-24 07:31:05', '2026-04-24 10:34:17', NULL, NULL, 75.00, 75.00, 0.00, 0.00, 0, 0.00),
+('tea_1000', 'kamal@gmail.com', '$2y$10$4lsTvZczFYtUNWuTP6meheKGJxA/bdg9Jk0ToR37/z/UJbnqvcfge', 'teacher', 'Kamal', 'Perera', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '0763255307', '0763255307', NULL, 'uploads/profiles/tea_1000_1772717657.jpg', '2026-03-05', 1, 1, 0, 'none', '2026-03-05 13:34:17', '2026-04-24 13:59:08', NULL, NULL, 75.00, 75.00, 0.00, 0.00, 0, 0.00);
 
 -- --------------------------------------------------------
 
@@ -1223,8 +1243,12 @@ CREATE TABLE `video_watch_log` (
 --
 
 INSERT INTO `video_watch_log` (`id`, `recording_id`, `student_id`, `watched_at`, `watch_duration`) VALUES
-(1, 2, 'stu_1000', '2026-03-05 14:16:48', NULL),
-(2, 2, 'stu_1000', '2026-03-05 14:40:17', NULL);
+(1, 2, 'stu_1001', '2026-04-24 08:08:58', NULL),
+(2, 2, 'stu_1001', '2026-04-24 08:09:07', NULL),
+(3, 2, 'stu_1001', '2026-04-24 08:09:13', NULL),
+(4, 3, 'stu_1001', '2026-04-24 08:11:41', NULL),
+(5, 3, 'stu_1000', '2026-04-24 14:13:01', NULL),
+(6, 2, 'stu_1000', '2026-04-24 14:13:14', NULL);
 
 -- --------------------------------------------------------
 
@@ -1239,13 +1263,6 @@ CREATE TABLE `zoom_chat_messages` (
   `message` text NOT NULL,
   `sent_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `zoom_chat_messages`
---
-
-INSERT INTO `zoom_chat_messages` (`id`, `zoom_class_id`, `sender_id`, `message`, `sent_at`) VALUES
-(1, 1, 'stu_1000', 'hello', '2026-04-11 13:22:19');
 
 -- --------------------------------------------------------
 
@@ -1270,15 +1287,6 @@ CREATE TABLE `zoom_classes` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `zoom_classes`
---
-
-INSERT INTO `zoom_classes` (`id`, `teacher_assignment_id`, `title`, `description`, `zoom_meeting_link`, `zoom_meeting_id`, `zoom_passcode`, `scheduled_start_time`, `actual_start_time`, `end_time`, `status`, `free_class`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Zoom Class test', 'this is testing zoom class', 'https://us05web.zoom.us/j/84874657675?pwd=Jx22h3B0T1gb4uHtyHPhL8g8q07MvX.1', '', '', '2026-04-11 18:45:00', '2026-04-11 18:45:34', '2026-04-11 18:52:47', 'ended', 0, '2026-04-11 13:15:28', '2026-04-11 13:22:47'),
-(2, 4, 'hhhhhh', 'kkkkkkkkkkkkkkkkkk', 'https://us05web.zoom.us/j/87882606683?pwd=FmrPgr2yIVrFqaJAXVpzQSnYQhFGsK.1', '', '', '2026-04-11 21:21:00', NULL, NULL, 'scheduled', 0, '2026-04-11 15:51:16', '2026-04-11 15:51:16'),
-(3, 4, 'hhhhhh', 'kkkkkkkkkkkkkkkkkk', 'https://us05web.zoom.us/j/87882606683?pwd=FmrPgr2yIVrFqaJAXVpzQSnYQhFGsK.1', '', '', '2026-04-11 21:21:00', NULL, NULL, 'scheduled', 0, '2026-04-11 15:51:16', '2026-04-11 15:51:16');
-
 -- --------------------------------------------------------
 
 --
@@ -1296,13 +1304,6 @@ CREATE TABLE `zoom_class_files` (
   `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `zoom_class_files`
---
-
-INSERT INTO `zoom_class_files` (`id`, `zoom_class_id`, `uploader_id`, `file_name`, `file_path`, `file_size`, `file_type`, `uploaded_at`) VALUES
-(1, 1, 'tea_1000', 'Screenshot 2026-04-06 103133.png', '69da4b1681579_1775913750.png', 268193, 'image/png', '2026-04-11 13:22:30');
-
 -- --------------------------------------------------------
 
 --
@@ -1319,13 +1320,18 @@ CREATE TABLE `zoom_participants` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- --------------------------------------------------------
+
 --
--- Dumping data for table `zoom_participants`
+-- Table structure for table `zoom_watch_log`
 --
 
-INSERT INTO `zoom_participants` (`id`, `zoom_class_id`, `user_id`, `join_time`, `leave_time`, `duration_minutes`, `created_at`) VALUES
-(1, 1, 'tea_1000', '2026-04-11 18:45:34', '2026-04-11 18:52:47', 7, '2026-04-11 13:15:34'),
-(2, 1, 'stu_1000', '2026-04-11 18:46:56', '2026-04-11 18:52:47', 5, '2026-04-11 13:16:56');
+CREATE TABLE `zoom_watch_log` (
+  `id` int(11) NOT NULL,
+  `zoom_class_id` int(11) NOT NULL,
+  `student_id` varchar(255) NOT NULL,
+  `watched_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Indexes for dumped tables
@@ -1452,6 +1458,12 @@ ALTER TABLE `exam_questions`
   ADD KEY `idx_order_index` (`order_index`);
 
 --
+-- Indexes for table `home_posts`
+--
+ALTER TABLE `home_posts`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `institute_settings`
 --
 ALTER TABLE `institute_settings`
@@ -1467,6 +1479,12 @@ ALTER TABLE `institute_wallet`
 -- Indexes for table `instructor_payments`
 --
 ALTER TABLE `instructor_payments`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `instructor_payout_requests`
+--
+ALTER TABLE `instructor_payout_requests`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -1508,6 +1526,13 @@ ALTER TABLE `instructor_subjects`
   ADD UNIQUE KEY `unique_instructor_subject` (`instructor_id`,`subject_id`),
   ADD KEY `idx_instructor_id` (`instructor_id`),
   ADD KEY `idx_subject_id` (`subject_id`);
+
+--
+-- Indexes for table `instructor_wallet`
+--
+ALTER TABLE `instructor_wallet`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `instructor_id` (`instructor_id`);
 
 --
 -- Indexes for table `live_classes`
@@ -1769,6 +1794,12 @@ ALTER TABLE `zoom_participants`
   ADD KEY `idx_user` (`user_id`);
 
 --
+-- Indexes for table `zoom_watch_log`
+--
+ALTER TABLE `zoom_watch_log`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -1776,7 +1807,7 @@ ALTER TABLE `zoom_participants`
 -- AUTO_INCREMENT for table `al_exam_submissions`
 --
 ALTER TABLE `al_exam_submissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `attendance`
@@ -1788,19 +1819,19 @@ ALTER TABLE `attendance`
 -- AUTO_INCREMENT for table `budget_expenses`
 --
 ALTER TABLE `budget_expenses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key';
 
 --
 -- AUTO_INCREMENT for table `courses`
 --
 ALTER TABLE `courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `course_chats`
@@ -1836,7 +1867,7 @@ ALTER TABLE `course_uploads`
 -- AUTO_INCREMENT for table `enrollment_fees`
 --
 ALTER TABLE `enrollment_fees`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `enrollment_payments`
@@ -1863,16 +1894,28 @@ ALTER TABLE `exam_questions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key';
 
 --
+-- AUTO_INCREMENT for table `home_posts`
+--
+ALTER TABLE `home_posts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+
+--
 -- AUTO_INCREMENT for table `institute_wallet`
 --
 ALTER TABLE `institute_wallet`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `instructor_payments`
 --
 ALTER TABLE `instructor_payments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `instructor_payout_requests`
+--
+ALTER TABLE `instructor_payout_requests`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `instructor_ratings`
@@ -1884,25 +1927,31 @@ ALTER TABLE `instructor_ratings`
 -- AUTO_INCREMENT for table `instructor_requests`
 --
 ALTER TABLE `instructor_requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `instructor_request_acceptances`
 --
 ALTER TABLE `instructor_request_acceptances`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `instructor_sessions`
 --
 ALTER TABLE `instructor_sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `instructor_subjects`
 --
 ALTER TABLE `instructor_subjects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `instructor_wallet`
+--
+ALTER TABLE `instructor_wallet`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `live_classes`
@@ -1914,13 +1963,13 @@ ALTER TABLE `live_classes`
 -- AUTO_INCREMENT for table `live_class_participants`
 --
 ALTER TABLE `live_class_participants`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `monthly_payments`
 --
 ALTER TABLE `monthly_payments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `payment_transactions`
@@ -1950,13 +1999,13 @@ ALTER TABLE `publication_categories`
 -- AUTO_INCREMENT for table `publication_orders`
 --
 ALTER TABLE `publication_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `publication_order_items`
 --
 ALTER TABLE `publication_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `question_answers`
@@ -1974,25 +2023,25 @@ ALTER TABLE `question_images`
 -- AUTO_INCREMENT for table `recordings`
 --
 ALTER TABLE `recordings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `recording_files`
 --
 ALTER TABLE `recording_files`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `streams`
 --
 ALTER TABLE `streams`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `stream_subjects`
 --
 ALTER TABLE `stream_subjects`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `student_answers`
@@ -2004,7 +2053,7 @@ ALTER TABLE `student_answers`
 -- AUTO_INCREMENT for table `student_enrollment`
 --
 ALTER TABLE `student_enrollment`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `subjects`
@@ -2022,13 +2071,13 @@ ALTER TABLE `system_settings`
 -- AUTO_INCREMENT for table `teacher_assignments`
 --
 ALTER TABLE `teacher_assignments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `teacher_education`
 --
 ALTER TABLE `teacher_education`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key';
 
 --
 -- AUTO_INCREMENT for table `teacher_payment_requests`
@@ -2046,31 +2095,37 @@ ALTER TABLE `teacher_wallet`
 -- AUTO_INCREMENT for table `video_watch_log`
 --
 ALTER TABLE `video_watch_log`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary Key', AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `zoom_chat_messages`
 --
 ALTER TABLE `zoom_chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `zoom_classes`
 --
 ALTER TABLE `zoom_classes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `zoom_class_files`
 --
 ALTER TABLE `zoom_class_files`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `zoom_participants`
 --
 ALTER TABLE `zoom_participants`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `zoom_watch_log`
+--
+ALTER TABLE `zoom_watch_log`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for dumped tables

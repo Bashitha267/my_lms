@@ -344,12 +344,16 @@ function time_elapsed_string($datetime) {
                                     'paid'     => 'bg-indigo-100 text-indigo-700',
                                     'accepted' => 'bg-emerald-100 text-emerald-700',
                                     'pending'  => 'bg-amber-100 text-amber-700',
+                                    'payment_pending' => 'bg-amber-100 text-amber-700',
+                                    'completed' => 'bg-slate-200 text-slate-600',
                                     default    => 'bg-slate-100 text-slate-500',
                                 };
                                 $statusLabel = match($req['status']) {
                                     'paid'     => 'Payment Verified ✓',
                                     'accepted' => 'Confirmed',
                                     'pending'  => 'Awaiting Student',
+                                    'payment_pending' => 'Payment Pending',
+                                    'completed' => 'Session Completed',
                                     default    => ucfirst($req['status']),
                                 };
                             ?>
@@ -395,7 +399,7 @@ function time_elapsed_string($datetime) {
                                             <i class="fas fa-phone text-xs"></i>
                                         </a>
                                     </div>
-                                    <?php else: ?>
+                                    <?php elseif ($req['status'] === 'pending' || $req['status'] === 'payment_pending'): ?>
                                     <p class="text-[10px] text-amber-600 font-bold mt-2">⏳ Waiting for student to confirm and pay</p>
                                     <?php endif; ?>
                                 </div>
