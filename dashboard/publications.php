@@ -387,6 +387,7 @@ if ($user_logged_in && $view == 'orders') {
                                         <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Payment</th>
                                         <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
                                         <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total</th>
+                                        <th class="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -404,18 +405,41 @@ if ($user_logged_in && $view == 'orders') {
                                             <td class="px-8 py-6 text-center">
                                                 <?php
                                                     $status_colors = [
-                                                        'pending'   => 'bg-amber-100 text-amber-700',
-                                                        'completed' => 'bg-emerald-100 text-emerald-700',
-                                                        'cancelled' => 'bg-rose-100 text-rose-700'
+                                                        'pending'            => 'bg-amber-100 text-amber-700',
+                                                        'preparing'          => 'bg-blue-100 text-blue-700',
+                                                        'hand_order_to_delivery' => 'bg-indigo-100 text-indigo-700',
+                                                        'canceled'           => 'bg-rose-100 text-rose-700',
+                                                        'completed'          => 'bg-emerald-100 text-emerald-700',
+                                                        'return_requested'   => 'bg-purple-100 text-purple-700'
                                                     ];
                                                     $color = $status_colors[$order['status']] ?? 'bg-slate-100 text-slate-600';
                                                 ?>
                                                 <span class="inline-block px-4 py-1.5 <?php echo $color; ?> rounded-full text-xs font-bold uppercase tracking-tight">
-                                                    <?php echo $order['status']; ?>
+                                                    <?php echo str_replace('_', ' ', $order['status']); ?>
                                                 </span>
                                             </td>
                                             <td class="px-8 py-6 text-right font-black text-slate-900">
                                                 Rs.<?php echo number_format($order['total_amount'], 0); ?>
+                                            </td>
+                                            <td class="px-8 py-6 text-center">
+                                                <?php if ($order['status'] === 'completed'): ?>
+                                                    <button onclick="returnOrder(<?php echo $order['id']; ?>)" 
+                                                            class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100">
+                                                        <i class="fas fa-undo mr-1.5"></i> Return
+                                                    </button>
+                                                <?php elseif ($order['status'] === 'pending'): ?>
+                                                    <button onclick="cancelOrder(<?php echo $order['id']; ?>)" 
+                                                            class="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100">
+                                                        <i class="fas fa-times-circle mr-1.5"></i> Cancel
+                                                    </button>
+                                                <?php elseif ($order['status'] === 'hand_order_to_delivery'): ?>
+                                                    <button onclick="confirmDelivery(<?php echo $order['id']; ?>)" 
+                                                            class="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100">
+                                                        <i class="fas fa-check-circle mr-1.5"></i> Confirm Delivery
+                                                    </button>
+                                                <?php else: ?>
+                                                    <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">No Actions</span>
+                                                <?php endif; ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -648,6 +672,90 @@ if ($user_logged_in && $view == 'orders') {
                 btn.innerHTML = '<span>SEND ORDER REQUEST</span><i class="fas fa-paper-plane text-xs"></i>';
             });
         });
+
+        function returnOrder(orderId) {
+            if (!confirm('Are you sure you want to request a return for this order?')) return;
+
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+
+            fetch('return_publication_order.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const toast = document.getElementById('toast');
+                toast.textContent = data.message;
+                toast.className = 'show';
+                if (data.success) {
+                    toast.style.backgroundColor = '#10b981'; // Success green
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else {
+                    toast.style.backgroundColor = '#ef4444'; // Error red
+                    setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+                }
+            })
+            .catch(() => {
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        function cancelOrder(orderId) {
+            if (!confirm('Are you sure you want to cancel this order?')) return;
+
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+
+            fetch('cancel_publication_order.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const toast = document.getElementById('toast');
+                toast.textContent = data.message;
+                toast.className = 'show';
+                if (data.success) {
+                    toast.style.backgroundColor = '#10b981';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else {
+                    toast.style.backgroundColor = '#ef4444';
+                    setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+                }
+            })
+            .catch(() => {
+                alert('An error occurred. Please try again.');
+            });
+        }
+
+        function confirmDelivery(orderId) {
+            if (!confirm('Have you received this publication? This will mark the order as completed.')) return;
+
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+
+            fetch('confirm_publication_delivery.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                const toast = document.getElementById('toast');
+                toast.textContent = data.message;
+                toast.className = 'show';
+                if (data.success) {
+                    toast.style.backgroundColor = '#10b981';
+                    setTimeout(() => { window.location.reload(); }, 1500);
+                } else {
+                    toast.style.backgroundColor = '#ef4444';
+                    setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 3000);
+                }
+            })
+            .catch(() => {
+                alert('An error occurred. Please try again.');
+            });
+        }
     </script>
 </body>
 </html>

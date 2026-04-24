@@ -15,6 +15,10 @@ if (empty($user_id)) {
     exit();
 }
 
+if ($role === 'student') {
+    require_once __DIR__ . '/../check_al_redirection.php';
+}
+
 // Get user info
 $stmt = $conn->prepare("SELECT profile_picture, first_name, second_name, email, district, mobile_number FROM users WHERE user_id = ? LIMIT 1");
 if ($stmt) {
@@ -405,246 +409,224 @@ if ($role === 'student') {
             <p class="text-slate-500 font-medium mt-2">Welcome back to your personalized learning workspace.</p>
         </div>
 
-        <!-- Ongoing Live Classes (if any) -->
-        <?php if (!empty($ongoing_classes)): ?>
-            <div class="mb-16 animate-fade-in" style="animation-delay: 0.1s">
-                <div class="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
-                    <div>
-                        <h2 class="text-3xl font-black text-slate-900 tracking-tight" data-sinhala="දැනට පැවැත්වෙන පන්ති">Live Classroom</h2>
-                        <p class="text-slate-400 text-sm font-medium mt-1">Happening right now. Join your session.</p>
-                    </div>
-                    <span class="live-pulse">ACTIVE NOW</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <?php foreach ($ongoing_classes as $class): 
-                        $teacher_name = trim(($class['teacher_first'] ?? '') . ' ' . ($class['teacher_second'] ?? ''));
-                    ?>
-                        <div class="live-session-card group flex flex-col">
-                            <div class="relative h-56">
-                                <?php if ($class['type'] === 'zoom'): ?>
-                                    <div class="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center text-white p-4">
-                                        <div class="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center mb-4 shadow-xl shadow-blue-500/20">
-                                            <i class="fas fa-video text-3xl"></i>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Left Side: Main Content (8 columns) -->
+            <div class="lg:col-span-8 space-y-16">
+                
+                <!-- Ongoing Live Classes (if any) -->
+                <?php if (!empty($ongoing_classes)): ?>
+                    <div class="animate-fade-in" style="animation-delay: 0.1s">
+                        <div class="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 class="text-2xl font-black text-slate-900 tracking-tight" data-sinhala="දැනට පැවැත්වෙන පන්ති">Live Classroom</h2>
+                                <p class="text-slate-400 text-xs font-medium mt-1">Happening right now. Join your session.</p>
+                            </div>
+                            <span class="live-pulse">ACTIVE NOW</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <?php foreach ($ongoing_classes as $class): 
+                                $teacher_name = trim(($class['teacher_first'] ?? '') . ' ' . ($class['teacher_second'] ?? ''));
+                            ?>
+                                <div class="live-session-card group flex flex-col shadow-sm">
+                                    <div class="relative h-48">
+                                        <?php if ($class['type'] === 'zoom'): ?>
+                                            <div class="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center text-white p-4">
+                                                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-3 shadow-xl shadow-blue-500/20">
+                                                    <i class="fas fa-video text-2xl"></i>
+                                                </div>
+                                                <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">ZOOM SESSION</span>
+                                            </div>
+                                        <?php else: ?>
+                                            <?php if (!empty($class['thumbnail_url'])): ?>
+                                                <img src="<?php echo htmlspecialchars($class['thumbnail_url']); ?>" class="w-full h-full object-cover" alt="Live Thumbnail">
+                                            <?php else: ?>
+                                                <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white">
+                                                    <i class="fab fa-youtube text-5xl text-red-600"></i>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                        <?php 
+                                        $join_url = ($class['type'] === 'instructor_zoom') ? '../player/instructor_zoom.php?request_id=' . $class['id'] : 
+                                                   (($class['type'] === 'zoom') ? '../player/zoom.php?id=' . $class['id'] : '../player/player.php?id=' . $class['id']);
+                                        ?>
+                                        <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center backdrop-blur-sm">
+                                            <a href="<?php echo $join_url; ?>" class="bg-white text-slate-900 px-6 py-2.5 rounded-full text-sm font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all" data-sinhala="පන්තියට එක්වන්න">Join Classroom</a>
                                         </div>
-                                        <span class="text-xs font-black uppercase tracking-[0.2em] opacity-60">ZOOM SESSION</span>
                                     </div>
-                                <?php else: ?>
-                                    <?php if (!empty($class['thumbnail_url'])): ?>
-                                        <img src="<?php echo htmlspecialchars($class['thumbnail_url']); ?>" class="w-full h-full object-cover" alt="Live Thumbnail">
-                                    <?php else: ?>
-                                        <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white">
-                                            <i class="fab fa-youtube text-6xl text-red-600"></i>
+                                    <div class="p-6 flex-1 flex flex-col bg-white">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                <span class="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
+                                                LIVE NOW
+                                            </span>
+                                            <span class="h-1 w-1 bg-slate-200 rounded-full"></span>
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?php echo htmlspecialchars($class['subject_name']); ?></span>
                                         </div>
-                                    <?php endif; ?>
+                                        <h3 class="text-lg font-bold text-slate-900 mb-4 leading-tight line-clamp-2"><?php echo htmlspecialchars($class['title']); ?></h3>
+                                        <div class="mt-auto flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                                                    <i class="fas fa-user-tie text-xs"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Instructor</p>
+                                                    <p class="text-xs font-bold text-slate-700"><?php echo htmlspecialchars($teacher_name); ?></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Newly Added Recordings -->
+                <?php if ($role === 'student' && !empty($latest_recordings)): ?>
+                <div class="animate-fade-in" style="animation-delay: 0.15s">
+                    <div class="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
+                        <div>
+                            <h2 class="text-2xl font-black text-slate-900 tracking-tight" data-sinhala="අලුතින් එක් කළ පාඩම්">New Recordings</h2>
+                            <p class="text-slate-400 text-xs font-medium mt-1">Recently added video lessons.</p>
+                        </div>
+                        <a href="recordings.php" class="text-red-600 font-bold text-xs hover:underline" data-sinhala="සියල්ල බලන්න">View All <i class="fas fa-arrow-right ml-1"></i></a>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <?php foreach ($latest_recordings as $rec): 
+                            $teacher_name = trim(($rec['teacher_first'] ?? '') . ' ' . ($rec['teacher_second'] ?? ''));
+                        ?>
+                        <div class="modern-card overflow-hidden group shadow-sm">
+                            <div class="relative h-40 overflow-hidden">
+                                <?php if (!empty($rec['thumbnail_url'])): ?>
+                                    <img src="<?php echo htmlspecialchars($rec['thumbnail_url']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail">
+                                <?php else: ?>
+                                    <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500">
+                                        <i class="fas fa-play-circle text-4xl opacity-20"></i>
+                                    </div>
                                 <?php endif; ?>
-                                <?php 
-                                // Determine player URL
-                                if ($class['type'] === 'instructor_zoom') {
-                                    $join_url = '../player/instructor_zoom.php?request_id=' . $class['id'];
-                                } elseif ($class['type'] === 'zoom') {
-                                    $join_url = '../player/zoom.php?id=' . $class['id'];
-                                } else {
-                                    $join_url = '../player/player.php?id=' . $class['id'];
-                                }
-                                ?>
-                                <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col items-center justify-center backdrop-blur-sm">
-                                    <a href="<?php echo $join_url; ?>" class="bg-white text-slate-900 px-8 py-3 rounded-full font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all" data-sinhala="පන්තියට එක්වන්න">Join Classroom</a>
+                                <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
+                                <div class="absolute bottom-3 left-4">
+                                    <span class="bg-red-600 text-white text-[9px] font-bold px-2 py-0.5 rounded">NEW</span>
                                 </div>
                             </div>
-                            <div class="p-8 flex-1 flex flex-col bg-white">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <span class="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
-                                        <span class="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
-                                        LIVE NOW
-                                    </span>
-                                    <span class="h-1 w-1 bg-slate-200 rounded-full"></span>
-                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?php echo htmlspecialchars($class['subject_name']); ?></span>
-                                </div>
-                                <h3 class="text-xl font-bold text-slate-900 mb-6 leading-tight line-clamp-2"><?php echo htmlspecialchars($class['title']); ?></h3>
-                                <div class="mt-auto flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                                            <i class="fas fa-user-tie"></i>
-                                        </div>
-                                        <div>
-                                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Instructor</p>
-                                            <p class="text-sm font-bold text-slate-700"><?php echo htmlspecialchars($teacher_name); ?></p>
-                                        </div>
+                            <div class="p-5">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1"><?php echo htmlspecialchars($rec['subject_name']); ?></p>
+                                <h3 class="text-sm font-bold text-slate-900 mb-4 line-clamp-2 h-10"><?php echo htmlspecialchars($rec['title']); ?></h3>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <?php if (!empty($rec['teacher_profile_picture'])): ?>
+                                            <img src="../<?php echo htmlspecialchars($rec['teacher_profile_picture']); ?>" class="w-6 h-6 rounded-full object-cover">
+                                        <?php else: ?>
+                                            <div class="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] text-slate-400">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <p class="text-[9px] font-bold text-slate-600"><?php echo htmlspecialchars($teacher_name); ?></p>
                                     </div>
-                                    <a href="live_classes.php" class="text-slate-300 hover:text-red-500 transition-colors">
-                                        <i class="fas fa-arrow-right"></i>
+                                    <a href="../player/player.php?id=<?php echo $rec['id']; ?>" class="w-7 h-7 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-all">
+                                        <i class="fas fa-play text-[9px]"></i>
                                     </a>
                                 </div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <!-- Quick Access Section (Icons) -->
-        <div class="mb-16 animate-fade-in" style="animation-delay: 0.2s">
-            <div class="mb-8 border-b border-slate-100 pb-4">
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight" data-sinhala="ඉක්මන් ප්‍රවේශ">Dashboard Tools</h2>
-                <p class="text-slate-400 text-sm font-medium mt-1">Manage your academic profile and resources.</p>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <!-- Live Card -->
-                <a href="live_classes.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-red-600 group-hover:text-white transition-all">
-                        <i class="fas fa-tv text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="සජීවී පන්ති">Live Classes</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?php echo count($ongoing_classes); ?> Active</p>
-                </a>
-
-                <!-- Recordings Card -->
-                <a href="recordings.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                        <i class="fas fa-photo-video text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="පසුගිය පන්ති">Recordings</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?php echo ($role==='student' ? $recordings_count : 'Managed'); ?> Lessons</p>
-                </a>
-
-                <!-- Payments Card -->
-                <a href="payments.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-rose-600 group-hover:text-white transition-all">
-                        <i class="fas fa-wallet text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="ගෙවීම්">Payments</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest" data-sinhala="<?php echo $role === 'student' ? $payment_due_msg_sinhala : 'කළමනාකරණය කරන ලදී'; ?>">
-                        <?php echo $role === 'student' ? ($days_left . ' Days Left') : 'Account Active'; ?>
-                    </p>
-                </a>
-
-                <!-- Exams Card -->
-                <a href="exam_center.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-all">
-                        <i class="fas fa-clipboard-list text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="විභාග">Exams</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?php echo !empty($upcoming_exams) ? 'Ongoing' : 'None'; ?></p>
-                </a>
-
-                <!-- Resources Card -->
-                <a href="publications.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-all">
-                        <i class="fas fa-folder text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="නිබන්දන">Resources</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Study Vault</p>
-                </a>
-
-                <!-- Find Teacher Card -->
-                <a href="instructors.php" class="modern-card p-8 flex flex-col items-center text-center group">
-                    <div class="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-amber-600 group-hover:text-white transition-all">
-                        <i class="fas fa-chalkboard-teacher text-xl"></i>
-                    </div>
-                    <h3 class="text-sm font-bold text-slate-900 mb-1" data-sinhala="ගුරුවරුන් සොයන්න">Tutoring</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Find Mentor</p>
-                </a>
-            </div>
-        </div>
-
-        <!-- Newly Added Recordings -->
-        <?php if ($role === 'student' && !empty($latest_recordings)): ?>
-        <div class="mb-16 animate-fade-in" style="animation-delay: 0.25s">
-            <div class="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
-                <div>
-                    <h2 class="text-3xl font-black text-slate-900 tracking-tight" data-sinhala="අලුතින් එක් කළ පාඩම්">Newly Added Recordings</h2>
-                    <p class="text-slate-400 text-sm font-medium mt-1">Recently added recordings from various subjects.</p>
-                </div>
-                <a href="recordings.php" class="text-red-600 font-bold text-sm hover:underline" data-sinhala="සියල්ල බලන්න">View All <i class="fas fa-arrow-right ml-1"></i></a>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <?php foreach ($latest_recordings as $rec): 
-                    $teacher_name = trim(($rec['teacher_first'] ?? '') . ' ' . ($rec['teacher_second'] ?? ''));
-                ?>
-                <div class="modern-card overflow-hidden group">
-                    <div class="relative h-40 overflow-hidden">
-                        <?php if (!empty($rec['thumbnail_url'])): ?>
-                            <img src="<?php echo htmlspecialchars($rec['thumbnail_url']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail">
-                        <?php else: ?>
-                            <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500">
-                                <i class="fas fa-play-circle text-4xl opacity-20"></i>
-                            </div>
-                        <?php endif; ?>
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
-                        <div class="absolute bottom-3 left-4">
-                            <span class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">NEW</span>
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1"><?php echo htmlspecialchars($rec['subject_name']); ?></p>
-                        <h3 class="text-sm font-bold text-slate-900 mb-4 line-clamp-2 h-10"><?php echo htmlspecialchars($rec['title']); ?></h3>
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <?php if (!empty($rec['teacher_profile_picture'])): ?>
-                                    <img src="../<?php echo htmlspecialchars($rec['teacher_profile_picture']); ?>" class="w-6 h-6 rounded-full object-cover">
-                                <?php else: ?>
-                                    <div class="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] text-slate-400">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                <?php endif; ?>
-                                <p class="text-[10px] font-bold text-slate-600"><?php echo htmlspecialchars($teacher_name); ?></p>
-                            </div>
-                            <a href="../player/player.php?id=<?php echo $rec['id']; ?>" class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-all">
-                                <i class="fas fa-play text-[10px]"></i>
-                            </a>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-
-        <!-- Upcoming Classes Section -->
-        <div class="mb-12 animate-fade-in" style="animation-delay: 0.3s">
-            <div class="flex items-center justify-between mb-8">
-                <h2 class="text-2xl font-black text-[#1e293b] tracking-tight" data-sinhala="ඉදිරි පන්ති">Upcoming Classes</h2>
-            </div>
-
-            <div class="space-y-4">
-                <?php if (empty($upcoming_classes)): ?>
-                    <div class="bg-white rounded-3xl p-8 border border-dashed border-gray-200 text-center">
-                        <p class="text-gray-400 font-medium" data-sinhala="ඉදිරි පන්ති කිසිවක් සැලසුම් කර නැත">No upcoming classes scheduled</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($upcoming_classes as $item): 
-                        $class_time = strtotime($item['scheduled_start_time']);
-                        $day = date('d', $class_time);
-                        $month = strtoupper(date('M', $class_time));
-                        $time_str = date('h:i A', $class_time);
-                        $teacher_name = trim(($item['teacher_first'] ?? '') . ' ' . ($item['teacher_second'] ?? ''));
-                    ?>
-                    <div class="bg-white rounded-3xl p-6 md:p-8 flex items-center shadow-sm border border-gray-50 md:group hover:shadow-xl transition-all duration-300">
-                        <!-- Date Badge -->
-                        <div class="bg-[#f0f4ff] rounded-2xl p-4 flex flex-col items-center justify-center min-w-[70px] md:min-w-[80px] mr-6 md:mr-10">
-                            <span class="text-[10px] font-bold text-[#4c6ef5] uppercase tracking-widest mb-1"><?php echo $month; ?></span>
-                            <span class="text-2xl md:text-3xl font-black text-[#1e293b]"><?php echo $day; ?></span>
-                        </div>
-
-                        <!-- Class Info -->
-                        <div class="flex-1">
-                            <h3 class="text-lg md:text-xl font-bold text-[#1e293b] mb-2 leading-tight"><?php echo htmlspecialchars($item['title']); ?></h3>
-                            <div class="flex flex-wrap gap-x-6 gap-y-2">
-                                <div class="flex items-center text-slate-500 text-xs md:text-sm font-medium">
-                                    <i class="far fa-clock mr-2 text-[#4c6ef5]"></i>
-                                    <?php echo $time_str; ?>
-                                </div>
-                                <div class="flex items-center text-slate-500 text-xs md:text-sm font-medium">
-                                    <i class="far fa-user mr-2 text-[#4c6ef5]"></i>
-                                    <?php echo htmlspecialchars($teacher_name); ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
                 <?php endif; ?>
+
+                <!-- Quick Access Section (Icons) -->
+                <div class="animate-fade-in" style="animation-delay: 0.2s">
+                    <div class="mb-8 border-b border-slate-100 pb-4">
+                        <h2 class="text-2xl font-black text-slate-900 tracking-tight" data-sinhala="ඉක්මන් ප්‍රවේශ">Quick Tools</h2>
+                        <p class="text-slate-400 text-xs font-medium mt-1">Essential learning resources.</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <!-- Live Card -->
+                        <a href="live_classes.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
+                            <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-red-600 group-hover:text-white transition-all">
+                                <i class="fas fa-tv text-lg"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="සජීවී පන්ති">Live Classes</h3>
+                        </a>
+
+                        <!-- Recordings Card -->
+                        <a href="recordings.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
+                            <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                <i class="fas fa-photo-video text-lg"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="පසුගිය පන්ති">Recordings</h3>
+                        </a>
+
+                        <!-- Payments Card -->
+                        <a href="payments.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
+                            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-rose-600 group-hover:text-white transition-all">
+                                <i class="fas fa-wallet text-lg"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="ගෙවීම්">Payments</h3>
+                        </a>
+
+                        <!-- Exams Card -->
+                        <a href="exam_center.php" class="modern-card p-6 flex flex-col items-center text-center group shadow-sm hover:shadow-md">
+                            <div class="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-violet-600 group-hover:text-white transition-all">
+                                <i class="fas fa-clipboard-list text-lg"></i>
+                            </div>
+                            <h3 class="text-xs font-bold text-slate-900" data-sinhala="විභාග">Exams</h3>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Sidebar (4 columns) -->
+            <div class="lg:col-span-4 space-y-12">
+                
+                <!-- Upcoming Classes Section -->
+                <div class="animate-fade-in" style="animation-delay: 0.3s">
+                    <div class="flex items-center justify-between mb-8">
+                        <h2 class="text-xl font-black text-[#1e293b] tracking-tight" data-sinhala="ඉදිරි පන්ති">Schedule</h2>
+                    </div>
+
+                    <div class="space-y-4">
+                        <?php if (empty($upcoming_classes)): ?>
+                            <div class="bg-white rounded-2xl p-8 border border-dashed border-gray-200 text-center">
+                                <p class="text-gray-400 text-sm font-medium">No upcoming classes</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($upcoming_classes as $item): 
+                                $class_time = strtotime($item['scheduled_start_time']);
+                                $day = date('d', $class_time);
+                                $month = strtoupper(date('M', $class_time));
+                                $time_str = date('h:i A', $class_time);
+                                $teacher_name = trim(($item['teacher_first'] ?? '') . ' ' . ($item['teacher_second'] ?? ''));
+                            ?>
+                            <div class="bg-white rounded-2xl p-4 flex items-center shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+                                <!-- Date Badge -->
+                                <div class="bg-[#f0f4ff] rounded-xl p-3 flex flex-col items-center justify-center min-w-[60px] mr-4">
+                                    <span class="text-[9px] font-bold text-[#4c6ef5] uppercase tracking-widest"><?php echo $month; ?></span>
+                                    <span class="text-xl font-black text-[#1e293b]"><?php echo $day; ?></span>
+                                </div>
+
+                                <!-- Class Info -->
+                                <div class="flex-1 overflow-hidden">
+                                    <h3 class="text-sm font-bold text-[#1e293b] mb-1 leading-tight truncate"><?php echo htmlspecialchars($item['title']); ?></h3>
+                                    <div class="flex flex-col gap-0.5">
+                                        <div class="flex items-center text-slate-500 text-[10px] font-medium">
+                                            <i class="far fa-clock mr-1.5 text-[#4c6ef5]"></i>
+                                            <?php echo $time_str; ?>
+                                        </div>
+                                        <div class="flex items-center text-slate-400 text-[10px] font-medium">
+                                            <i class="far fa-user mr-1.5"></i>
+                                            <?php echo htmlspecialchars($teacher_name); ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+
             </div>
         </div>
     </main>

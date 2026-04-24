@@ -100,6 +100,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$already_submitted) {
     }
 }
 
+// Handle Skip Action
+if (isset($_GET['skip']) && $_GET['skip'] == '1') {
+    require_once '../config.php';
+    $clear_request = $conn->prepare("UPDATE users SET al_details_requested = 0 WHERE user_id = ?");
+    $clear_request->bind_param("s", $user_id);
+    if ($clear_request->execute()) {
+        $_SESSION['al_requested'] = false;
+        header("Location: ../dashboard/dashboard.php");
+        exit();
+    }
+    $clear_request->close();
+}
+
 // Sri Lankan A/L Subjects List
 $al_subjects = [
     "Biology", "Combined Mathematics", "Physics", "Chemistry", 
@@ -158,7 +171,10 @@ $al_subjects = [
 <body class="bg-gray-50 min-h-screen flex items-center justify-center py-10 px-4">
 
     <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div class="bg-red-600 p-6 text-center">
+        <div class="bg-red-600 p-6 text-center relative">
+            <a href="al_exam_form.php?skip=1" class="absolute top-4 left-4 text-white/80 hover:text-white text-xs font-bold transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i> Skip for now
+            </a>
             <h1 class="text-2xl font-bold text-white mb-2">A/L Exam Details Collection</h1>
             <p class="text-red-100 text-sm">Please fill in your correct details to proceed.</p>
         </div>

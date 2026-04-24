@@ -196,24 +196,26 @@ if ($active_tab === 'publications') {
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4">
-                                    <form method="POST" class="flex flex-col items-center gap-2">
-                                        <input type="hidden" name="order_id" value="<?php echo $order['id']; ?>">
+                                    <div class="flex flex-col items-center gap-2">
                                         <?php 
                                             $s = $order['status'];
                                             $clr = 'bg-slate-100 text-slate-600';
                                             if ($s == 'pending') $clr = 'bg-amber-100 text-amber-600';
                                             if ($s == 'preparing') $clr = 'bg-blue-100 text-blue-600';
-                                            if ($s == 'hand_order_to_delivery') $clr = 'bg-emerald-100 text-emerald-600';
+                                            if ($s == 'hand_order_to_delivery') $clr = 'bg-indigo-100 text-indigo-600';
                                             if ($s == 'canceled') $clr = 'bg-red-100 text-red-600';
+                                            if ($s == 'completed') $clr = 'bg-emerald-100 text-emerald-600';
+                                            if ($s == 'return_requested') $clr = 'bg-purple-100 text-purple-600';
                                         ?>
-                                        <select name="status" class="text-xs font-black rounded-xl border-2 border-slate-100 p-2 <?php echo $clr; ?> focus:border-blue-500 focus:ring-0">
+                                        <select onchange="updateOrderStatus(this, <?php echo $order['id']; ?>)" class="status-select text-[10px] font-black rounded-xl border-2 border-slate-100 p-2 <?php echo $clr; ?> focus:border-blue-500 focus:ring-0 transition-colors">
                                             <option value="pending" <?php echo $s == 'pending' ? 'selected' : ''; ?>>Pending</option>
                                             <option value="preparing" <?php echo $s == 'preparing' ? 'selected' : ''; ?>>Preparing</option>
                                             <option value="hand_order_to_delivery" <?php echo $s == 'hand_order_to_delivery' ? 'selected' : ''; ?>>On Delivery</option>
                                             <option value="canceled" <?php echo $s == 'canceled' ? 'selected' : ''; ?>>Canceled</option>
+                                            <option value="completed" <?php echo $s == 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                            <option value="return_requested" <?php echo $s == 'return_requested' ? 'selected' : ''; ?>>Return Requested</option>
                                         </select>
-                                        <button name="update_status" type="submit" class="bg-slate-900 text-white text-[10px] px-3 py-1.5 rounded-lg font-black hover:bg-slate-800 transition shadow-lg">Update</button>
-                                    </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -330,5 +332,85 @@ if ($active_tab === 'publications') {
             </div>
         <?php endif; ?>
     </div>
+    <div id="statusToast" class="fixed top-24 right-8 z-[100] transform translate-x-full transition-transform duration-300 bg-white shadow-2xl rounded-2xl border border-slate-100 p-4 flex items-center gap-4 min-w-[300px]">
+        <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center" id="toastIcon">
+            <i class="fas fa-check"></i>
+        </div>
+        <div>
+            <div class="text-xs font-black text-slate-400 uppercase tracking-widest">Update Success</div>
+            <div class="text-sm font-bold text-slate-700" id="toastMessage">Order status updated</div>
+        </div>
+    </div>
+
+    <script>
+        function updateOrderStatus(selectElement, orderId) {
+            const status = selectElement.value;
+            const originalClass = selectElement.className;
+            
+            // Temporary loading state
+            selectElement.disabled = true;
+            selectElement.style.opacity = '0.5';
+
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+            formData.append('status', status);
+
+            fetch('ajax_update_order_status.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    
+                    // Update dropdown color based on new status
+                    const colors = {
+                        'pending': 'bg-amber-100 text-amber-600',
+                        'preparing': 'bg-blue-100 text-blue-600',
+                        'hand_order_to_delivery': 'bg-indigo-100 text-indigo-600',
+                        'canceled': 'bg-red-100 text-red-600',
+                        'completed': 'bg-emerald-100 text-emerald-600',
+                        'return_requested': 'bg-purple-100 text-purple-600'
+                    };
+                    
+                    // Remove old color classes
+                    const colorClasses = Object.values(colors).join(' ');
+                    selectElement.className = selectElement.className.split(' ').filter(c => !colorClasses.includes(c)).join(' ');
+                    selectElement.classList.add(...(colors[status] || 'bg-slate-100 text-slate-600').split(' '));
+                } else {
+                    showToast(data.message, 'error');
+                }
+            })
+            .catch(() => {
+                showToast('Network error occurred', 'error');
+            })
+            .finally(() => {
+                selectElement.disabled = false;
+                selectElement.style.opacity = '1';
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('statusToast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            toastMsg.textContent = message;
+            
+            if (type === 'success') {
+                toastIcon.className = 'w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center';
+                toastIcon.innerHTML = '<i class="fas fa-check"></i>';
+            } else {
+                toastIcon.className = 'w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center';
+                toastIcon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            }
+
+            toast.classList.remove('translate-x-full');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
+        }
+    </script>
 </body>
 </html>

@@ -136,6 +136,19 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
         } else {
             $recording_month_key = date('Y-m', strtotime($current_recording['created_at']));
             $can_watch = in_array($recording_month_key, $paid_months);
+
+            // Trial Logic for recordings (Max 2 unique recording videos)
+            if (!$can_watch) {
+                require_once '../includes/trial_functions.php';
+                $trial_count = getRecordingTrialCount($conn, $user_id);
+                if ($trial_count < 2) {
+                    $can_watch = true;
+                } else {
+                    if (hasWatchedRecordingAsTrial($conn, $user_id, $recording_id)) {
+                        $can_watch = true;
+                    }
+                }
+            }
         }
         
         // Check watch limit (only if watch_limit > 0, 0 means unlimited)
@@ -197,17 +210,32 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                 $live_class_year = date('Y', strtotime($live_class_date));
                 
                 $paid_query = "SELECT id FROM monthly_payments 
-                              WHERE student_enrollment_id = ? 
-                              AND month = ? 
-                              AND year = ? 
-                              AND payment_status = 'paid'
-                              LIMIT 1";
+                               WHERE student_enrollment_id = ? 
+                               AND month = ? 
+                               AND year = ? 
+                               AND payment_status = 'paid'
+                               LIMIT 1";
                 $paid_stmt = $conn->prepare($paid_query);
                 $paid_stmt->bind_param("iii", $enrollment_id, $live_class_month, $live_class_year);
                 $paid_stmt->execute();
                 $paid_result = $paid_stmt->get_result();
                 $can_watch = $paid_result->num_rows > 0;
                 $paid_stmt->close();
+
+                // Trial Logic for live classes (Max 2 unique live classes - YT + Zoom)
+                if (!$can_watch) {
+                    require_once '../includes/trial_functions.php';
+                    $total_live_watched = getLiveClassTrialCount($conn, $user_id);
+
+                    if ($total_live_watched < 2) {
+                        $can_watch = true;
+                    } else {
+                        // Allow re-watching if they already started this one as a trial
+                        if (hasWatchedRecordingAsTrial($conn, $user_id, $recording_id)) {
+                            $can_watch = true;
+                        }
+                    }
+                }
             }
         } else {
             $can_watch = false;

@@ -20,41 +20,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'student') {
         strpos($current_script, 'al_results_form.php') === false &&
         strpos($current_script, 'logout.php') === false
     ) {
-        
-        // Use flags in session to avoid DB query on every page load if possible.
-        // We need both subject submission and results submission states.
-        if (!isset($_SESSION['al_subjects_submitted']) || !isset($_SESSION['al_results_submitted']) || !isset($_SESSION['al_requested'])) {
-            require_once __DIR__ . '/config.php';
-            
-            $uid = $_SESSION['user_id'];
-            $chk = $conn->prepare("SELECT 
-                (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as subjects_submitted,
-                (SELECT results_submitted_at FROM al_exam_submissions WHERE student_id = u.user_id) as results_submitted_at,
-                al_details_requested 
-                FROM users u WHERE user_id = ?");
-            $chk->bind_param("s", $uid);
-            $chk->execute();
-            $result = $chk->get_result()->fetch_assoc();
-            $chk->close();
-            
-            $_SESSION['al_subjects_submitted'] = (intval($result['subjects_submitted'] ?? 0) > 0);
-            $_SESSION['al_results_submitted'] = (!empty($result['results_submitted_at']));
-            $_SESSION['al_requested'] = (intval($result['al_details_requested'] ?? 0) === 1);
-        }
-        
-        // Two-step enforcement when requested:
-        // 1) If subjects not submitted => force subjects form
-        // 2) If subjects submitted but results not => force results/publish form
-        if (!empty($_SESSION['al_requested'])) {
-            if (empty($_SESSION['al_subjects_submitted'])) {
-                header("Location: /lms/student/al_exam_form.php");
-                exit();
-            }
-            if (empty($_SESSION['al_results_submitted'])) {
-                header("Location: /lms/student/al_results_form.php");
-                exit();
-            }
-        }
+        require_once __DIR__ . '/check_al_redirection.php';
     }
 }
 ?>

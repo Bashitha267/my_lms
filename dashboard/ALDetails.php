@@ -121,83 +121,106 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
     <?php include 'navbar.php'; ?>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <!-- Header Section -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <!-- Header & Filters Section -->
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between mb-10 gap-8 border-b border-gray-200 pb-10">
             <div>
-                <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
                     A/L Results <span class="text-red-600">Portal</span>
                 </h1>
-                <p class="text-gray-600 mt-2 font-medium italic">අපගේ පසුගිය උසස් පෙළ ප්‍රතිඵල</p>
+                <p class="text-gray-600 mt-3 text-lg font-medium italic">අපගේ පසුගිය උසස් පෙළ ප්‍රතිඵල</p>
             </div>
 
-            <?php if (!empty($_SESSION['user_id']) && (($_SESSION['role'] ?? '') === 'student')): ?>
-                <div class="bg-white rounded-xl p-4 w-full md:w-auto">
-                    <div class="flex items-center justify-between gap-4">
-                        <div>
-                            <p class="text-xs font-bold uppercase tracking-widest text-gray-400">My A/L Results</p>
-                            <?php if (empty($student_submission)): ?>
-                                <p class="text-sm font-semibold text-gray-800 mt-1">Not added yet</p>
-                            <?php elseif (empty($student_submission['results_submitted_at'])): ?>
-                                <p class="text-sm font-semibold text-gray-800 mt-1">Subjects saved — results pending</p>
+            <!-- Filters -->
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col md:flex-row items-center gap-6">
+                <form method="GET" class="flex flex-col md:flex-row items-center gap-6 w-full">
+                    <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                        <label for="exam_year" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Exam Year</label>
+                        <select id="exam_year" name="exam_year" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[160px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all" onchange="this.form.submit()">
+                            <?php if (empty($exam_years)): ?>
+                                <option value="all" selected>All Years</option>
                             <?php else: ?>
-                                <p class="text-sm font-semibold text-gray-800 mt-1">Submitted <?php echo !empty($student_submission['agreed_to_publish']) ? '(Published)' : '(Not published)'; ?></p>
+                                <option value="all" <?php echo $filter_exam_year === 'all' ? 'selected' : ''; ?>>All Years</option>
+                                <?php foreach ($exam_years as $year): ?>
+                                    <option value="<?php echo htmlspecialchars($year); ?>" <?php echo $filter_exam_year === $year ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($year); ?>
+                                    </option>
+                                <?php endforeach; ?>
                             <?php endif; ?>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                        <label for="stream" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Study Stream</label>
+                        <select id="stream" name="stream" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[240px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all" onchange="this.form.submit()">
+                            <option value="all" <?php echo $filter_stream === 'all' ? 'selected' : ''; ?>>All Streams</option>
+                            <?php foreach ($streams as $stream): ?>
+                                <option value="<?php echo htmlspecialchars($stream); ?>" <?php echo $filter_stream === $stream ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($stream); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Student Results CTA Section (Dedicated Row) -->
+        <?php if (!empty($_SESSION['user_id']) && (($_SESSION['role'] ?? '') === 'student')): ?>
+            <div class="mb-12">
+                <div class="bg-gradient-to-r from-red-600 to-red-800 rounded-[2.5rem] p-1 shadow-2xl shadow-red-200">
+                    <div class="bg-white rounded-[2.3rem] p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div class="flex items-center gap-6">
+                            <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 text-3xl">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-2xl font-black text-gray-900 tracking-tight">Your Achievement</h3>
+                                <p class="text-gray-500 font-bold text-xs uppercase tracking-widest mt-1">
+                                    <?php if (empty($student_submission)): ?>
+                                        Share your results with the LearnerX community
+                                    <?php elseif (empty($student_submission['results_submitted_at'])): ?>
+                                        Complete your results submission
+                                    <?php else: ?>
+                                        Your results have been successfully submitted
+                                    <?php endif; ?>
+                                </p>
+                            </div>
                         </div>
-                        <div>
+
+                        <div class="flex flex-col md:flex-row items-center gap-6">
+                            <?php if (!empty($student_submission) && !empty($student_submission['results_submitted_at'])): ?>
+                                <div class="grid grid-cols-3 gap-8 px-8 border-x border-gray-100">
+                                    <div class="text-center">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase">District</p>
+                                        <p class="text-sm font-bold text-gray-900"><?php echo !empty($student_submission['district']) ? htmlspecialchars($student_submission['district']) : 'N/A'; ?></p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase">D-Rank</p>
+                                        <p class="text-sm font-bold text-red-600">#<?php echo !empty($student_submission['district_rank']) ? htmlspecialchars($student_submission['district_rank']) : 'N/A'; ?></p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-[10px] font-black text-gray-400 uppercase">I-Rank</p>
+                                        <p class="text-sm font-bold text-red-600">#<?php echo !empty($student_submission['island_rank']) ? htmlspecialchars($student_submission['island_rank']) : 'N/A'; ?></p>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
                             <?php if (empty($student_submission)): ?>
-                                <a href="<?php echo $root_url; ?>student/al_exam_form.php" class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-4 py-2 rounded-xl">
-                                    <i class="fas fa-plus"></i> Add My Results
+                                <a href="<?php echo $root_url; ?>student/al_exam_form.php" class="bg-red-600 hover:bg-red-700 text-white font-black px-8 py-5 rounded-3xl transition-all shadow-xl shadow-red-200 flex items-center gap-3 active:scale-95 group">
+                                    <span>ADD MY RESULTS</span>
+                                    <i class="fas fa-plus group-hover:rotate-90 transition-transform"></i>
                                 </a>
                             <?php else: ?>
-                                <a href="<?php echo $root_url; ?>student/al_results_form.php" class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-4 py-2 rounded-xl">
-                                    <i class="fas fa-pen"></i> Open Results Form
+                                <a href="<?php echo $root_url; ?>student/al_results_form.php" class="bg-gray-900 hover:bg-black text-white font-black px-8 py-5 rounded-3xl transition-all shadow-xl flex items-center gap-3 active:scale-95">
+                                    <span>EDIT MY RESULTS</span>
+                                    <i class="fas fa-pen text-xs"></i>
                                 </a>
                             <?php endif; ?>
                         </div>
                     </div>
-
-                    <?php if (!empty($student_submission) && !empty($student_submission['results_submitted_at'])): ?>
-                        <div class="mt-3 text-xs text-gray-600">
-                            <span class="font-bold">District:</span> <?php echo !empty($student_submission['district']) ? htmlspecialchars($student_submission['district']) : 'N/A'; ?>
-                            <span class="mx-2">•</span>
-                            <span class="font-bold">District Rank:</span> <?php echo !empty($student_submission['district_rank']) ? htmlspecialchars($student_submission['district_rank']) : 'N/A'; ?>
-                            <span class="mx-2">•</span>
-                            <span class="font-bold">Island Rank:</span> <?php echo !empty($student_submission['island_rank']) ? htmlspecialchars($student_submission['island_rank']) : 'N/A'; ?>
-                        </div>
-                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-            
-            <!-- Filters -->
-            <div class="w-full md:w-auto">
-                <form method="GET" class="flex flex-wrap items-center gap-2">
-                    <label for="exam_year" class="text-sm font-semibold text-gray-700">Exam Year:</label>
-                    <select id="exam_year" name="exam_year" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[140px] focus:outline-none" onchange="this.form.submit()">
-                        <?php if (empty($exam_years)): ?>
-                            <option value="all" selected>All Years</option>
-                        <?php else: ?>
-                            <option value="all" <?php echo $filter_exam_year === 'all' ? 'selected' : ''; ?>>All Years</option>
-                            <?php foreach ($exam_years as $year): ?>
-                                <option value="<?php echo htmlspecialchars($year); ?>" <?php echo $filter_exam_year === $year ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($year); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </select>
-
-                    <label for="stream" class="text-sm font-semibold text-gray-700">Stream:</label>
-                    <select id="stream" name="stream" class="bg-white rounded-lg px-3 py-2 text-sm text-gray-700 min-w-[220px] focus:outline-none" onchange="this.form.submit()">
-                        <option value="all" <?php echo $filter_stream === 'all' ? 'selected' : ''; ?>>All Streams</option>
-                        <?php foreach ($streams as $stream): ?>
-                            <option value="<?php echo htmlspecialchars($stream); ?>" <?php echo $filter_stream === $stream ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($stream); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-
-                </form>
             </div>
-        </div>
+        <?php endif; ?>
 
         <?php if (empty($results_by_stream)): ?>
             <div class="bg-white rounded-2xl shadow-sm p-12 text-center">

@@ -87,14 +87,14 @@ if ($zoom_class_id > 0) {
                 $enroll_row = $enroll_result->fetch_assoc();
                 $enrollment_id = $enroll_row['id'];
                 
+                // Define current month/year for payment check
+                $class_month = date('n');
+                $class_year = date('Y');
+                
                 // If free class, allow access
                 if ($current_zoom_class['free_class'] == 1) {
                     $can_access = true;
                 } else {
-                    // Check payment for the month
-                    $class_month = date('n', strtotime($current_zoom_class['scheduled_start_time']));
-                    $class_year = date('Y', strtotime($current_zoom_class['scheduled_start_time']));
-                    
                     $paid_query = "SELECT id FROM monthly_payments 
                                   WHERE student_enrollment_id = ? AND month = ? AND year = ? AND payment_status = 'paid'
                                   LIMIT 1";
@@ -104,6 +104,21 @@ if ($zoom_class_id > 0) {
                     $paid_result = $paid_stmt->get_result();
                     $can_access = $paid_result->num_rows > 0;
                     $paid_stmt->close();
+
+                    // Trial Logic for live classes (Max 2 unique live classes - YT + Zoom)
+                    if (!$can_access) {
+                        require_once '../includes/trial_functions.php';
+                        $total_live_watched = getLiveClassTrialCount($conn, $user_id);
+
+                        if ($total_live_watched < 2) {
+                            $can_access = true;
+                        } else {
+                            // Allow re-watching if they already started this one as a trial
+                            if (hasWatchedZoomAsTrial($conn, $user_id, $zoom_class_id)) {
+                                $can_access = true;
+                            }
+                        }
+                    }
                 }
             }
             $enroll_stmt->close();
@@ -113,6 +128,22 @@ if ($zoom_class_id > 0) {
         }
     }
     $stmt->close();
+
+    // Log Zoom view for trial tracking
+    if ($can_access && $role === 'student' && $zoom_class_id > 0) {
+        $log_check = "SELECT id FROM zoom_watch_log WHERE student_id = ? AND zoom_class_id = ? LIMIT 1";
+        $lc_stmt = $conn->prepare($log_check);
+        $lc_stmt->bind_param("si", $user_id, $zoom_class_id);
+        $lc_stmt->execute();
+        if ($lc_stmt->get_result()->num_rows === 0) {
+            $log_insert = "INSERT INTO zoom_watch_log (student_id, zoom_class_id) VALUES (?, ?)";
+            $li_stmt = $conn->prepare($log_insert);
+            $li_stmt->bind_param("si", $user_id, $zoom_class_id);
+            $li_stmt->execute();
+            $li_stmt->close();
+        }
+        $lc_stmt->close();
+    }
 }
 
 // Prepare Zoom embed URL

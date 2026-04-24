@@ -59,6 +59,10 @@ $admin_header_prefix = $admin_header_prefix ?? '';
                    class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     A/L Results
                 </a>
+                <a href="<?php echo $admin_header_prefix; ?>settings.php" 
+                   class="<?php echo ($current_page == 'settings.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Settings
+                </a>
             </div>
 
             
@@ -102,6 +106,7 @@ $admin_header_prefix = $admin_header_prefix ?? '';
             <a href="<?php echo $admin_header_prefix; ?>verify_payments.php" class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Payments</a>
             <a href="<?php echo $admin_header_prefix; ?>manage_publications.php" class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Publications & Orders</a>
             <a href="<?php echo $admin_header_prefix; ?>reports.php" class="<?php echo ($current_page == 'reports.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Reports</a>
+            <a href="<?php echo $admin_header_prefix; ?>settings.php" class="<?php echo ($current_page == 'settings.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Settings</a>
             <?php if (isset($_SESSION['username'])): ?>
                 <div class="border-t border-blue-800 mt-4 pt-4 pb-2">
                     <a href="<?php echo $admin_header_prefix; ?>../auth.php?logout=1" class="block px-3 py-2 rounded-md text-base font-medium text-blue-100 hover:text-white hover:bg-blue-800">Logout (<?php echo htmlspecialchars($_SESSION['username']); ?>)</a>

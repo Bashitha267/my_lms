@@ -555,7 +555,6 @@ ksort($recordings_by_month);
                                     // Teachers can watch all videos
                                     $can_watch = true;
                                 } elseif ($role === 'student') {
-                                    // Check if video is free
                                     if ($recording['free_video'] == 1) {
                                         $can_watch = true;
                                     } else {
@@ -564,7 +563,26 @@ ksort($recordings_by_month);
                                         if (in_array($recording_month, $paid_months)) {
                                             $can_watch = true;
                                         } else {
-                                            $is_locked = true;
+                                            require_once '../includes/trial_functions.php';
+                                            
+                                            if ($recording['is_live'] == 1) {
+                                                // It's an ended live class - use Live Class Quota
+                                                $trial_count = getLiveClassTrialCount($conn, $user_id);
+                                            } else {
+                                                // It's a recording - use Recording Quota
+                                                $trial_count = getRecordingTrialCount($conn, $user_id);
+                                            }
+                                            
+                                            if ($trial_count < 2) {
+                                                $can_watch = true;
+                                            } else {
+                                                // Check if they already watched this video as a trial
+                                                if (hasWatchedRecordingAsTrial($conn, $user_id, $recording['id'])) {
+                                                    $can_watch = true;
+                                                } else {
+                                                    $is_locked = true;
+                                                }
+                                            }
                                         }
                                     }
                                     
@@ -1384,6 +1402,14 @@ ksort($recordings_by_month);
             document.body.appendChild(container);
             return container;
         }
+
+        // Auto-refresh when returning to this page (e.g. back from player)
+        // This ensures trial quota counts and locks are updated in real-time
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                window.location.reload();
+            }
+        });
     </script>
 </body>
 </html>

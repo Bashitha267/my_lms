@@ -193,13 +193,13 @@ $assignments = $conn->query($assignments_query)->fetch_all(MYSQLI_ASSOC);
                 <!-- Current Assignments -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-lg font-bold mb-4 border-b pb-2">Current Assignments</h2>
-                    <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto border rounded-lg">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Instructor</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Instructor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Subject</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Action</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">

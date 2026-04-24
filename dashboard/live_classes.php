@@ -914,7 +914,39 @@ if (empty($role)) {
                                         </div>
                                         
                                         <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                            <?php if ($can_join): ?>
+                                            <?php 
+                                            $can_watch_live = false;
+                                            if ($can_join && $role === 'student') {
+                                                // Check for current month payment
+                                                $current_month = date('n');
+                                                $current_year = date('Y');
+                                                $paid_check = $conn->prepare("SELECT id FROM monthly_payments WHERE student_enrollment_id = ? AND month = ? AND year = ? AND payment_status = 'paid' LIMIT 1");
+                                                $paid_check->bind_param("iii", $enrollment_data['id'], $current_month, $current_year);
+                                                $paid_check->execute();
+                                                $is_paid = $paid_check->get_result()->num_rows > 0;
+                                                $paid_check->close();
+
+                                                if ($is_paid || $live_class['free_video'] == 1) {
+                                                    $can_watch_live = true;
+                                                } else {
+                                                    // Check trial quota
+                                                    require_once '../includes/trial_functions.php';
+                                                    $total_live_watched = getLiveClassTrialCount($conn, $user_id);
+                                                    if ($total_live_watched < 2) {
+                                                        $can_watch_live = true;
+                                                    } else {
+                                                        // Check if already watched this one as trial
+                                                        if (isset($live_class['is_zoom']) && $live_class['is_zoom']) {
+                                                            $can_watch_live = hasWatchedZoomAsTrial($conn, $user_id, $live_class['id']);
+                                                        } else {
+                                                            $can_watch_live = hasWatchedRecordingAsTrial($conn, $user_id, $live_class['id']);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            ?>
+
+                                            <?php if ($can_join && ($role !== 'student' || $can_watch_live)): ?>
                                                 <?php 
                                                 $player_url = isset($live_class['is_zoom']) && $live_class['is_zoom'] 
                                                     ? "../player/zoom.php?id=" . $live_class['id']
@@ -925,6 +957,11 @@ if (empty($role)) {
                                                     <?php echo $live_class['status'] === 'ongoing' ? 'Join Now' : 'Enter Class'; ?>
                                                     <svg class="w-3.5 h-3.5 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                                 </a>
+                                            <?php elseif ($can_join && $role === 'student' && !$can_watch_live): ?>
+                                                <div class="flex items-center text-red-600 bg-red-50 px-3 py-2 rounded-xl border border-red-100">
+                                                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                                    <span class="text-[10px] font-bold">Payment Required</span>
+                                                </div>
                                             <?php else: ?>
                                                 <span class="text-xs font-semibold text-gray-400">
                                                     <?php echo $live_class['status'] === 'ended' ? 'Session Ended' : 'Cancelled'; ?>
@@ -1856,6 +1893,13 @@ if (empty($role)) {
             // Restore body scroll
             document.body.style.overflow = 'auto';
         }
+
+        // Auto-refresh when returning to this page (e.g. back from player)
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+                window.location.reload();
+            }
+        });
     </script>
 
     <!-- Guest Details Modal -->

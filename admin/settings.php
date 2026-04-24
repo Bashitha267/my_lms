@@ -131,6 +131,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
     }
 }
 
+// Handle Home Posts (Gallery)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['upload_home_post'])) {
+        if (isset($_FILES['post_image']) && $_FILES['post_image']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = '../uploads/posts/';
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            $file = $_FILES['post_image'];
+            $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            if (!in_array($file_ext, $allowed_extensions)) {
+                $error_message = 'Invalid file type for post.';
+            } else {
+                $new_filename = 'post_' . time() . '_' . rand(100, 999) . '.' . $file_ext;
+                if (move_uploaded_file($file['tmp_name'], $upload_dir . $new_filename)) {
+                    $image_path = 'uploads/posts/' . $new_filename;
+                    $title = $_POST['post_title'] ?? '';
+                    $stmt = $conn->prepare("INSERT INTO home_posts (image_path, title) VALUES (?, ?)");
+                    $stmt->bind_param("ss", $image_path, $title);
+                    if ($stmt->execute()) {
+                        $success_message = 'Post uploaded successfully!';
+                    } else {
+                        $error_message = 'Database error: ' . $conn->error;
+                    }
+                    $stmt->close();
+                }
+            }
+        }
+    } elseif (isset($_POST['delete_home_post'])) {
+        $post_id = $_POST['post_id'];
+        $stmt = $conn->prepare("SELECT image_path FROM home_posts WHERE id = ?");
+        $stmt->bind_param("i", $post_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            if (file_exists('../' . $row['image_path'])) {
+                unlink('../' . $row['image_path']);
+            }
+            $stmt = $conn->prepare("DELETE FROM home_posts WHERE id = ?");
+            $stmt->bind_param("i", $post_id);
+            $stmt->execute();
+            $success_message = 'Post deleted successfully!';
+        }
+        $stmt->close();
+    }
+}
+
 // Get current background images for all pages
 $backgrounds = [
     'dashboard' => null,
@@ -148,6 +198,15 @@ while ($row = $result->fetch_assoc()) {
     $backgrounds[$key] = $row['setting_value'];
 }
 $stmt->close();
+
+// Get home posts
+$home_posts = [];
+$result = $conn->query("SELECT * FROM home_posts ORDER BY created_at DESC");
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        $home_posts[] = $row;
+    }
+}
 
 // For backward compatibility
 $current_background = $backgrounds['dashboard'];
@@ -315,6 +374,11 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                                     data-tab="online_courses">
                                 Online Courses Page
                             </button>
+                            <button type="button" onclick="switchTab('home_posts')" 
+                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                    data-tab="home_posts">
+                                Upload Posts (Gallery)
+                            </button>
                         </nav>
                     </div>
 
@@ -336,6 +400,55 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                     <!-- Online Courses Tab -->
                     <div id="tab-online_courses" class="tab-content hidden">
                         <?php echo renderBackgroundSection('online_courses', 'Online Courses Page', $backgrounds['online_courses']); ?>
+                    </div>
+
+                    <!-- Home Posts Tab -->
+                    <div id="tab-home_posts" class="tab-content hidden">
+                        <div class="bg-gray-50 p-6 rounded-lg border mb-8">
+                            <h4 class="text-lg font-bold mb-4">Add New Post</h4>
+                            <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Image</label>
+                                    <input type="file" name="post_image" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Title (Optional)</label>
+                                    <input type="text" name="post_title" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm p-2 border">
+                                </div>
+                                <button type="submit" name="upload_home_post" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Upload Post</button>
+                            </form>
+                        </div>
+
+                        <h4 class="text-lg font-bold mb-4">Current Posts</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <?php foreach ($home_posts as $post): ?>
+                                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden relative group">
+                                    <div class="h-64 w-full bg-gray-100">
+                                        <img src="../<?php echo htmlspecialchars($post['image_path']); ?>" 
+                                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                             alt="<?php echo htmlspecialchars($post['title'] ?? 'Post'); ?>">
+                                    </div>
+                                    <div class="p-3 bg-white border-t">
+                                        <div class="flex justify-between items-center">
+                                            <p class="text-sm font-semibold text-gray-700 truncate mr-2"><?php echo htmlspecialchars($post['title'] ?: 'Untitled Post'); ?></p>
+                                            <form method="POST" onsubmit="return confirm('Delete this post?')">
+                                                <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                                <button type="submit" name="delete_home_post" class="text-red-500 hover:text-red-700 transition-colors">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                        <p class="text-[10px] text-gray-400 mt-1"><?php echo $post['created_at']; ?></p>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                            <?php if (empty($home_posts)): ?>
+                                <p class="col-span-full text-center text-gray-500 py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                                    <i class="fas fa-images text-4xl mb-3 block text-gray-300"></i>
+                                    No posts uploaded yet.
+                                </p>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
 

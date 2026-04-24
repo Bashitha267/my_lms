@@ -149,6 +149,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Handle Skip Action
+if (isset($_GET['skip']) && $_GET['skip'] == '1') {
+    $clear_request = $conn->prepare("UPDATE users SET al_details_requested = 0 WHERE user_id = ?");
+    $clear_request->bind_param("s", $user_id);
+    if ($clear_request->execute()) {
+        $_SESSION['al_requested'] = false;
+        header("Location: ../dashboard/dashboard.php");
+        exit();
+    }
+    $clear_request->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -167,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
 
         <div class="flex justify-between items-center">
-            <a href="../dashboard/dashboard.php" class="text-sm font-semibold text-gray-500 hover:text-gray-700">
+            <a href="al_results_form.php?skip=1" class="text-sm font-semibold text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left mr-1"></i> Skip for now
             </a>
         </div>

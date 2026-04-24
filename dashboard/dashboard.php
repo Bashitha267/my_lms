@@ -128,6 +128,9 @@ if ($is_logged_in && $role === 'student') {
         }
     }
 }
+if ($is_logged_in && $role === 'student') {
+    require_once __DIR__ . '/../check_al_redirection.php';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -159,13 +162,13 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class="w-full pt-2 pb-12 px-2">
+    <div class="w-full pt-2 pb-12">
         <?php if (!$is_logged_in): ?>
             <!-- Login Section for Guests -->
             <!-- Hero Section with Slideshow and Login - 50/50 Split -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 mb-1">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 px-1 mb-2">
                 <!-- Left Side: Image -->
-                <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden relative h-[350px] lg:h-[700px] lg:col-span-8 group">
+                <div class="bg-gray-900 overflow-hidden relative h-[350px] lg:h-[calc(100vh-75px)] lg:col-span-8 group">
                     <div class="absolute inset-0">
                         <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" 
                              alt="Education" 
@@ -174,8 +177,8 @@ if ($is_logged_in && $role === 'student') {
                 </div>
 
                 <!-- Right Side: Login Form -->
-                <div id="login-section" class="lg:h-[700px] lg:col-span-4">
-                    <div class="bg-white rounded-2xl shadow-xl px-5 py-6 lg:px-8 lg:py-10 h-full flex flex-col justify-between border border-gray-100">
+                <div id="login-section" class="lg:h-[calc(100vh-75px)] lg:col-span-4">
+                    <div class="bg-white px-5 py-6 lg:px-8 lg:py-10 h-full flex flex-col justify-between border border-gray-100">
                         <!-- Header Section -->
                         <div class="text-center">
                             <div class="mb-4">
@@ -273,37 +276,43 @@ if ($is_logged_in && $role === 'student') {
         <!-- Bento Grid Gallery Section -->
         <section class="mb-4">
             <?php 
-            $gallery_images = ['banner1.jpeg', 'banner2.jpeg', 'banner3.jpeg', 'banner4.jpeg', 'banner5.jpeg', 
-                              'banner6.jpeg', 'banner7.jpeg', 'banner8.jpeg', 'banner9.jpeg', 'banner10.jpeg',
-                              'banner11.jpeg', 'banner12.jpeg'];
+            $gallery_images = [];
+            $posts_result = $conn->query("SELECT image_path FROM home_posts ORDER BY created_at DESC");
+            if ($posts_result && $posts_result->num_rows > 0) {
+                while ($row = $posts_result->fetch_assoc()) {
+                    // Prepend ../ because dashboard.php is in the /dashboard/ folder
+                    $gallery_images[] = '../' . $row['image_path'];
+                }
+            }
+            
             shuffle($gallery_images);
             $chunks = array_chunk($gallery_images, 5); // Split into groups of 5 for the pattern (1 large + 4 small)
             ?>
             
-            <div class="space-y-3">
+            <div class="space-y-[2px]">
                 <?php foreach ($chunks as $chunkIndex => $chunk): ?>
                 <!-- Bento Block -->
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-1">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-[2px]">
                     <!-- Left: Large vertical image (spanning 6 columns) -->
                     <?php if (isset($chunk[0])): ?>
                     <div class="md:col-span-6 h-[350px] md:h-[700px] overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                         onclick="openImageModal('assests/<?php echo $chunk[0]; ?>')">
-                        <img src="assests/<?php echo $chunk[0]; ?>" 
-                             class="w-full h-full object-fill group-hover:scale-110 transition-transform duration-1000" 
+                         onclick="openImageModal('<?php echo $chunk[0]; ?>')">
+                        <img src="<?php echo $chunk[0]; ?>" 
+                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                              alt="Gallery Image">
                         <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                     </div>
                     <?php endif; ?>
                     
                     <!-- Right: Grid of smaller images (spanning 6 columns) -->
-                    <div class="md:col-span-6 grid grid-rows-2 gap-1 h-[400px] md:h-[700px]">
+                    <div class="md:col-span-6 grid grid-rows-2 gap-[2px] h-[400px] md:h-[700px]">
                         <!-- Top row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-1">
+                        <div class="grid grid-cols-2 gap-[2px]">
                             <?php if (isset($chunk[1])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('assests/<?php echo $chunk[1]; ?>')">
-                                <img src="assests/<?php echo $chunk[1]; ?>" 
-                                     class="w-full h-full object-fill group-hover:scale-110 transition-transform duration-1000" 
+                                 onclick="openImageModal('<?php echo $chunk[1]; ?>')">
+                                <img src="<?php echo $chunk[1]; ?>" 
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                                      alt="Gallery Image">
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             </div>
@@ -311,21 +320,21 @@ if ($is_logged_in && $role === 'student') {
                             
                             <?php if (isset($chunk[2])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('assests/<?php echo $chunk[2]; ?>')">
-                                <img src="assests/<?php echo $chunk[2]; ?>" 
-                                     class="w-full h-full object-fill group-hover:scale-110 transition-transform duration-1000" 
+                                 onclick="openImageModal('<?php echo $chunk[2]; ?>')">
+                                <img src="<?php echo $chunk[2]; ?>" 
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                                      alt="Gallery Image">
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             </div>
                             <?php endif; ?>
                         </div>
                         <!-- Bottom row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-1">
+                        <div class="grid grid-cols-2 gap-[2px]">
                             <?php if (isset($chunk[3])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('assests/<?php echo $chunk[3]; ?>')">
-                                <img src="assests/<?php echo $chunk[3]; ?>" 
-                                     class="w-full h-full object-fill group-hover:scale-110 transition-transform duration-1000" 
+                                 onclick="openImageModal('<?php echo $chunk[3]; ?>')">
+                                <img src="<?php echo $chunk[3]; ?>" 
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                                      alt="Gallery Image">
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             </div>
@@ -333,9 +342,9 @@ if ($is_logged_in && $role === 'student') {
                             
                             <?php if (isset($chunk[4])): ?>
                             <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('assests/<?php echo $chunk[4]; ?>')">
-                                <img src="assests/<?php echo $chunk[4]; ?>" 
-                                     class="w-full h-full object-fill group-hover:scale-110 transition-transform duration-1000" 
+                                 onclick="openImageModal('<?php echo $chunk[4]; ?>')">
+                                <img src="<?php echo $chunk[4]; ?>" 
+                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
                                      alt="Gallery Image">
                                 <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                             </div>
@@ -378,12 +387,12 @@ if ($is_logged_in && $role === 'student') {
                 </div>
 
                 <!-- Classes Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <?php foreach ($assignments_by_stream as $stream_id => $stream_data): ?>
                         <?php foreach ($stream_data['classes'] as $class): ?>
                             <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group border border-gray-200 class-card stream-<?php echo $stream_id; ?>">
                                 <!-- Cover Image -->
-                                <div class="relative h-40 overflow-hidden">
+                                <div class="relative h-72 overflow-hidden">
                                     <?php if ($class['cover_image']): ?>
                                         <img src="../<?php echo htmlspecialchars($class['cover_image']); ?>" 
                                              alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
@@ -519,11 +528,11 @@ if ($is_logged_in && $role === 'student') {
                     <?php foreach ($courses as $course): ?>
                         <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
                             <!-- Course Cover Image -->
-                            <div class="h-48 bg-gray-200 overflow-hidden">
+                            <div class="h-72 bg-gray-50 overflow-hidden">
                                 <?php if ($course['cover_image']): ?>
                                     <img src="../<?php echo htmlspecialchars($course['cover_image']); ?>" 
                                          alt="<?php echo htmlspecialchars($course['title']); ?>"
-                                         class="w-full h-full object-cover">
+                                         class="w-full h-full object-contain">
                                 <?php else: ?>
                                     <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-400 to-red-600">
                                         <i class="fas fa-book text-white text-6xl"></i>
@@ -565,6 +574,30 @@ if ($is_logged_in && $role === 'student') {
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Footer Section -->
+    <footer class="bg-red-600 py-12 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="mb-6">
+                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Learnerr.lk</h2>
+                <div class="h-1 w-20 bg-white/30 mx-auto rounded-full"></div>
+            </div>
+            
+            <div class="space-y-3">
+                <p class="text-lg md:text-xl font-bold text-white">Learnerr.lk යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
+                <p class="text-red-100 font-semibold text-sm md:text-base tracking-wide">Learnerr.lk is the best online academy in Sri Lanka.</p>
+            </div>
+
+            <div class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?> Learnerr.lk. All rights reserved.</p>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-youtube"></i></a>
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <!-- Login/Register Popup for Navigation Clicks -->
     <div id="authModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 z-50 flex items-center justify-center">

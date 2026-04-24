@@ -208,8 +208,8 @@ if ($user_role === 'student') {
         <?php if ($user_role === 'student'): ?>
         <!-- Student Tabs -->
         <div class="flex gap-2 mb-6">
-            <button id="tab_new" onclick="switchTab('new')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">🆕 නව ඉල්ලීම</button>
-            <button id="tab_hist" onclick="switchTab('hist')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 transition shadow-sm">🕑 ඉතිහාසය</button>
+            <button id="tab_new" onclick="switchTab('new')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">🆕 New Instructor Request</button>
+            <button id="tab_hist" onclick="switchTab('hist')" class="tab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 transition shadow-sm">🕑 History</button>
         </div>
         <div id="panel_new">
             <!-- Multi-step Wizard UI -->
@@ -595,9 +595,9 @@ if ($user_role === 'student') {
         <?php elseif ($user_role === 'instructor'): ?>
         <!-- Instructor Tabs -->
         <div class="flex gap-2 mb-6">
-            <button id="itab_new" onclick="iSwitchTab('new')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">📥 නව ඉල්ලීම්</button>
-            <button id="itab_contacts" onclick="iSwitchTab('contacts')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">✅ මගේ සම්බන්ධතා</button>
-            <button id="itab_hist" onclick="iSwitchTab('hist')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">🕑 ඉතිහාසය</button>
+            <button id="itab_new" onclick="iSwitchTab('new')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-900 bg-slate-900 text-white transition shadow-sm">📥 New Instructor Request</button>
+            <button id="itab_contacts" onclick="iSwitchTab('contacts')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">✅ My Contacts</button>
+            <button id="itab_hist" onclick="iSwitchTab('hist')" class="itab-btn px-6 py-2.5 rounded-lg text-sm font-extrabold border-2 border-slate-300 bg-white text-slate-900 hover:border-slate-900 transition shadow-sm">🕑 History</button>
         </div>
         <!-- Instructor: New Requests Panel -->
         <div id="ipanel_new">
