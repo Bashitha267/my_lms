@@ -96,7 +96,7 @@ if ($insert_stmt->execute()) {
                                 "--------------------------\n\n" .
                                 "Hello {$first_name},\n" .
                                 "You have successfully enrolled in the subject: *{$subject_name}*.\n\n" .
-                                "Thank you for choosing LearnerX!";
+                                "Thank you for choosing Learner.LK!";
 
                     sendWhatsAppMessage($whatsapp_number, $enroll_msg);
                 }

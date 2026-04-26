@@ -6,6 +6,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $admin_header_prefix = $admin_header_prefix ?? '';
 ?>
 
+<!-- WhatsApp Debug Console -->
+<?php if (isset($_SESSION['whatsapp_debug'])): ?>
+<script>
+    console.group('%c WhatsApp Debug Info ', 'background: #25d366; color: white; font-weight: bold; padding: 2px 4px; border-radius: 4px;');
+    console.log('Target:', <?php echo json_encode($_SESSION['whatsapp_debug']['target'] ?? 'N/A'); ?>);
+    console.log('Status:', <?php echo $_SESSION['whatsapp_debug']['success'] ? '"✅ SUCCESS"' : '"❌ FAILED"'; ?>);
+    console.log('Response Message:', <?php echo json_encode($_SESSION['whatsapp_debug']['message'] ?? 'No message'); ?>);
+    console.log('HTTP Code:', <?php echo json_encode($_SESSION['whatsapp_debug']['http_code'] ?? 'N/A'); ?>);
+    console.log('Raw Response:', <?php echo json_encode($_SESSION['whatsapp_debug']['raw'] ?? 'N/A'); ?>);
+    console.log('Time:', <?php echo json_encode($_SESSION['whatsapp_debug']['time'] ?? 'N/A'); ?>);
+    console.groupEnd();
+</script>
+<?php unset($_SESSION['whatsapp_debug']); ?>
+<?php endif; ?>
+
 <header class="bg-blue-600 shadow-lg sticky top-0 z-50">
     <div class=" mx-auto px-2 sm:px-4 lg:px-8">
         <div class="flex justify-between items-center h-16">
@@ -59,6 +74,10 @@ $admin_header_prefix = $admin_header_prefix ?? '';
                    class="<?php echo ($current_page == 'request_al_details.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     A/L Results
                 </a>
+                <a href="<?php echo $admin_header_prefix; ?>mass_messaging.php" 
+                   class="<?php echo ($current_page == 'mass_messaging.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
+                    Mass Messaging
+                </a>
                 <a href="<?php echo $admin_header_prefix; ?>settings.php" 
                    class="<?php echo ($current_page == 'settings.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
                     Settings
@@ -106,6 +125,7 @@ $admin_header_prefix = $admin_header_prefix ?? '';
             <a href="<?php echo $admin_header_prefix; ?>verify_payments.php" class="<?php echo ($current_page == 'verify_payments.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Payments</a>
             <a href="<?php echo $admin_header_prefix; ?>manage_publications.php" class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Publications & Orders</a>
             <a href="<?php echo $admin_header_prefix; ?>reports.php" class="<?php echo ($current_page == 'reports.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Reports</a>
+            <a href="<?php echo $admin_header_prefix; ?>mass_messaging.php" class="<?php echo ($current_page == 'mass_messaging.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Mass Messaging</a>
             <a href="<?php echo $admin_header_prefix; ?>settings.php" class="<?php echo ($current_page == 'settings.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-800 hover:text-white'; ?> block px-3 py-2 rounded-md text-base font-medium">Settings</a>
             <?php if (isset($_SESSION['username'])): ?>
                 <div class="border-t border-blue-800 mt-4 pt-4 pb-2">

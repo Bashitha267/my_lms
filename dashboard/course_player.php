@@ -132,6 +132,16 @@ if (!$access) { echo "Access Denied. Check enrollment or payment."; exit; }
 // Increment Views
 if ($role === 'student') {
     $conn->query("UPDATE course_recordings SET views = views + 1 WHERE id = $recording_id");
+
+    // Send WhatsApp Notification when watching
+    if (file_exists('../whatsapp_config.php')) {
+        require_once '../whatsapp_config.php';
+        $session_key = 'course_watched_' . $recording_id;
+        if (!isset($_SESSION[$session_key])) {
+            notifyStudentWatching($conn, $user_id, $recording['title']);
+            $_SESSION[$session_key] = true;
+        }
+    }
 }
 
 // Handle File Upload (Teacher)

@@ -137,10 +137,26 @@ if ($is_logged_in && $role === 'student') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Lernerr.LK</title>
+    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Learner.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Hero Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
         /* Gallery Scroll Animation */
         .scrolling-gallery {
             display: flex;
@@ -155,6 +171,21 @@ if ($is_logged_in && $role === 'student') {
             0% { transform: translateX(0); }
             100% { transform: translateX(-50%); }
         }
+
+        /* Custom Scrollbar for modern look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fca5a5;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ef4444;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -162,107 +193,222 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class="w-full pt-1 pb-12">
+    <div class="w-full pb-12">
+<style>
+* { box-sizing: border-box; }
+</style>
+
         <?php if (!$is_logged_in): ?>
-            <!-- Login Section for Guests -->
-            <!-- Hero Section with Slideshow and Login - 50/50 Split -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-1 px-1 mb-1">
-                <!-- Left Side: Image -->
-                <div class="bg-gray-900 overflow-hidden relative h-[350px] lg:h-[calc(100vh-75px)] lg:col-span-8 group">
-                    <div class="absolute inset-0">
-                        <img src="https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" 
-                             alt="Education" 
-                             class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700">
+            <!-- Full Screen Hero Section -->
+            <section class="relative min-h-screen flex items-center overflow-hidden mb-8 bg-cover bg-center bg-no-repeat" style="background-image: url('../assests/rdbg.jpg');">
+            <!-- Dark Overlay for better contrast -->
+            <div class="absolute inset-0 bg-slate-900/20 z-0"></div>
+            <!-- Subtle background decorative elements to fill space -->
+            <div class="absolute top-20 right-20 w-64 h-64 bg-red-600/5 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-20 left-20 w-96 h-96 bg-red-600/5 rounded-full blur-3xl"></div>
+
+            <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full">
+                <div class="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+                    
+                    <!-- Right Side: Student Image (Top on mobile) -->
+                    <div class="lg:col-span-5 order-first lg:order-last relative animate-fade-in-right">
+                        <div class="relative z-10 w-full max-w-[280px] md:max-w-md mx-auto mt-16 lg:mt-0">
+                            <img src="../assests/student.png" alt="Student" class="w-full h-auto drop-shadow-2xl scale-110 lg:scale-125">
+                            
+                            <!-- Floating UI Decorations -->
+                            <div class="absolute -top-4 -right-4 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow border border-white/50">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-star text-[10px]"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Top Rated</p>
+                                        <p class="text-[9px] text-slate-800 font-black">#1 Academy</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="absolute bottom-10 -left-6 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow delay-700 border border-white/50">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-user-tie text-[10px]"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Instructors</p>
+                                        <p class="text-[9px] text-slate-800 font-black">10+ Teachers</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="absolute top-1/2 -right-8 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow delay-500 border border-white/50">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-users text-[10px]"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Community</p>
+                                        <p class="text-[9px] text-slate-800 font-black">1000+ Students</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Backdrop decoration -->
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] lg:w-[550px] h-[300px] lg:h-[550px] bg-red-600/5 rounded-full blur-3xl -z-0"></div>
                     </div>
-                </div>
 
-                <!-- Right Side: Login Form -->
-                <div id="login-section" class="lg:h-[calc(100vh-75px)] lg:col-span-4">
-                    <div class="bg-white px-5 py-6 lg:px-8 lg:py-10 h-full flex flex-col justify-between border border-gray-100">
-                        <!-- Header Section -->
-                        <div class="text-center">
-                            <div class="mb-4">
-                                <h2 class="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">ආයුබෝවන්!!</h2>
-                                <div class="h-1 w-16 bg-gradient-to-r from-red-600 to-red-700 mx-auto rounded-full"></div>
-                            </div>
-                            <p class="text-xs lg:text-[18px] text-gray-500 mt-1 leading-relaxed">
-                                ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සදහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා  Password  නිවැරදිව ලබා දී Login වෙන්න.
-                            </p>
-                            <p class="mt-4 pt-2 text-gray-500 font-semibold text-[10px] lg:text-[14px] border-t border-gray-100">
-                                අලුතින්ම සම්බන්ද වීම සදහා පහතින් ඇති Register Button එක click කරන්න.
-                            </p>
-                        </div>
-                        
-                        <!-- Messages -->
-                        <div class="flex-shrink-0">
-                            <?php if ($error_message): ?>
-                                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-2.5 rounded-lg mb-2 text-xs">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>
-                                    <span class="whitespace-pre-line"><?php echo htmlspecialchars($error_message); ?></span>
+                    <!-- Left Side: Text and Login -->
+                    <div class="lg:col-span-7 text-left animate-fade-in-left relative z-10">
+                        <h1 class="text-3xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight mb-6 tracking-tight">
+                            Empower Your Future. <br>
+                            <span class="text-red-600">Start Learning Today.</span>
+                        </h1>
+                        <p class="max-w-2xl text-lg md:text-xl text-slate-600 font-medium mb-4 leading-relaxed">
+                            Access high-quality live classes, recorded sessions, and professional courses tailored for your success.
+                        </p>
+                        <p class="max-w-2xl text-sm md:text-base text-slate-500 font-normal mb-10 leading-relaxed">
+                            ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න. 
+                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති Register Button එක click කරන්න.
+                        </p>
+                        <!-- Login Bar -->
+                        <div class="max-w-2xl pb-16 lg:pb-0">
+                            <form action="../auth.php" method="POST" class="bg-white p-2 rounded-2xl md:rounded-full border border-slate-200 shadow-xl flex flex-col md:flex-row items-center gap-2 transition-all hover:shadow-2xl">
+                                <div class="flex-1 flex items-center px-6 py-2 w-full">
+                                    <i class="fas fa-mobile-alt text-slate-500 mr-3 text-sm"></i>
+                                    <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 placeholder-slate-500 font-bold text-sm">
                                 </div>
-                            <?php endif; ?>
-                            
-                            <?php if ($success_message): ?>
-                                <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-2.5 rounded-lg mb-2 text-xs">
-                                    <i class="fas fa-check-circle mr-1"></i>
-                                    <span class="whitespace-pre-line"><?php echo htmlspecialchars($success_message); ?></span>
+                                <div class="flex-1 flex items-center px-6 py-2 w-full border-t md:border-t-0 md:border-l border-slate-100">
+                                    <i class="fas fa-lock text-slate-500 mr-3 text-sm"></i>
+                                    <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 placeholder-slate-500 font-bold text-sm">
                                 </div>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Login Form -->
-                        <form action="../auth.php" method="POST" class="space-y-4">
-                            <div>
-                                <label for="identifier" class="block text-xs font-semibold text-gray-700 mb-1.5">Mobile Number</label>
-                                <div class="relative group">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i class="fas fa-mobile-alt text-sm text-gray-400 group-focus-within:text-red-500 transition-colors"></i>
-                                    </div>
-                                    <input type="text" id="identifier" name="identifier" required
-                                           class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all bg-gray-50 focus:bg-white"
-                                           placeholder="0XX XXX XXXX">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label for="password" class="block text-xs font-semibold text-gray-700 mb-1.5">Password</label>
-                                <div class="relative group">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i class="fas fa-lock text-sm text-gray-400 group-focus-within:text-red-500 transition-colors"></i>
-                                    </div>
-                                    <input type="password" id="password" name="password" required
-                                           class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all bg-gray-50 focus:bg-white"
-                                           placeholder="Enter your password">
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center justify-between text-xs">
-                                <label class="flex items-center text-gray-600 cursor-pointer hover:text-gray-800 transition-colors">
-                                    <input type="checkbox" class="form-checkbox text-red-600 rounded border-gray-300 w-3.5 h-3.5 focus:ring-2 focus:ring-red-500">
-                                    <span class="ml-2">Remember Me</span>
-                                </label>
-                                <a href="#" class="text-red-600 hover:text-red-700 font-medium hover:underline transition-all">Forgot Password?</a>
-                            </div>
-
-                            <button type="submit" name="login"
-                                    class="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-3 px-6 rounded-xl hover:from-red-700 hover:to-red-800 font-bold text-sm shadow-lg hover:shadow-xl hover:shadow-red-500/30 transition-all transform hover:-translate-y-0.5 active:scale-95">
-                                <i class="fas fa-sign-in-alt mr-2"></i>Sign In
-                            </button>
-                        </form>
-
-                        <!-- Footer -->
-                        <div class="text-center pt-4 border-t border-gray-200">
-                            <p class="text-xs text-gray-600">
-                                New to our platform? 
-                                <a href="../register.php" class="text-red-600 hover:text-red-700 font-bold ml-1 hover:underline transition-colors inline-flex items-center">
-                                    Register
-                                    <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
-                                </a>
-                            </p>
+                                <button type="submit" name="login" class="w-full md:w-auto bg-red-600 text-white px-12 py-4 rounded-xl md:rounded-full font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
+                                    Login Now
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
             </div>
+            </section>
+
+            <!-- Results Section: Automatic Moving Slider -->
+            <section class="py-12 bg-gray-50 overflow-hidden">
+                <div class="max-w-7xl mx-auto px-4 mb-10 text-center">
+                    <h2 class="text-3xl font-black text-slate-800 tracking-tight uppercase">Our Top Results</h2>
+                    <div class="w-20 h-1 bg-red-600 mx-auto mt-4 rounded-full"></div>
+                </div>
+
+                <!-- Slider Container -->
+                <div class="relative marquee-container py-8">
+                    <div class="flex overflow-hidden group">
+                        <!-- First Marquee Group -->
+                        <div class="flex animate-marquee whitespace-nowrap gap-6 group-hover:pause">
+                            <?php 
+                            $results = [
+                                ['name' => 'Nipuna Diyalagoda', 'id' => '123456', 'stream' => 'Physical Science', 'year' => '2025', 'maths' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Gampaha', 'drank' => '24', 'irank' => '325'],
+                                ['name' => 'Kasun Perera', 'id' => '654321', 'stream' => 'Biological Science', 'year' => '2025', 'bio' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Colombo', 'drank' => '12', 'irank' => '105'],
+                                ['name' => 'Sanduni Silva', 'id' => '789012', 'stream' => 'Commerce', 'year' => '2025', 'acc' => 'A', 'econ' => 'A', 'bs' => 'A', 'district' => 'Kandy', 'drank' => '05', 'irank' => '42'],
+                                ['name' => 'Malith Ranasinghe', 'id' => '345678', 'stream' => 'Physical Science', 'year' => '2025', 'maths' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Matara', 'drank' => '18', 'irank' => '210'],
+                                ['name' => 'Dulani Mendis', 'id' => '901234', 'stream' => 'Biological Science', 'year' => '2025', 'bio' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Galle', 'drank' => '08', 'irank' => '88']
+                            ];
+                            
+                            foreach ($results as $res): ?>
+                            <div class="flex-shrink-0 w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.06)] p-6 border border-slate-100 mx-3">
+                                <div class="flex items-center gap-4 mb-6">
+                                    <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border-2 border-red-50">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=<?php echo urlencode($res['name']); ?>" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="whitespace-normal">
+                                        <h3 class="font-black text-slate-800 text-base leading-tight"><?php echo $res['name']; ?></h3>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Adm No: <?php echo $res['id']; ?></p>
+                                        <p class="text-[10px] text-red-600 font-black uppercase"><?php echo $res['stream']; ?> - <?php echo $res['year']; ?></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="space-y-3 mb-6">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['maths']) ? 'Combined Mathematics' : (isset($res['bio']) ? 'Biology' : 'Accounting'); ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['physics']) ? 'Physics' : 'Economics'; ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['chem']) ? 'Chemistry' : 'Business Studies'; ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="pt-4 border-t border-slate-50 grid grid-cols-3 gap-2 text-center">
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">District</p><p class="text-xs font-black text-slate-700"><?php echo $res['district']; ?></p></div>
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Dist. Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['drank']; ?></p></div>
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Island Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['irank']; ?></p></div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Second Marquee Group -->
+                        <div class="flex animate-marquee whitespace-nowrap gap-6 group-hover:pause" aria-hidden="true">
+                            <?php foreach ($results as $res): ?>
+                            <div class="flex-shrink-0 w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.06)] p-6 border border-slate-100 mx-3">
+                                <div class="flex items-center gap-4 mb-6">
+                                    <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border-2 border-red-50">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=<?php echo urlencode($res['name']); ?>" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="whitespace-normal">
+                                        <h3 class="font-black text-slate-800 text-base leading-tight"><?php echo $res['name']; ?></h3>
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Adm No: <?php echo $res['id']; ?></p>
+                                        <p class="text-[10px] text-red-600 font-black uppercase"><?php echo $res['stream']; ?> - <?php echo $res['year']; ?></p>
+                                    </div>
+                                </div>
+                                <div class="space-y-3 mb-6">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['maths']) ? 'Combined Mathematics' : (isset($res['bio']) ? 'Biology' : 'Accounting'); ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['physics']) ? 'Physics' : 'Economics'; ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['chem']) ? 'Chemistry' : 'Business Studies'; ?></span>
+                                        <span class="text-xl font-black text-red-600">A</span>
+                                    </div>
+                                </div>
+                                <div class="pt-4 border-t border-slate-50 grid grid-cols-3 gap-2 text-center">
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">District</p><p class="text-xs font-black text-slate-700"><?php echo $res['district']; ?></p></div>
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Dist. Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['drank']; ?></p></div>
+                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Island Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['irank']; ?></p></div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- See All Button -->
+                <div class="mt-8 text-center">
+                    <a href="ALDetails.php" class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 transform hover:-translate-y-0.5 active:scale-95 uppercase text-sm">
+                        <span>See All Results</span>
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </a>
+                </div>
+
+                <style>
+                @keyframes marquee {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-100%); }
+                }
+                .animate-marquee {
+                    animation: marquee 40s linear infinite;
+                }
+                .group:hover .animate-marquee {
+                    animation-play-state: paused;
+                }
+                </style>
+            </section>
+
         <?php else: ?>
             <!-- Welcome Section for Logged In Users -->
             <div class="px-4 mb-8">
@@ -579,17 +725,17 @@ if ($is_logged_in && $role === 'student') {
     <footer class="bg-red-600 py-12 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="mb-6">
-                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Learnerr.lk</h2>
+                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Learner.LK</h2>
                 <div class="h-1 w-20 bg-white/30 mx-auto rounded-full"></div>
             </div>
             
             <div class="space-y-3">
-                <p class="text-lg md:text-xl font-bold text-white">Learnerr.lk යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
-                <p class="text-red-100 font-semibold text-sm md:text-base tracking-wide">Learnerr.lk is the best online academy in Sri Lanka.</p>
+                <p class="text-lg md:text-xl font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
+                <p class="text-red-100 font-semibold text-sm md:text-base tracking-wide">Learner.LK is the best online academy in Sri Lanka.</p>
             </div>
 
             <div class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?> Learnerr.lk. All rights reserved.</p>
+                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?> Learner.LK. All rights reserved.</p>
                 <div class="flex space-x-6">
                     <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-facebook-f"></i></a>
                     <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-youtube"></i></a>

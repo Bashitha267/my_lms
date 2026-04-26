@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
                                             "මෙම පන්තිය තුළ \"{$title}\" මාතෘකාව විස්තරාත්මකව ආවරණය කරනු ඇත.\n\n" .
                                             "සජීවී පන්තියට සහභාගී වීමට කරුණාකර ඔබගේ LMS Dashboard වෙත පිවිසෙන්න.\n\n" .
                                             "Thank you!\n" .
-                                            "*Team LearnerX*\n\n" .
+                                            "*Team Learner.LK*\n\n" .
                                             "------------------------------------\n\n" .
                                             "🎥 *New Live Class Scheduled!*\n\n" .
                                             "Stream: *{$stream_name}*\n" .
@@ -150,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
                                             "A new live class for {$stream_name} - {$subj_name} has been scheduled.\n" .
                                             "The session will cover \"{$title}\" in detail.\n\n" .
                                             "Please log in to your LMS Dashboard to join the live session.\n\n" .
-                                            "*Team LearnerX*";
+                                            "*Team Learner.LK*";
 
                                 notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
                             }
@@ -245,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) 
                                       "මාතෘකාව: {$title}\n" .
                                       "දිනය: {$display_date}\n" .
                                       "වේලාව: {$display_time}\n\n" .
-                                      "සම්බන්ධ වීමට ඔබගේ Dashboard එකට පිවිසෙන්න. ස්තුතියි! - LearnerX";
+                                      "සම්බන්ධ වීමට ඔබගේ Dashboard එකට පිවිසෙන්න. ස්තුතියි! - Learner.LK";
                             notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
                         }
                         $sub_stmt->close();

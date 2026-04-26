@@ -94,7 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $order_total_fmt = number_format($final_price, 2);
         
         // To Customer
-        $customer_msg = "Hello $name,\n\nYour order for '$pub_title' has been received.\nOrder ID: $order_id\nTotal: LKR $order_total_fmt.\nPayment Method: $payment_method\n\nThank you for shopping with us!\n- LearnerX";
+        $customer_msg = "Hello $name,\n\nYour order for '$pub_title' has been received.\nOrder ID: $order_id\nTotal: LKR $order_total_fmt.\nPayment Method: $payment_method\n\nThank you for shopping with us!\n- Learner.LK";
         sendWhatsAppMessage($contact_number, $customer_msg);
         
         // To Admin

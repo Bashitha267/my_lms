@@ -64,13 +64,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) 
             $dob = $_POST['dob'] ?? null;
             $gender = $_POST['gender'] ?? null;
             $requested_rate = isset($_POST['requested_rate']) ? floatval($_POST['requested_rate']) : 75.00;
-            $is_mentor = isset($_POST['is_mentor']) ? 1 : 0;
-            $hourly_rate = isset($_POST['hourly_rate']) ? floatval($_POST['hourly_rate']) : 0.00;
 
-            $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic, dob, gender, commission_rate, requested_commission_rate, is_mentor, hourly_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?)");
+
+            $is_mentor = 0;
+            $hourly_rate = 0.00;
+
+            $stmt = $conn->prepare("INSERT INTO users (user_id, email, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, dob, gender, commission_rate, requested_commission_rate, hourly_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?)");
             
+            if ($stmt === false) {
+                die("Prepare failed: " . $conn->error);
+            }
+
             $default_approved_rate = 75.00;
-            $stmt->bind_param("sssssssssisssdddid", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_number, $dob, $gender, $default_approved_rate, $requested_rate, $is_mentor, $hourly_rate);
+            $stmt->bind_param("sssssssssisssddd", $user_id, $email, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_number, $dob, $gender, $default_approved_rate, $requested_rate, $hourly_rate);
             
             if ($stmt->execute()) {
                 // Education
@@ -89,9 +95,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) 
                     $edu_stmt->close();
                 }
                 
+                // Handle New Stream and Subject Creation
+                $teacher_subjects = $_POST['teacher_subjects'] ?? [];
+                
+                if (!empty($_POST['new_stream_name']) || !empty($_POST['new_subject_name'])) {
+                    $target_stream_id = null;
+                    
+                    // 1. Create/Get Stream
+                    if (!empty($_POST['new_stream_name'])) {
+                        $ns_name = trim($_POST['new_stream_name']);
+                        $check_s = $conn->prepare("SELECT id FROM streams WHERE name = ?");
+                        $check_s->bind_param("s", $ns_name);
+                        $check_s->execute();
+                        $res_s = $check_s->get_result();
+                        if ($res_s->num_rows > 0) {
+                            $target_stream_id = $res_s->fetch_assoc()['id'];
+                        } else {
+                            $ins_s = $conn->prepare("INSERT INTO streams (name, status) VALUES (?, 1)");
+                            $ins_s->bind_param("s", $ns_name);
+                            $ins_s->execute();
+                            $target_stream_id = $ins_s->insert_id;
+                        }
+                    } else {
+                        // Use first selected stream if no new stream name is provided
+                        $selected_streams = $_POST['teacher_streams'] ?? [];
+                        if (!empty($selected_streams)) {
+                            $target_stream_id = intval($selected_streams[0]);
+                        }
+                    }
+
+                    // 2. Create/Get Subject and Map it
+                    if ($target_stream_id && !empty($_POST['new_subject_name'])) {
+                        $nsub_name = trim($_POST['new_subject_name']);
+                        
+                        // Check/Create Subject
+                        $check_sub = $conn->prepare("SELECT id FROM subjects WHERE name = ?");
+                        $check_sub->bind_param("s", $nsub_name);
+                        $check_sub->execute();
+                        $res_sub = $check_sub->get_result();
+                        $sub_id = null;
+                        if ($res_sub->num_rows > 0) {
+                            $sub_id = $res_sub->fetch_assoc()['id'];
+                        } else {
+                            $ins_sub = $conn->prepare("INSERT INTO subjects (name, status) VALUES (?, 1)");
+                            $ins_sub->bind_param("s", $nsub_name);
+                            $ins_sub->execute();
+                            $sub_id = $ins_sub->insert_id;
+                        }
+                        
+                        // Check/Create Mapping (stream_subject)
+                        $check_map = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+                        $check_map->bind_param("ii", $target_stream_id, $sub_id);
+                        $check_map->execute();
+                        $res_map = $check_map->get_result();
+                        $ss_id = null;
+                        if ($res_map->num_rows > 0) {
+                            $ss_id = $res_map->fetch_assoc()['id'];
+                        } else {
+                            $ins_map = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+                            $ins_map->bind_param("ii", $target_stream_id, $sub_id);
+                            $ins_map->execute();
+                            $ss_id = $ins_map->insert_id;
+                        }
+                        
+                        if ($ss_id) {
+                            $teacher_subjects[] = $ss_id;
+                        }
+                    }
+                }
+
                 // Assignments
                 $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
-                $teacher_subjects = $_POST['teacher_subjects'] ?? []; 
                 if (!empty($teacher_subjects) && is_array($teacher_subjects)) {
                     $assign_stmt = $conn->prepare("INSERT INTO teacher_assignments (teacher_id, stream_subject_id, academic_year, status, assigned_date) VALUES (?, ?, ?, 'pending', CURDATE())");
                     foreach ($teacher_subjects as $ss_id) {
@@ -138,7 +212,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Registration | LearnerX</title>
+    <title>Teacher Registration | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -165,7 +239,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                     ID: <?php echo $display_user_id; ?>
                 </div>
             </div>
-            <p class="text-[#202124] text-sm">Join LearnerX. Please fill in all required information accurately.</p>
+            <p class="text-[#202124] text-sm">Join Lernerr.LK. Please fill in all required information accurately.</p>
             <div class="mt-4 pt-4 border-t border-gray-100">
                 <span class="text-red-600 text-sm font-medium">* Required</span>
             </div>
@@ -295,32 +369,28 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                         <!-- AJAX -->
                     </div>
                 </div>
-            </div>
 
-            <!-- Instructor Option -->
-            <div class="form-card bg-slate-900 border-none rounded-xl text-white">
-                <label class="flex items-center gap-4 cursor-pointer">
-                    <div class="relative">
-                        <input type="checkbox" name="is_mentor" id="is_mentor" value="1" class="sr-only peer" onchange="toggleMentorFields()">
-                        <div class="w-12 h-6 bg-slate-700 rounded-full peer-checked:bg-emerald-500 transition-all"></div>
-                        <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:translate-x-6 transition-all"></div>
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="h-px flex-1 bg-gray-200"></div>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Can't find yours?</span>
+                        <div class="h-px flex-1 bg-gray-200"></div>
                     </div>
-                    <div>
-                        <p class="font-bold text-base leading-none">Apply as Instructor/Mentor?</p>
-                        <p class="text-slate-400 text-xs mt-1">Earn more with 1-on-1 sessions.</p>
-                    </div>
-                </label>
-
-                <div id="mentor_fields" class="hidden mt-6 pt-6 border-t border-slate-800 animate-in">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-end">
-                        <div class="input-group" style="border-bottom-color: #334155;">
-                            <label class="text-slate-400">Hourly Rate (LKR)</label>
-                            <input type="number" name="hourly_rate" placeholder="3500" class="text-white !font-bold text-xl">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="text-xs text-gray-500">New Stream Name</label>
+                            <input type="text" name="new_stream_name" placeholder="e.g. Grade 13 - Commerce">
                         </div>
-                        <p class="text-slate-500 italic text-xs">Students will pay this rate for 1-hour sessions.</p>
+                        <div class="input-group">
+                            <label class="text-xs text-gray-500">New Subject Name</label>
+                            <input type="text" name="new_subject_name" placeholder="e.g. Business Studies (Advanced)">
+                        </div>
                     </div>
+                    <p class="text-[10px] text-gray-400 mt-2 italic">Note: New subjects will be linked to the new stream above or your first selected stream.</p>
                 </div>
             </div>
+
+
 
             <button type="submit" name="register_teacher" class="w-full btn-primary py-4 text-lg font-bold shadow-lg transition transform active:scale-95">
                 Register as Teacher
@@ -388,10 +458,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
             } catch (e) { grid.innerHTML = 'Error.'; }
         }
 
-        function toggleMentorFields() {
-            const el = document.getElementById('mentor_fields');
-            document.getElementById('is_mentor').checked ? el.classList.remove('hidden') : el.classList.add('hidden');
-        }
+
 
         function sendOTP() {
             const mob = document.getElementById('mobile_number').value;

@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'completed' => "Your order has been completed.",
                         'return_requested' => "Your return request has been received."
                     ];
-                    $msg = "Hello {$order['name']},\n\n🛒 *Order Update*\nOrder ID: $order_id\n\n" . ($status_messages[$new_status] ?? "Status: $new_status") . "\n\n- LearnerX";
+                    $msg = "Hello {$order['name']},\n\n🛒 *Order Update*\nOrder ID: $order_id\n\n" . ($status_messages[$new_status] ?? "Status: $new_status") . "\n\n- Learner.LK";
                     sendWhatsAppMessage($order['contact_number'], $msg);
                     
                     echo json_encode(['success' => true, 'message' => "Order #$order_id updated to " . str_replace('_', ' ', $new_status)]);

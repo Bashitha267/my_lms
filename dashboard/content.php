@@ -294,7 +294,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                                          "{$teacher_name} ගුරුවරයාගේ {$formatted_date} දින පැවති පන්තියේ  පටිගත කිරීම එක් කර ඇත.\n" .
                                          "විෂය: {$subj_name}\n" .
                                          "මාතෘකාව: {$title}\n\n" .
-                                         "දැන් ඔබට එය අපගේ LMS Dashboard හරහා නරඹිය හැක.\n\n";
+                                         "දැන් ඔබට එය අපගේ LMS Dashboard හරහා නරඹිය හැක.\n\n" .
+                                         "Thank you!\n*Team Learner.LK*";
                                          
                                 notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $rec_msg);
                             }

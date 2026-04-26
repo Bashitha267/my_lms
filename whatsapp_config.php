@@ -1,20 +1,20 @@
 <?php
-// WhatsApp API Configuration - HostGrap API
-// API Domain: C147C3764B
-// API Key: C147C3764B
+// WhatsApp API Configuration - HostGrap API V2
+// API Domain: wa-api.hostgrap.com
+// API Key: 9b0fb2ec77aa05750171504359fe6a99fb2ebf8f12df5c243a37fc2cf767c81b
 
 if (!defined('WHATSAPP_API_URL')) {
-    define('WHATSAPP_API_URL', 'https://wa.hglk.link/api/send_message.php');
+    define('WHATSAPP_API_URL', 'https://wa-api.hostgrap.com/api/send-message.php');
 }
 
 
 if (!defined('WHATSAPP_API_EMAIL')) {
-    define('WHATSAPP_API_EMAIL', 'omalbasnayake@gmail.com');
+    define('WHATSAPP_API_EMAIL', 'apemediapanthiyaofficial@gmail.com');
 }
 
 
 if (!defined('WHATSAPP_API_KEY')) {
-    define('WHATSAPP_API_KEY', 'C147C3764B');
+    define('WHATSAPP_API_KEY', '9b0fb2ec77aa05750171504359fe6a99fb2ebf8f12df5c243a37fc2cf767c81b');
 }
 
 // Flag to enable/disable WhatsApp functionality
@@ -47,8 +47,8 @@ if (!function_exists('formatWhatsAppNumber')) {
             $mobile = '94' . $mobile;
         }
 
-        // Add WhatsApp suffix
-        return $mobile . '@c.us';
+        // Return only the number (removed @c.us for better compatibility)
+        return $mobile;
     }
 }
 
@@ -61,7 +61,7 @@ if (!function_exists('sendWhatsAppMessage')) {
         error_log("Attempting to send WhatsApp message to: " . $mobile);
         
         // Append global footer
-        $message .= "\n\n| Lernerr.LK 🇱🇰\n| Best Place to Your Online Learning";
+        $message .= "\n\n| Learner.LK 🇱🇰\n| Best Place to Your Online Learning";
         
         
         if (!WHATSAPP_ENABLED) {
@@ -89,25 +89,26 @@ if (!function_exists('sendWhatsAppMessage')) {
         $chatId = formatWhatsAppNumber($mobile);
 
         // Prepare JSON data
+        // Prepare data for HostGrap API V2
         $data = [
             'email' => $email,
             'api_key' => $api_key,
-            'chatId' => $chatId,
-            'text' => $message
+            'phone' => $chatId, // V2 uses 'phone'
+            'message' => $message
         ];
         
         $json_data = json_encode($data);
         error_log("WhatsApp API Payload: " . $json_data);
 
         // Initialize cURL
-
         $ch = curl_init($whatsapp_api_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json'
-        ]);
+        
+        // HostGrap usually expects form-data
+        $post_fields = http_build_query($data);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+        
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
         
@@ -145,13 +146,60 @@ if (!function_exists('sendWhatsAppMessage')) {
         }
 
         // Check response data - API returns status field
-        if (isset($response_data['status']) && $response_data['status'] === 'success') {
+        if (isset($response_data['status']) && ($response_data['status'] === 'success' || $response_data['status'] === 200)) {
             $message = isset($response_data['message']) ? $response_data['message'] : 'Message sent successfully';
-            return ['success' => true, 'message' => $message];
+            return ['success' => true, 'message' => $message, 'raw' => $response];
         } else {
-            return ['success' => false, 'message' => 'Unable to send the message: ' . ($response_data['message'] ?? 'Unknown error')];
+            return [
+                'success' => false, 
+                'message' => 'Unable to send the message: ' . ($response_data['message'] ?? 'Unknown error'),
+                'raw' => $response,
+                'http_code' => $http_code
+            ];
         }
     }
+}
+
+/**
+ * Notify a single student when they start watching a recording or join a live class
+ */
+function notifyStudentWatching($conn, $user_id, $recording_title, $remaining_watches = null) {
+    if (!defined('WHATSAPP_ENABLED') || !WHATSAPP_ENABLED) return;
+
+    $query = "SELECT whatsapp_number, first_name FROM users WHERE user_id = ? LIMIT 1";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("s", $user_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $phone = $row['whatsapp_number'];
+        $name = $row['first_name'];
+        
+        if (empty($phone)) return;
+
+        $msg = "📺 *Session Started / පන්තිය ආරම්භ විය*\n\n" .
+               "Hello *{$name}*,\n" .
+               "You have started watching: *{$recording_title}*\n";
+        
+        if ($remaining_watches !== null) {
+            $views_text = ($remaining_watches === -1) ? "Unlimited" : $remaining_watches;
+            $msg .= "Views remaining: *{$views_text}*\n";
+        }
+
+        $msg .= "\n--------------------------\n\n" .
+                "ඔබ *{$recording_title}* පටිගත කිරීම/පන්තිය නැරඹීම ආරම්භ කර ඇත.\n";
+        
+        if ($remaining_watches !== null) {
+            $views_text_si = ($remaining_watches === -1) ? "සීමාවක් නැත" : $remaining_watches;
+            $msg .= "ඉතිරිව ඇති වාර ගණන: *{$views_text_si}*\n";
+        }
+
+        $msg .= "\nThank you for learning with us!\n" .
+                "*Team Learner.LK*";
+
+        return sendWhatsAppMessage($phone, $msg);
+    }
+    return false;
 }
 
 /**
@@ -160,6 +208,7 @@ if (!function_exists('sendWhatsAppMessage')) {
 if (!function_exists('notifyEnrolledStudents')) {
     function notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $message)
     {
+        if (!defined('WHATSAPP_ENABLED') || !WHATSAPP_ENABLED) return;
         error_log("Notifying students for stream_subject_id: $stream_subject_id, year: $academic_year");
         
         $query = "SELECT u.whatsapp_number, u.first_name 

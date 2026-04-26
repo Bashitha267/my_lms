@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
             // Fetch info BEFORE update for notification
             $student_info = null;
             $info_query = "SELECT u.first_name, u.whatsapp_number, s.name as subject_name, p.amount,
-                                  st.name as stream_name, t.first_name as teacher_name
+                                  st.name as stream_name, t.first_name as teacher_name, t.whatsapp_number as teacher_wa
                           FROM {$table} p
                           JOIN student_enrollment se ON p.student_enrollment_id = se.id
                           JOIN users u ON se.student_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
@@ -236,6 +236,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['verify_payment'])) {
                                    "";
                         }
                         sendWhatsAppMessage($s_wa, $s_msg);
+
+                        // Notify Teacher if approved
+                        if ($action === 'approve' && !empty($student_info['teacher_wa'])) {
+                            $t_msg = "📢 *New Enrollment Payment Approved*\n\n" .
+                                   "Hello {$teacher},\n" .
+                                   "A student (*{$s_name}*) has paid for your class.\n\n" .
+                                   "Subject: *{$subj}*\n" .
+                                   "Stream: *{$stream}*\n" .
+                                   "Amount: *Rs. {$amt}*\n\n" .
+                                   "Learner.LK Team";
+                            sendWhatsAppMessage($student_info['teacher_wa'], $t_msg);
+                        }
                     }
                 }
             } else {

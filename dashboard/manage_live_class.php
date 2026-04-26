@@ -47,6 +47,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $update_stmt->bind_param("i", $recording_id);
         
         if ($update_stmt->execute()) {
+            // Notify students that the class has started
+            if (file_exists('../whatsapp_config.php')) {
+                require_once '../whatsapp_config.php';
+                if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                    $info_query = "SELECT r.title, s.name as subject_name, st.name as stream_name, ta.stream_subject_id, ta.academic_year 
+                                  FROM recordings r
+                                  INNER JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
+                                  INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                                  INNER JOIN subjects s ON ss.subject_id = s.id
+                                  INNER JOIN streams st ON ss.stream_id = st.id
+                                  WHERE r.id = ?";
+                    $info_stmt = $conn->prepare($info_query);
+                    $info_stmt->bind_param("i", $recording_id);
+                    $info_stmt->execute();
+                    $info_res = $info_stmt->get_result();
+                    if ($info_row = $info_res->fetch_assoc()) {
+                        $subj_name = $info_row['subject_name'];
+                        $stream_name = $info_row['stream_name'];
+                        $title = $info_row['title'];
+                        $ss_id = $info_row['stream_subject_id'];
+                        $acad_year = $info_row['academic_year'];
+                        
+                        $live_msg = "🔴 *LIVE NOW / සජීවීව ආරම්භ විය*\n\n" .
+                                  "The live class for *{$subj_name}* ({$stream_name}) has just started!\n\n" .
+                                  "Topic: *{$title}*\n\n" .
+                                  "Join now through your Dashboard.\n\n" .
+                                  "--------------------------\n\n" .
+                                  "{$subj_name} ({$stream_name}) සජීවී පන්තිය දැන් ආරම්භ විය.\n" .
+                                  "මාතෘකාව: {$title}\n\n" .
+                                  "සම්බන්ධ වීමට දැන්ම Dashboard වෙත පිවිසෙන්න.\n\n" .
+                                  "Thank you!\n" .
+                                  "*Team Learner.LK*";
+                        notifyEnrolledStudents($conn, $ss_id, $acad_year, $live_msg);
+                    }
+                    $info_stmt->close();
+                }
+            }
             echo json_encode(['success' => true, 'message' => 'Live class started successfully']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error starting live class: ' . $conn->error]);
@@ -95,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                  "--------------------------\n\n" .
                                  "{$subj_name} සඳහා නව පටිගත කිරීමක් එක් කර ඇත.\n" .
                                  "මාතෘකාව: {$rec_title}\n\n" .
-                                 "බැලීම සඳහා Dashboard එකට පිවිසෙන්න. ස්තුතියි! - LearnerX";
+                                 "බැලීම සඳහා Dashboard එකට පිවිසෙන්න. ස්තුතියි! - Learner.LK";
                         notifyEnrolledStudents($conn, $ss_id, $acad_year, $rec_msg);
                     }
                     $info_stmt->close();

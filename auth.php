@@ -107,13 +107,24 @@ if (isset($_POST['login'])) {
                 if (WHATSAPP_ENABLED && !empty($whatsapp_target)) {
                     try {
                         $current_time = date('Y-m-d h:i A');
-                        $login_message = "🔔 *New Login Notification / නව පිවිසීම් දැනුම්දීම*\n\n" .
-                                         "👤 *User ID / පරිශීලක හැඳුනුම්පත:* {$user_id}\n" .
-                                         "⏰ *Time / වේලාව:* {$current_time}\n\n" .
-                                         "Successful login to your LMS account.";
+                        $u_name = !empty($user['first_name']) ? $user['first_name'] : $user_id;
+                        $login_message = "👋 *Welcome back, {$u_name}! / සාදරයෙන් පිළිගනිමු!*\n\n" .
+                                         "You have successfully logged into your Learner.LK account.\n" .
+                                         "ඔබ සාර්ථකව Learner.LK ගිණුමට ප්‍රවිෂ්ට විය.\n\n" .
+                                         "⏰ *Time:* {$current_time}";
 
-                        sendWhatsAppMessage($whatsapp_target, $login_message);
+                        $response = sendWhatsAppMessage($whatsapp_target, $login_message);
+                        $_SESSION['whatsapp_debug'] = [
+                            'target' => $whatsapp_target,
+                            'success' => $response['success'],
+                            'message' => $response['message'],
+                            'time' => $current_time
+                        ];
                     } catch (Exception $e) {
+                        $_SESSION['whatsapp_debug'] = [
+                            'success' => false,
+                            'message' => 'Exception: ' . $e->getMessage()
+                        ];
                         error_log("WhatsApp login message failed: " . $e->getMessage());
                     }
                 }

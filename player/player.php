@@ -244,8 +244,18 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
     } elseif (empty($role) && !empty($_SESSION['guest_name'])) {
         // Guests can watch if the live class is free
         $can_watch = ($current_recording['free_video'] == 1);
-    } else {
-        $can_watch = false;
+    }
+}
+
+// Send WhatsApp Notification when watching/joining
+if ($can_watch && $role === 'student' && $current_recording) {
+    if (file_exists('../whatsapp_config.php')) {
+        require_once '../whatsapp_config.php';
+        $session_key = 'watched_' . $recording_id;
+        if (!isset($_SESSION[$session_key])) {
+            notifyStudentWatching($conn, $user_id, $current_recording['title'], $remaining_watches);
+            $_SESSION[$session_key] = true;
+        }
     }
 }
 ?>
@@ -2532,7 +2542,13 @@ if ($role === 'teacher' && $current_recording && $is_teacher_owner) {
                         </div>
 
                         <div class="video-badges">
-                            <div class="badge">
+            <?php if ($role === 'student' && !$is_live_class): ?>
+                <div class="badge">
+                    <i class="fas fa-eye"></i>
+                    <span><?php echo ($remaining_watches === -1) ? 'Unlimited Views' : $remaining_watches . ' Views Remaining'; ?></span>
+                </div>
+            <?php endif; ?>
+            <div class="badge">
                                 <i class="fas fa-book"></i>
                                 <?php echo htmlspecialchars($current_recording['subject_name']); ?>
                             </div>

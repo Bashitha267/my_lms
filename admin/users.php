@@ -24,6 +24,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param("s", $user_id);
                 if ($stmt->execute()) {
                     $success_message = "User approved successfully.";
+                    
+                    // WhatsApp Notification
+                    if (file_exists('../whatsapp_config.php')) {
+                        require_once '../whatsapp_config.php';
+                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                            $info_stmt = $conn->prepare("SELECT first_name, whatsapp_number, role FROM users WHERE user_id = ?");
+                            $info_stmt->bind_param("s", $user_id);
+                            $info_stmt->execute();
+                            $u_info = $info_stmt->get_result()->fetch_assoc();
+                            
+                            if ($u_info && !empty($u_info['whatsapp_number'])) {
+                                $role_name = ucfirst($u_info['role']);
+                                $msg = "✅ *Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
+                                       "Hello {$u_info['first_name']},\n" .
+                                       "Your Learner.LK {$role_name} account has been approved by the administrator. You can now log in to the system.\n\n" .
+                                       "--------------------------\n\n" .
+                                       "ඔබේ Learner.LK {$role_name} ගිණුම පරිපාලක විසින් තහවුරු කර ඇත. ඔබට දැන් පද්ධතියට පිවිසිය හැක.\n\n" .
+                                       "Thank you,\nLearner.LK Team";
+                                sendWhatsAppMessage($u_info['whatsapp_number'], $msg);
+                            }
+                        }
+                    }
                 }
                 $stmt->close();
                 break;

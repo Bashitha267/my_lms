@@ -78,7 +78,7 @@ if ($user_role === 'student') {
         $stmt->bind_param("siss", $user_id, $subject_id, $session_date, $note);
         if ($stmt->execute()) {
             $request_id = $conn->insert_id;
-            $inst_notify = $conn->query("SELECT whatsapp_number FROM users u JOIN instructor_subjects isub ON u.user_id = isub.instructor_id WHERE isub.subject_id = '$subject_id' AND u.status=1")->fetch_all(MYSQLI_ASSOC);
+            $inst_notify = $conn->query("SELECT whatsapp_number FROM users WHERE role = 'instructor' AND status = 1")->fetch_all(MYSQLI_ASSOC);
             $sub_name = $conn->query("SELECT name FROM subjects WHERE id='$subject_id'")->fetch_assoc()['name'];
             foreach($inst_notify as $wa) {
                 if(!empty($wa['whatsapp_number'])) {
