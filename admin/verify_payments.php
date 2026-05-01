@@ -3,7 +3,8 @@ require_once '../check_session.php';
 require_once '../config.php';
 
 // Only admins can access this page
-if ($_SESSION['role'] !== 'admin') {
+// Verify user is admin or super_admin
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header('Location: dashboard.php');
     exit;
 }
@@ -621,13 +622,7 @@ $selected_course = null;
                     <a href="?tab=verify" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'verify' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
                         Verify Pending Requests
                     </a>
-                    <a href="?tab=teacher_req" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'teacher_req' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
-                        Teacher Payouts
-                    </a>
-                    <a href="?tab=inst_req" class="whitespace-nowrap py-4 px-6 text-center font-medium text-sm sm:text-base flex-1 shrink-0 <?php echo $active_tab === 'inst_req' ? 'tab-active' : 'tab-inactive hover:bg-gray-50'; ?>">
-                        Instructor Payouts
-                    </a>
-
+    
                 </nav>
             </div>
         </div>

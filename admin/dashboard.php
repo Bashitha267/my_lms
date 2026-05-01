@@ -2,10 +2,16 @@
 require_once '../check_session.php';
 require_once '../config.php';
 
-// Verify user is admin
-if ($_SESSION['role'] !== 'admin') {
+// Verify user is admin or super_admin
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header("Location: /lms/login.php?error=" . urlencode("Access denied. Admin only."));
     exit();
+}
+
+// Super admin doesn't have a dashboard, redirect to payments
+if ($_SESSION['role'] === 'super_admin') {
+    header('Location: teacher_payments.php');
+    exit;
 }
 
 // Get dashboard background image from system settings

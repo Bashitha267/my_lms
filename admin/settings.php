@@ -305,6 +305,7 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Settings - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         .tab-button {
             border-color: transparent;
@@ -377,7 +378,7 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                             <button type="button" onclick="switchTab('home_posts')" 
                                     class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
                                     data-tab="home_posts">
-                                Upload Posts (Gallery)
+                                Marketing Posts
                             </button>
                         </nav>
                     </div>
@@ -423,22 +424,24 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             <?php foreach ($home_posts as $post): ?>
                                 <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden relative group">
-                                    <div class="h-64 w-full bg-gray-100">
+                                    <div class="h-64 w-full bg-gray-100 relative">
                                         <img src="../<?php echo htmlspecialchars($post['image_path']); ?>" 
                                              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                              alt="<?php echo htmlspecialchars($post['title'] ?? 'Post'); ?>">
+                                        
+                                        <!-- Removal Icon Overlay -->
+                                        <form method="POST" onsubmit="return confirm('Delete this marketing post?')" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-[-10px] group-hover:translate-y-0">
+                                            <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                            <button type="submit" name="delete_home_post" class="w-10 h-10 bg-white/90 backdrop-blur-sm text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white shadow-xl transition-all duration-200 border border-red-100" title="Remove Post">
+                                                <i class="fas fa-trash-can"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                     <div class="p-3 bg-white border-t">
-                                        <div class="flex justify-between items-center">
-                                            <p class="text-sm font-semibold text-gray-700 truncate mr-2"><?php echo htmlspecialchars($post['title'] ?: 'Untitled Post'); ?></p>
-                                            <form method="POST" onsubmit="return confirm('Delete this post?')">
-                                                <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                                <button type="submit" name="delete_home_post" class="text-red-500 hover:text-red-700 transition-colors">
-                                                    <i class="fas fa-trash-alt"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                        <p class="text-[10px] text-gray-400 mt-1"><?php echo $post['created_at']; ?></p>
+                                        <p class="text-sm font-bold text-gray-800 truncate"><?php echo htmlspecialchars($post['title'] ?: 'Untitled Post'); ?></p>
+                                        <p class="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                            <i class="far fa-calendar-alt"></i> <?php echo date('M j, Y', strtotime($post['created_at'])); ?>
+                                        </p>
                                     </div>
                                 </div>
                             <?php endforeach; ?>

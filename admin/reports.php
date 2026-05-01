@@ -2,7 +2,7 @@
 require_once '../check_session.php';
 require_once '../config.php';
 
-if ($_SESSION['role'] !== 'admin') {
+if ($_SESSION['role'] !== 'super_admin') {
     header('Location: dashboard.php'); exit;
 }
 

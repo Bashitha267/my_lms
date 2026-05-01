@@ -71,12 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     if ($verification_method === 'nic' && $nic_verified === 1) {
         $approved = 1;
         $verification_status = 'verified_nic';
-    }
-    elseif ($verification_method === 'mobile' && $otp_verified === 1) {
+    } elseif ($verification_method === 'mobile' && $otp_verified === 1) {
         $approved = 1;
         $verification_status = 'verified_mobile';
-    }
-    else {
+    } else {
         // Verification failed or not completed - require admin approval
         $approved = 0;
         $verification_status = 'pending';
@@ -85,20 +83,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     // Validation (students only)
     if (empty($password)) {
         $error_message = 'Password is required.';
-    }
-    elseif ($password !== $confirm_password) {
+    } elseif ($password !== $confirm_password) {
         $error_message = 'Passwords do not match.';
-    }
-    elseif (empty($verification_method) || $verification_method === 'none') {
+    } elseif (empty($verification_method) || $verification_method === 'none') {
         $error_message = 'Please select a verification method and complete the verification.';
-    }
-    elseif ($verification_method === 'nic' && $nic_verified !== 1) {
+    } elseif ($verification_method === 'nic' && $nic_verified !== 1) {
         $error_message = 'Please verify your NIC number before submitting.';
-    }
-    elseif ($verification_method === 'mobile' && $otp_verified !== 1) {
+    } elseif ($verification_method === 'mobile' && $otp_verified !== 1) {
         $error_message = 'Please verify your mobile number with OTP before submitting.';
-    }
-    else {
+    } else {
         // Additional validation for students
         $enrollment_type = $_POST['enrollment_type'] ?? 'subject';
 
@@ -109,15 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
             if (intval($stream_id_input) <= 0) {
                 $error_message = 'Please select a stream.';
-            }
-            elseif (intval($subject_id_input) <= 0) {
+            } elseif (intval($subject_id_input) <= 0) {
                 $error_message = 'Please select a subject.';
-            }
-            elseif (empty($selected_teacher_id)) {
+            } elseif (empty($selected_teacher_id)) {
                 $error_message = 'Please select a teacher.';
             }
-        }
-        elseif ($enrollment_type === 'course') {
+        } elseif ($enrollment_type === 'course') {
             $course_id_input = $_POST['course_id'] ?? '';
             if (intval($course_id_input) <= 0) {
                 $error_message = 'Please select a course.';
@@ -173,19 +163,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 // Validate file type
                 if (!in_array($file_ext, $allowed_extensions)) {
                     $error_message = 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.';
-                }
-                elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
+                } elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
                     $error_message = 'File size too large. Maximum size is 5MB.';
-                }
-                else {
+                } else {
                     // Generate unique filename
                     $new_filename = $user_id . '_' . time() . '.' . $file_ext;
                     $upload_path = $upload_dir . $new_filename;
 
                     if (move_uploaded_file($file['tmp_name'], $upload_path)) {
                         $profile_picture_path = 'uploads/profiles/' . $new_filename;
-                    }
-                    else {
+                    } else {
                         $error_message = 'Failed to upload profile picture.';
                     }
                 }
@@ -224,14 +211,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                 if ($ss_result->num_rows > 0) {
                                     $ss_row = $ss_result->fetch_assoc();
                                     $stream_subject_id = $ss_row['id'];
-                                }
-                                else {
+                                } else {
                                     $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
                                     $create_ss->bind_param("ii", $stream_id, $subject_id);
                                     if ($create_ss->execute()) {
                                         $stream_subject_id = $conn->insert_id;
-                                    }
-                                    else {
+                                    } else {
                                         $error_message = 'Error creating stream-subject combination: ' . $conn->error;
                                     }
                                     $create_ss->close();
@@ -245,8 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
                                     if (!$enroll_stmt->execute()) {
                                         $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
-                                    }
-                                    else {
+                                    } else {
                                         // Enrollment Success - Send WhatsApp
                                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                                             $sub_stmt = $conn->prepare("SELECT name FROM subjects WHERE id = ?");
@@ -268,8 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                     $enroll_stmt->close();
                                 }
                             }
-                        }
-                        elseif ($enrollment_type === 'course') {
+                        } elseif ($enrollment_type === 'course') {
                             $course_id = intval($_POST['course_id'] ?? 0);
 
                             if (empty($error_message) && $course_id > 0) {
@@ -281,8 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                     if ($conn->errno != 1062) { // Ignore duplicate entry
                                         $error_message = 'User created but failed to enroll in course: ' . $enroll_stmt->error;
                                     }
-                                }
-                                else {
+                                } else {
                                     // Enrollment Success - Send WhatsApp
                                     if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                                         $crs_stmt = $conn->prepare("SELECT name FROM courses WHERE id = ?");
@@ -319,8 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                     "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
 
                                 sendWhatsAppMessage($whatsapp_number, $welcome_msg);
-                            }
-                            catch (Exception $e) {
+                            } catch (Exception $e) {
                                 error_log("WhatsApp welcome message failed: " . $e->getMessage());
                             }
                         }
@@ -330,19 +311,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         if ($approved == 1) {
                             header("Location: login.php?success=" . urlencode($ui_welcome_msg));
                             exit;
-                        }
-                        else {
+                        } else {
                             $success_message = $ui_welcome_msg . "\n\nYour account is pending admin approval. You will be able to login once approved.";
                         }
                         // Clear form data
                         $_POST = array();
                     }
-                }
-                else {
+                } else {
                     if ($conn->errno == 1062) {
                         $error_message = 'User ID already exists.';
-                    }
-                    else {
+                    } else {
                         $error_message = 'Error creating user: ' . $conn->error;
                     }
                 }
@@ -355,7 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 // Get streams for dropdown
 $streams_query = "SELECT id, name FROM streams WHERE status = 1 ORDER BY name";
 $streams_result = $conn->query($streams_query);
-$streams = $streams_result->fetch_all(MYSQLI_ASSOC);
+$streams = ($streams_result && $streams_result->num_rows > 0) ? $streams_result->fetch_all(MYSQLI_ASSOC) : [];
 
 // Get available courses for selection
 $courses_query = "SELECT id, teacher_id, title, price, cover_image FROM courses WHERE status = 1 ORDER BY title";
@@ -370,8 +348,7 @@ if ($courses_result) {
         $t_res = $t_stmt->get_result();
         if ($t = $t_res->fetch_assoc()) {
             $row['teacher_name'] = $t['first_name'] . ' ' . $t['second_name'];
-        }
-        else {
+        } else {
             $row['teacher_name'] = 'Unknown Teacher';
         }
         $t_stmt->close();
@@ -381,10 +358,31 @@ if ($courses_result) {
 
 // Sri Lanka Districts
 $districts = [
-    'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
-    'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala',
-    'Mannar', 'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya',
-    'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
+    'Ampara',
+    'Anuradhapura',
+    'Badulla',
+    'Batticaloa',
+    'Colombo',
+    'Galle',
+    'Gampaha',
+    'Hambantota',
+    'Jaffna',
+    'Kalutara',
+    'Kandy',
+    'Kegalle',
+    'Kilinochchi',
+    'Kurunegala',
+    'Mannar',
+    'Matale',
+    'Matara',
+    'Monaragala',
+    'Mullaitivu',
+    'Nuwara Eliya',
+    'Polonnaruwa',
+    'Puttalam',
+    'Ratnapura',
+    'Trincomalee',
+    'Vavuniya'
 ];
 
 // Pre-calculate next User ID for display (start from 1000)
@@ -406,597 +404,671 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registration - Lernerr.LK</title>
+    <title>Registration - LERNERR.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #f0f2f5;
-            background-image: none;
+            background-color: #f8f9fa;
             min-height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
         }
-        .form-card {
+
+        .registration-container {
+            width: 100%;
+            max-width: 550px;
             background: white;
-            border-radius: 8px;
             border: 1px solid #dadce0;
-            margin-bottom: 12px;
-            padding: 24px;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
             transition: all 0.3s ease;
         }
-        .form-card:first-of-type {
-            border-top: 10px solid #dc2626; /* Material Red 600 */
+
+        .step-content {
+            display: none;
         }
-        .google-input {
-            border-bottom: 2px solid #e0e0e0;
-            transition: border-color 0.2s;
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
         }
-        .google-input:focus {
-            border-bottom-color: #dc2626;
-            outline: none;
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .section-title {
-            font-size: 1.5rem;
-            font-weight: 500;
-            color: #202124;
-            margin-bottom: 8px;
-        }
-        .section-subtitle {
-            font-size: 0.875rem;
-            color: #5f6368;
+
+        .google-input-group {
+            position: relative;
             margin-bottom: 24px;
         }
-        label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #202124;
-            margin-bottom: 8px;
-        }
-        input[type="text"], input[type="email"], input[type="password"], input[type="date"], select, textarea {
+
+        .google-input {
             width: 100%;
-            padding: 12px 0;
-            border: none;
-            border-bottom: 1px solid #dadce0;
-            background: transparent;
-            font-size: 1rem;
-            transition: border-bottom 0.2s ease-in-out;
+            padding: 13px 15px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-        input:focus, select:focus, textarea:focus {
-            border-bottom: 2px solid #dc2626;
+
+        .google-input:focus {
+            border-color: #1a73e8;
             outline: none;
+            box-shadow: 0 0 0 1px #1a73e8;
         }
-        .btn-primary {
-            background-color: #dc2626;
+
+        .google-label {
+            position: absolute;
+            left: 12px;
+            top: 13px;
+            padding: 0 4px;
+            background: white;
+            color: #5f6368;
+            font-size: 16px;
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+
+        .google-input:focus+.google-label,
+        .google-input:not(:placeholder-shown)+.google-label {
+            top: -10px;
+            left: 10px;
+            font-size: 12px;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+
+        .google-input:not(:focus)+.google-label {
+            color: #5f6368;
+        }
+
+        .btn-google {
+            background-color: #1a73e8;
             color: white;
             padding: 10px 24px;
             border-radius: 4px;
             font-weight: 500;
-            transition: background-color 0.2s;
+            font-size: 14px;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
         }
-        .btn-primary:hover {
-            background-color: #b91c1c;
+
+        .btn-google:hover {
+            background-color: #1765cc;
+            box-shadow: 0 1px 3px 1px rgba(66, 133, 244, .15), 0 1px 2px 0 rgba(66, 133, 244, .3);
+        }
+
+        .btn-google-outline {
+            background-color: transparent;
+            color: #1a73e8;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-google-outline:hover {
+            background-color: #f6f9fe;
+        }
+
+        .progress-stepper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 8px;
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #e8eaed;
+            transition: background-color 0.3s;
+        }
+
+        .step-dot.active {
+            background-color: #1a73e8;
+        }
+
+        .google-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .google-logo svg {
+            width: 75px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .section-header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            color: #ea4335;
+            margin-bottom: 6px;
+        }
+
+        .section-header p {
+            font-size: 14px;
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+
+        select.google-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+
+        .sinhala-subtitle {
+            display: block;
+            font-size: 13px;
+            color: #202124;
+            font-weight: 400;
+            margin-top: 2px;
+        }
+
+        .sinhala-inline {
+            font-size: 11px;
+            color: #5f6368;
+            font-weight: 400;
+            margin-left: 2px;
+        }
+
+        @media (max-width: 480px) {
+            .registration-container {
+                padding: 24px 16px;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+            }
+
+            .google-logo h2 {
+                font-size: 20px !important;
+            }
+
+            .section-header h1 {
+                font-size: 18px;
+            }
+
+            .section-header p {
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .sinhala-subtitle {
+                font-size: 12px;
+            }
+
+            .sinhala-inline {
+                font-size: 10px;
+            }
+
+            .google-input {
+                font-size: 14px;
+                padding: 11px 13px;
+            }
+
+            .google-label {
+                font-size: 14px;
+                top: 11px;
+            }
+
+            .google-input:focus+.google-label,
+            .google-input:not(:placeholder-shown)+.google-label {
+                font-size: 11px;
+                top: -9px;
+            }
+
+            .btn-google,
+            .btn-google-outline {
+                padding: 9px 20px;
+                font-size: 13px;
+            }
+
+            .progress-stepper {
+                margin-bottom: 20px;
+            }
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
-    
-    <div class="max-w-7xl mx-auto py-8 px-4">
-        <!-- Header Image Card -->
-        <div class="form-card p-0 overflow-hidden !border-0 shadow-lg mb-8">
-            <div class="h-4 w-full bg-red-600"></div>
-            <div class="p-8">
-                <div class="flex items-center space-x-3 mb-4">
-                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                    </svg>
-                    <h1 class="text-3xl font-normal text-[#202124]">Student Registration</h1>
-                </div>
-                <div class="text-[#202124] text-sm">
-                    Lernerr.LK Learning Management System Registration
-                </div>
-                <div class="mt-4 pt-4 border-t border-gray-200">
-                    <span class="text-red-600 text-sm font-medium">* Required</span>
-                </div>
-            </div>
+
+    <div class="registration-container">
+        <!-- LERNERR.LK Logo -->
+        <div class="google-logo">
+            <h2 class="text-2xl font-black tracking-tighter text-[#ea4335]">
+                LERNERR.LK
+            </h2>
         </div>
 
-                <!-- Success Message -->
-                <?php if (!empty($success_message)): ?>
-                    <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded mb-6" role="alert">
-                        <div class="flex">
-                            <svg class="h-5 w-5 text-green-500 mt-1" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                            </svg>
-                            <div class="ml-3">
-                                <p class="text-sm font-medium whitespace-pre-line"><?php echo htmlspecialchars($success_message); ?></p>
-                                <div class="mt-4">
-                                    <a href="login.php" class="text-sm font-bold text-green-800 hover:text-green-900 underline">Click here to Login now / දැන් ඇතුළු වීමට මෙතන ක්ලික් කරන්න</a>
-                                </div>
-                            </div>
-                        </div>
+        <div class="section-header">
+            <h1 id="stepTitle" class="text-xl font-bold text-[#ea4335]">Create your Student Account</h1>
+            <p id="stepSubtitle" class="text-base font-semibold text-gray-700 mt-1">ගිණුමක් සාදාගන්න</p>
+        </div>
+
+        <div class="progress-stepper" id="progressStepper">
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <?php if (!empty($success_message)): ?>
+            <div class="bg-green-50 border border-green-200 text-green-700 p-4 rounded mb-6 text-sm">
+                <?php echo htmlspecialchars($success_message); ?>
+                <div class="mt-2">
+                    <a href="login.php" class="font-bold underline text-green-800">Login now</a>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($error_message)): ?>
+            <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-6 text-sm">
+                <?php echo htmlspecialchars($error_message); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" action="" id="addUserForm" enctype="multipart/form-data">
+            <input type="hidden" id="role" name="role" value="student">
+
+            <!-- STEP 1: Personal Info -->
+            <div class="step-content active" id="step1">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                    <div class="google-input-group">
+                        <input type="text" id="first_name" name="first_name" class="google-input" placeholder=" "
+                            required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+                        <label for="first_name" class="google-label">First name (මුල් නම)</label>
                     </div>
-                <?php
-endif; ?>
-
-                <!-- Error Message -->
-                <?php if (!empty($error_message)): ?>
-                    <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6" role="alert">
-                        <div class="flex">
-                            <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                            </svg>
-                            <p class="ml-3 text-sm font-medium"><?php echo htmlspecialchars($error_message); ?></p>
-                        </div>
+                    <div class="google-input-group">
+                        <input type="text" id="second_name" name="second_name" class="google-input" placeholder=" "
+                            required value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
+                        <label for="second_name" class="google-label">Last name (වාසගම)</label>
                     </div>
-                <?php
-endif; ?>
+                </div>
 
-                <!-- Toast Container -->
-                <form method="POST" action="" class="space-y-4" id="addUserForm" enctype="multipart/form-data">
-                    <input type="hidden" id="role" name="role" value="student">
-                    
-                    <!-- SECTION 1: Student Information -->
-                    <div class="form-card">
-                        <div class="flex items-center justify-between mb-8">
-                            <div>
-                                <h3 class="section-title">Student Information</h3>
-                                <p class="section-subtitle">Basic details about the student</p>
-                            </div>
-                            <div class="bg-red-50 text-red-700 px-4 py-2 rounded-full text-sm font-bold border border-red-100">
-                                User ID: <?php echo htmlspecialchars($display_user_id); ?>
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- First Name and Last Name -->
-                            <div>
-                                <label for="first_name">First Name *</label>
-                                <input type="text" id="first_name" name="first_name" required
-                                       placeholder="පළමු නම"
-                                       value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
-                            </div>
+                <div class="google-input-group">
+                    <input type="date" id="dob" name="dob" class="google-input" placeholder=" " required
+                        max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>"
+                        value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
+                    <label for="dob" class="google-label">Birthday (උපන් දිනය)</label>
+                </div>
 
-                            <div>
-                                <label for="second_name">Last Name *</label>
-                                <input type="text" id="second_name" name="second_name" required
-                                       placeholder="අවසාන නම"
-                                       value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
-                            </div>
+                <div class="google-input-group">
+                    <select id="gender" name="gender" class="google-input" required>
+                        <option value="" disabled selected hidden></option>
+                        <option value="male" <?php echo (($_POST['gender'] ?? '') === 'male') ? 'selected' : ''; ?>>Male
+                            (පුරුෂ)</option>
+                        <option value="female" <?php echo (($_POST['gender'] ?? '') === 'female') ? 'selected' : ''; ?>>
+                            Female (ස්ත්‍රී)</option>
+                    </select>
+                    <label for="gender" class="google-label">Gender (ස්ත්‍රී/පුරුෂ භාවය)</label>
+                </div>
 
-                            <!-- Date of Birth and Gender -->
-                            <div>
-                                <label for="dob">Date of Birth *</label>
-                                <input type="date" id="dob" name="dob" required
-                                       max="<?php echo date('Y-m-d', strtotime('-10 years')); ?>"
-                                       value="<?php echo htmlspecialchars($_POST['dob'] ?? ''); ?>">
-                            </div>
+                <div class="flex justify-between items-center mt-10">
+                    <a href="login.php" class="text-blue-600 font-medium text-sm hover:underline">Sign in instead</a>
+                    <button type="button" onclick="nextStep(1)" class="btn-google px-8">Next</button>
+                </div>
+            </div>
 
-                            <div>
-                                <label for="gender">Gender *</label>
-                                <select id="gender" name="gender" required>
-                                    <option value="">තෝරන්න</option>
-                                    <option value="male" <?php echo(($_POST['gender'] ?? '') === 'male') ? 'selected' : ''; ?>>පුරුෂ</option>
-                                    <option value="female" <?php echo(($_POST['gender'] ?? '') === 'female') ? 'selected' : ''; ?>>ස්ත්‍රී</option>
-                                </select>
-                            </div>
+            <!-- STEP 2: Security -->
+            <div class="step-content" id="step2">
+                <div class="google-input-group">
+                    <input type="password" id="password" name="password" class="google-input" placeholder=" " required>
+                    <label for="password" class="google-label">Password (මුරපදය)</label>
+                </div>
+                <div class="google-input-group">
+                    <input type="password" id="confirm_password" name="confirm_password" class="google-input"
+                        placeholder=" " required>
+                    <label for="confirm_password" class="google-label">Confirm (තහවුරු කරන්න)</label>
+                </div>
+                <p class="text-xs text-gray-500 mb-6 px-1">Use 8 or more characters with a mix of letters, numbers &
+                    symbols</p>
 
-                            <!-- Password and Confirm Password -->
-                            <div>
-                                <label for="password">Password *</label>
-                                <input type="password" id="password" name="password" required
-                                       placeholder="ශක්තිමත් මුරපදයක් ඇතුළත් කරන්න">
-                            </div>
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(2)" class="btn-google-outline">Back</button>
+                    <button type="button" onclick="nextStep(2)" class="btn-google px-8">Next</button>
+                </div>
+            </div>
 
-                            <div>
-                                <label for="confirm_password">Confirm Password *</label>
-                                <input type="password" id="confirm_password" name="confirm_password" required
-                                       placeholder="මුරපදය නැවත ඇතුළත් කරන්න">
-                            </div>
+            <!-- STEP 3: Contact & Location -->
+            <div class="step-content" id="step3">
+                <div class="google-input-group">
+                    <input type="text" id="whatsapp_number" name="whatsapp_number" class="google-input" placeholder=" "
+                        required value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
+                    <label for="whatsapp_number" class="google-label">WhatsApp number (වට්ස්ඇප් අංකය)</label>
+                </div>
+                <div class="google-input-group">
+                    <input type="text" id="mobile_number" name="mobile_number" class="google-input" placeholder=" "
+                        required value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
+                    <label for="mobile_number" class="google-label">Mobile number (ජංගම දුරකථන අංකය)</label>
+                </div>
 
-                            <!-- School Name -->
-                            <div>
-                                <label for="school_name">School Name</label>
-                                <input type="text" id="school_name" name="school_name"
-                                       placeholder="පාසලේ නම"
-                                       value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
-                            </div>
-
-                            <!-- District -->
-                            <div>
-                                <label for="district">District *</label>
-                                <div class="relative">
-                                    <input type="text" id="district_search" 
-                                           placeholder="දිස්ත්‍රික්කය සොයන්න"
-                                           autocomplete="off"
-                                           value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>"
-                                           oninput="filterDistricts()" 
-                                           onfocus="showDistricts()"
-                                           onblur="setTimeout(hideDistricts, 200)">
-                                    <input type="hidden" id="district" name="district" value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>">
-                                    <div id="district_dropdown" class="absolute z-10 w-full bg-white border border-[#dadce0] rounded-md shadow-lg max-h-60 overflow-y-auto hidden">
-                                        <!-- Options will be populated by JS -->
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Address -->
-                            <div class="md:col-span-2">
-                                <label for="address">Address *</label>
-                                <textarea id="address" name="address" rows="1" required
-                                          placeholder="සම්පූර්ණ ලිපිනය ඇතුළත් කරන්න"><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
-                            </div>
-                        </div>
+                <div class="google-input-group relative">
+                    <input type="text" id="district_search" class="google-input" placeholder=" " autocomplete="off"
+                        value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>" oninput="filterDistricts()"
+                        onfocus="showDistricts()" onblur="setTimeout(hideDistricts, 200)">
+                    <label for="district_search" class="google-label">District (දිස්ත්‍රික්කය)</label>
+                    <input type="hidden" id="district" name="district"
+                        value="<?php echo htmlspecialchars($_POST['district'] ?? ''); ?>">
+                    <div id="district_dropdown"
+                        class="absolute z-10 w-full bg-white border border-[#dadce0] rounded-md shadow-lg max-h-40 overflow-y-auto hidden">
                     </div>
+                </div>
 
-                    <!-- SECTION 2: Contact Information -->
-                    <div class="form-card">
-                        <h3 class="section-title">Contact Information</h3>
-                        <p class="section-subtitle">How we can reach you</p>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <!-- WhatsApp Number -->
-                            <div>
-                                <label for="whatsapp_number">WhatsApp Number *</label>
-                                <input type="text" id="whatsapp_number" name="whatsapp_number" required
-                                       placeholder="වට්ස්ඇප් අංකය"
-                                       value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
-                            </div>
+                <div class="google-input-group">
+                    <textarea id="address" name="address" class="google-input" placeholder=" " rows="1"
+                        required><?php echo htmlspecialchars($_POST['address'] ?? ''); ?></textarea>
+                    <label for="address" class="google-label">Address (ලිපිනය)</label>
+                </div>
 
-                            <!-- Mobile Number (Contact Number) -->
-                            <div>
-                                <label for="mobile_number">Contact Number (Mobile) *</label>
-                                <input type="text" id="mobile_number" name="mobile_number" required
-                                       placeholder="ජංගම දුරකථන අංකය"
-                                       value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
-                            </div>
-                        </div>
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(3)" class="btn-google-outline">Back</button>
+                    <button type="button" onclick="nextStep(3)" class="btn-google px-8">Next</button>
+                </div>
+            </div>
+
+            <!-- STEP 4: Education & Enrollment -->
+            <div class="step-content" id="step4">
+                <div class="google-input-group">
+                    <input type="text" id="school_name" name="school_name" class="google-input" placeholder=" "
+                        value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
+                    <label for="school_name" class="google-label">School Name (පාසලේ නම)</label>
+                </div>
+
+                <div class="mb-6">
+                    <label
+                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Enrollment
+                        Type</label>
+                    <div class="flex space-x-3">
+                        <label
+                            class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md hover:bg-gray-50 flex-1 transition-colors">
+                            <input type="radio" name="enrollment_type" value="subject" checked
+                                onchange="toggleEnrollmentType()">
+                            <span class="text-sm font-medium">Class Enrollment</span>
+                        </label>
+                        <label
+                            class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md hover:bg-gray-50 flex-1 transition-colors">
+                            <input type="radio" name="enrollment_type" value="course" onchange="toggleEnrollmentType()">
+                            <span class="text-sm font-medium">Online Course</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="classEnrollmentContainer" class="space-y-4">
+                    <div class="google-input-group">
+                        <select id="stream_id" name="stream_id" class="google-input" onchange="handleStreamChange()">
+                            <option value="">-- Select Stream --</option>
+                            <?php foreach ($streams as $stream): ?>
+                                <option value="<?php echo $stream['id']; ?>" <?php echo ($stream_id_selected == $stream['id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($stream['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <label for="stream_id" class="google-label">Select Stream (Grade) (අංශය තෝරන්න)</label>
                     </div>
 
-                    <!-- SECTION 3: Enrollment Details -->
-                    <div class="form-card">
-                        <h3 class="section-title">Enrollment Details</h3>
-                        <p class="section-subtitle">Select your class or course</p>
-                        
-                        <!-- Academic Year (Hidden, set to current year automatically) -->
-                        <input type="hidden" id="student_academic_year" name="academic_year" value="<?php echo date('Y'); ?>">
-                        
-                        <div class="grid grid-cols-1 gap-6">
-                            <!-- Stream Dropdown -->
-                            <!-- Enrollment Type Selection -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-3">Enrollment Type *</label>
-                                <div class="flex space-x-6">
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="enrollment_type" value="subject" 
-                                               <?php echo($enrollment_type === 'subject') ? 'checked' : ''; ?>
-                                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                                               onchange="toggleEnrollmentType()">
-                                        <span class="text-gray-900 font-medium">Class Enrollment</span>
-                                    </label>
-                                    <label class="flex items-center space-x-3 cursor-pointer">
-                                        <input type="radio" name="enrollment_type" value="course"
-                                               <?php echo($enrollment_type === 'course') ? 'checked' : ''; ?>
-                                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300"
-                                               onchange="toggleEnrollmentType()">
-                                        <span class="text-gray-900 font-medium">Online Course Enrollment</span>
-                                    </label>
-                                </div>
-                            </div>
+                    <div id="subjectContainer" class="google-input-group hidden">
+                        <select id="subject_id" name="subject_id" class="google-input" onchange="handleSubjectChange()">
+                            <option value="">-- Select Subject --</option>
+                        </select>
+                        <label for="subject_id" class="google-label">Select Subject (විෂය තෝරන්න)</label>
+                    </div>
 
-                            <!-- Class Enrollment Fields -->
-                            <div id="classEnrollmentContainer">
-                                <div class="space-y-6">
-                                    <!-- Stream Dropdown -->
-                                    <div>
-                                        <label for="stream_id" class="block text-sm font-medium text-gray-700 mb-1">Select Stream (Grade) *</label>
-                                        <select id="stream_id" name="stream_id"
-                                                class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                                onchange="handleStreamChange()">
-                                            <option value="">-- Select Stream --</option>
-                                            <?php foreach ($streams as $stream): ?>
-                                                <option value="<?php echo $stream['id']; ?>" <?php echo($stream_id_selected == $stream['id']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($stream['name']); ?>
-                                                </option>
-                                            <?php
-endforeach; ?>
-                                        </select>
-                                        <!-- Create New Subject Button removed -->
-                                    </div>
+                    <div id="teachersContainer" class="hidden">
+                        <label
+                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Select
+                            Teacher</label>
+                        <div id="teachersGrid" class="space-y-2 max-h-48 overflow-y-auto p-1 border rounded-md"></div>
+                        <input type="hidden" id="selected_teacher_id" name="selected_teacher_id" value="">
+                    </div>
+                </div>
 
-                                    <!-- Subject Dropdown -->
-                                    <div id="subjectContainer" class="hidden">
-                                        <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-1">Select Subject *</label>
-                                        <select id="subject_id" name="subject_id"
-                                                class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                                onchange="handleSubjectChange()">
-                                            <option value="">-- Select Subject --</option>
-                                        </select>
-                                    </div>
-        
-                                    <!-- Teachers Grid -->
-                                    <div id="teachersContainer" class="hidden">
-                                        <label class="block text-sm font-medium text-gray-700 mb-4">Select Teacher *</label>
-                                        <div id="teachersGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <!-- Teachers will be loaded here -->
-                                        </div>
-                                        <input type="hidden" id="selected_teacher_id" name="selected_teacher_id" value="">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Course Enrollment Fields -->
-                            <div id="courseEnrollmentContainer" class="hidden">
+                <div id="courseEnrollmentContainer" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Select
+                        Online Course</label>
+                    <input type="hidden" id="course_id" name="course_id"
+                        value="<?php echo htmlspecialchars($course_id_selected); ?>">
+                    <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto p-1 border rounded-md">
+                        <?php foreach ($courses as $course): ?>
+                            <div onclick="selectCourse(<?php echo $course['id']; ?>, this)"
+                                class="course-item cursor-pointer border p-4 rounded-md hover:bg-blue-50 transition-colors text-sm flex justify-between items-center group">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-3">Select Online Course *</label>
-                                    <input type="hidden" id="course_id" name="course_id" value="<?php echo htmlspecialchars($course_id_selected); ?>">
-                                    
-                                    <?php if (empty($courses)): ?>
-                                        <div class="text-center p-6 bg-gray-50 rounded-lg border border-gray-200">
-                                            <p class="text-gray-500">No online courses available at the moment.</p>
-                                        </div>
-                                    <?php
-else: ?>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <?php foreach ($courses as $course): ?>
-                                                <?php
-        $isSelected = (intval($course_id_selected) === intval($course['id']));
-        $coverImage = !empty($course['cover_image']) ? htmlspecialchars($course['cover_image']) : 'https://via.placeholder.com/300x160?text=No+Image';
-?>
-                                                <div onclick="selectCourse(<?php echo $course['id']; ?>, this)" 
-                                                     class="course-card cursor-pointer border-2 bg-white <?php echo $isSelected ? 'border-red-600 bg-red-50' : 'border-gray-400 hover:border-red-300'; ?> rounded-lg overflow-hidden transition-all duration-200 group relative">
-                                                    
-                                                    <!-- Selection Indicator -->
-                                                    <div class="absolute top-2 right-2 z-10">
-                                                        <div class="selection-circle w-6 h-6 rounded-full border-2 <?php echo $isSelected ? 'bg-red-600 border-red-600' : 'bg-white border-gray-300'; ?> flex items-center justify-center">
-                                                            <?php if ($isSelected): ?>
-                                                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                            <?php
-        endif; ?>
-                                                        </div>
-                                                    </div>
-
-                                                    <!-- Cover Image -->
-                                                    <div class="h-40 w-full overflow-hidden bg-gray-100">
-                                                        <img src="<?php echo $coverImage; ?>" alt="<?php echo htmlspecialchars($course['title']); ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                                                    </div>
-                                                    
-                                                    <!-- Content -->
-                                                    <div class="p-4">
-                                                        <h4 class="font-bold text-gray-900 mb-1 line-clamp-1"><?php echo htmlspecialchars($course['title']); ?></h4>
-                                                        <p class="text-sm text-gray-600 mb-2">By <?php echo htmlspecialchars($course['teacher_name']); ?></p>
-                                                        <div class="flex items-center justify-between mt-3">
-                                                            <span class="text-red-600 font-bold text-lg">Rs. <?php echo number_format($course['price'], 2); ?></span>
-                                                            
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            <?php
-    endforeach; ?>
-                                        </div>
-                                    <?php
-endif; ?>
+                                    <div class="font-bold text-gray-800 group-hover:text-blue-700">
+                                        <?php echo htmlspecialchars($course['title']); ?>
+                                    </div>
+                                    <div class="text-xs text-gray-500">By
+                                        <?php echo htmlspecialchars($course['teacher_name']); ?>
+                                    </div>
+                                </div>
+                                <div class="text-blue-600 font-bold">Rs. <?php echo number_format($course['price'], 2); ?>
                                 </div>
                             </div>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
+                </div>
 
-                    <!-- SECTION 4: Profile Picture (Optional) -->
-                    <div class="form-card">
-                        <h3 class="section-title">Profile Picture (Optional)</h3>
-                        <p class="section-subtitle">Upload a photo for your profile</p>
-                        
-                        <div>
-                            <label for="profile_picture" class="block text-sm font-medium text-gray-700 mb-2">
-                                Upload Profile Picture 
-                                <span class="text-gray-500 text-xs">(Max 5MB, JPG/PNG/GIF/WEBP)</span>
-                            </label>
-                            <div class="flex items-center space-x-4">
-                                <input type="file" id="profile_picture" name="profile_picture" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                       class="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100"
-                                       onchange="previewProfilePicture(this)">
-                                <div id="photoPreview" class="hidden">
-                                    <img id="previewImg" src="" alt="Preview" class="w-20 h-20 rounded-full object-cover border-2 border-red-300">
-                                </div>
-                            </div>
-                            <p id="photoError" class="text-red-600 text-sm mt-1 hidden"></p>
-                        </div>
-                    </div>
-
-                    <!-- Teacher-specific fields (Hidden for students) -->
-
-                    <!-- Teacher-specific fields -->
-                    <div id="teacherFields" class="hidden space-y-6 border-t pt-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Teacher Details & Assignments</h3>
-                        
-                        <!-- Teacher Approval Notice -->
-                        <div class="bg-yellow-50 border-l-4 border-yellow-400 text-yellow-700 p-4 rounded mb-4" role="alert">
-                            <div class="flex">
-                                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                </svg>
-                                <p class="ml-3 text-sm font-medium">Teacher accounts require admin approval before you can log in to the system. No verification is needed.</p>
-                            </div>
-                        </div>
-                        
-
-
-                        <!-- Education Details -->
-                        <div>
-                            <div class="flex items-center justify-between mb-3">
-                                <label class="block text-sm font-medium text-gray-700">Education Details</label>
-                                <button type="button" onclick="addEducationField()" 
-                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    <span>Add Education</span>
-                                </button>
-                            </div>
-                            <div id="educationContainer" class="space-y-4">
-                                <!-- Education fields will be added here -->
-                            </div>
-                        </div>
-
-                        <!-- Stream Selection (Multi-select) -->
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <label class="block text-sm font-medium text-gray-700">Select Stream(s) *</label>
-                                <button type="button" onclick="openCreateStreamModal()" 
-                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    <!-- <span>Create New Stream</span> -->
-                                </button>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <?php foreach ($streams as $stream): ?>
-                                    <label class="flex items-center space-x-2 p-3 border border-gray-300 rounded-md hover:bg-red-50 cursor-pointer">
-                                        <input type="checkbox" name="teacher_streams[]" value="<?php echo $stream['id']; ?>" 
-                                               class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded teacher-stream-checkbox"
-                                               onchange="loadTeacherSubjects()">
-                                        <span class="text-sm text-gray-700"><?php echo htmlspecialchars($stream['name']); ?></span>
-                                    </label>
-                                <?php
-endforeach; ?>
-                            </div>
-                        </div>
-
-                        <!-- Subject Selection (Based on selected streams) -->
-                        <div id="teacherSubjectContainer" class="hidden">
-                            <div class="flex items-center justify-between mb-2">
-                                <label class="block text-sm font-medium text-gray-700">Select Subject(s) *</label>
-                                <button type="button" onclick="openCreateSubjectModal()" 
-                                        class="text-sm bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 flex items-center space-x-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    <!-- <span>Create New Subject</span> -->
-                                </button>
-                            </div>
-                            <div id="teacherSubjectsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <!-- Subjects will be loaded here based on selected streams -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Verification Section -->
-                    <div id="verificationSection" class="form-card">
-                        <h3 class="section-title">Identity Verification</h3>
-                        <p class="section-subtitle">Please verify your identity using one of the following methods</p>
-                        <p class="text-sm text-gray-600 mb-4">Please verify your identity using one of the following methods:</p>
-                        
-                        <!-- Verification Method Selection -->
-                        <div class="space-y-3">
-                            <label class="flex items-center space-x-3 p-4 border-2 border-gray-600 rounded-lg cursor-pointer hover:border-red-500 transition-colors">
-                                <input type="radio" name="verification_method" value="nic" id="verify_nic" 
-                                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-600"
-                                       onchange="handleVerificationMethodChange()">
-                                <div class="flex-1">
-                                    <span class="block font-medium text-gray-900">Verify by NIC Number</span>
-                                    <span class="block text-sm text-gray-500">Enter your Sri Lankan National Identity Card number</span>
-                                </div>
-                            </label>
-                            
-                            <label class="flex items-center space-x-3 p-4 border-2 border-gray-600 rounded-lg cursor-pointer hover:border-red-500 transition-colors">
-                                <input type="radio" name="verification_method" value="mobile" id="verify_mobile"
-                                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-600"
-                                       onchange="handleVerificationMethodChange()">
-                                <div class="flex-1">
-                                    <span class="block font-medium text-gray-900">Verify by WhatsApp/Mobile Number</span>
-                                    <span class="block text-sm text-gray-500">Receive an OTP code on your mobile number</span>
-                                </div>
-                            </label>
-                        </div>
-                        
-                        <!-- NIC Verification -->
-                        <div id="nicVerificationContainer" class="hidden">
-                            <label for="nic_number" class="block text-sm font-medium text-gray-700 mb-1">NIC Number *</label>
-                            <div class="flex space-x-2">
-                                <input type="text" id="nic_number" name="nic_number" 
-                                       placeholder="Enter NIC (e.g., 123456789V) / හැඳුනුම්පත් අංකය ඇතුළත් කරන්න"
-                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                       maxlength="12">
-                                <button type="button" onclick="verifyNIC()" 
-                                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                                    Verify
-                                </button>
-                            </div>
-                            <div id="nicVerificationResult" class="mt-2"></div>
-                            <input type="hidden" id="nic_verified" name="nic_verified" value="0">
-                        </div>
-                        
-                        <!-- Mobile/OTP Verification -->
-                        <div id="mobileVerificationContainer" class="hidden space-y-4">
-                            <div>
-                                <label for="verification_mobile" class="block text-sm font-medium text-gray-700 mb-1">Mobile/WhatsApp Number *</label>
-                                <div class="flex space-x-2">
-                                    <input type="text" id="verification_mobile" name="verification_mobile" 
-                                           placeholder="Enter mobile or WhatsApp number"
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                                    <button type="button" onclick="sendOTP()" id="sendOtpBtn"
-                                            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
-                                        Send OTP
-                                    </button>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">You can change this number if needed</p>
-                            </div>
-                            
-                            <div id="otpInputContainer" class="hidden">
-                                <label for="otp_code" class="block text-sm font-medium text-gray-700 mb-1">Enter OTP Code *</label>
-                                <div class="flex space-x-2">
-                                    <input type="text" id="otp_code" name="otp_code" 
-                                           placeholder="Enter 6-digit OTP / ඉලක්කම් 6ක OTP කේතය ඇතුළත් කරන්න"
-                                           class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                           maxlength="6">
-                                    <button type="button" onclick="verifyOTP()" 
-                                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-                                        Verify OTP
-                                    </button>
-                                </div>
-                                <div id="otpVerificationResult" class="mt-2"></div>
-                                <input type="hidden" id="otp_verified" name="otp_verified" value="0">
-                            </div>
-                        </div>
-                        
-                        <!-- Verification Status -->
-                        <div id="verificationStatus" class="hidden"></div>
-                    </div>
-                    <!-- End of Verification Section -->
-
-
-
-                    <!-- Submit Button -->
-                    <div id="submitButtonContainer" class="flex items-center justify-between pt-8">
-                        <div class="flex items-center">
-                            <a href="/lms/dashboard/dashboard.php" class="text-sm font-medium text-gray-500 hover:text-red-600 flex items-center transition-colors">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                                Back to Website
-                            </a>
-                        </div>
-                        <div class="flex space-x-4">
-                            <a href="login.php" class="px-6 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-md transition-colors">
-                                Cancel
-                            </a>
-                            <button type="submit" name="add_user" id="registerButton" class="btn-primary">
-                                Register
-                            </button>
-                        </div>
-                    </div>
-                </form>
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(4)" class="btn-google-outline">Back</button>
+                    <button type="button" onclick="nextStep(4)" class="btn-google px-8">Next</button>
+                </div>
             </div>
-        </div>
+
+            <!-- STEP 5: Verification & Finalize -->
+            <div class="step-content" id="step5">
+                <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Profile Picture (Optional)</label>
+                    <div class="flex items-center space-x-6">
+                        <div id="photoPreview"
+                            class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-200 shadow-sm">
+                            <img id="previewImg" src="" alt="Preview" class="w-full h-full object-cover hidden">
+                            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <input type="file" id="profile_picture" name="profile_picture" accept="image/*"
+                                class="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                onchange="previewProfilePicture(this)">
+                            <p class="text-[10px] text-gray-400 mt-2">Max 5MB. JPG, PNG or WebP</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="verificationSection">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 ml-1">Identity
+                        Verification</p>
+                    <div class="grid grid-cols-1 gap-3 mb-6">
+                        <label
+                            class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors border-gray-200">
+                            <input type="radio" name="verification_method" value="nic"
+                                onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
+                            <div>
+                                <span class="text-sm font-bold text-gray-800">Verify by NIC</span>
+                                <p class="text-[11px] text-gray-500">Quickest way using your ID card</p>
+                            </div>
+                        </label>
+                        <label
+                            class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors border-gray-200">
+                            <input type="radio" name="verification_method" value="mobile"
+                                onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
+                            <div>
+                                <span class="text-sm font-bold text-gray-800">Verify by Mobile OTP</span>
+                                <p class="text-[11px] text-gray-500">Receive a code via SMS/WhatsApp</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div id="nicVerificationContainer" class="hidden animate-fadeIn">
+                        <div class="flex space-x-2">
+                            <input type="text" id="nic_number" name="nic_number" class="google-input !mb-0"
+                                placeholder="NIC Number (e.g. 199912345678) (හැඳුනුම්පත් අංකය)">
+                            <button type="button" onclick="verifyNIC()" class="btn-google">Verify</button>
+                        </div>
+                        <input type="hidden" id="nic_verified" name="nic_verified" value="0">
+                    </div>
+
+                    <div id="mobileVerificationContainer" class="hidden space-y-4 animate-fadeIn">
+                        <div class="flex space-x-2">
+                            <input type="text" id="verification_mobile" class="google-input !mb-0"
+                                placeholder="Mobile Number (ජංගම දුරකථන අංකය)">
+                            <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="btn-google">Send
+                                Code</button>
+                        </div>
+                        <div id="otpInputContainer" class="hidden flex space-x-2">
+                            <input type="text" id="otp_code" class="google-input !mb-0"
+                                placeholder="6-digit Code (රහස් අංකය)">
+                            <button type="button" onclick="verifyOTP()" class="btn-google !bg-green-600">Verify
+                                OTP</button>
+                        </div>
+                        <input type="hidden" id="otp_verified" name="otp_verified" value="0">
+                    </div>
+                    <div id="verificationStatus" class="mt-3 text-sm text-center font-medium"></div>
+                </div>
+
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(5)" class="btn-google-outline">Back</button>
+                    <button type="submit" name="add_user" id="registerButton"
+                        class="btn-google px-8 !bg-blue-700">Register</button>
+                </div>
+            </div>
+        </form>
     </div>
-    
+
     <div id="toastContainer" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
 
 
 
     <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        function showStep(n) {
+            const steps = document.getElementsByClassName("step-content");
+            const dots = document.getElementsByClassName("step-dot");
+            const titles = [
+                "Create your Student Account <span class='sinhala-subtitle'>(ගිණුමක් සාදාගන්න)</span>",
+                "Secure your Account <span class='sinhala-subtitle'>(මුරපදයක් යොදන්න)</span>",
+                "Contact & Location <span class='sinhala-subtitle'>(සන්නිවේදන තොරතුරු)</span>",
+                "Education & Enrollment <span class='sinhala-subtitle'>(අධ්‍යාපනික තොරතුරු)</span>",
+                "Verification & Finalize <span class='sinhala-subtitle'>(තහවුරු කිරීම)</span>"
+            ];
+            const subtitles = [
+                "Be a part of LERNERR.LK Family",
+                "Keep your account safe with a strong password <span class='sinhala-inline'>(මුරපදයක් මගින් ගිණුම ආරක්ෂා කරගන්න)</span>",
+                "How can we reach you? <span class='sinhala-inline'>(සන්නිවේදන තොරතුරු ලබා දෙන්න)</span>",
+                "Select your class or course <span class='sinhala-inline'>(පන්තිය හෝ පාඨමාලාව තෝරන්න)</span>",
+                "Almost done! Verify your identity <span class='sinhala-inline'>(අවසාන පියවර! අනන්‍යතාවය තහවුරු කරන්න)</span>"
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                steps[i].classList.remove("active");
+                if (dots[i]) dots[i].classList.remove("active");
+            }
+            if (steps[n - 1]) steps[n - 1].classList.add("active");
+            if (dots[n - 1]) dots[n - 1].classList.add("active");
+
+            const titleElem = document.getElementById("stepTitle");
+            const subtitleElem = document.getElementById("stepSubtitle");
+            if (titleElem) titleElem.innerHTML = titles[n - 1];
+            if (subtitleElem) subtitleElem.innerHTML = subtitles[n - 1];
+
+            window.scrollTo(0, 0);
+        }
+
+        function nextStep(n) {
+            if (!validateStep(n)) return;
+            currentStep = n + 1;
+            showStep(currentStep);
+        }
+
+        function prevStep(n) {
+            currentStep = n - 1;
+            showStep(currentStep);
+        }
+
+        function validateStep(n) {
+            const currentStepDiv = document.getElementById("step" + n);
+            if (!currentStepDiv) return true;
+
+            const inputs = currentStepDiv.querySelectorAll("input[required], select[required], textarea[required]");
+            let valid = true;
+
+            inputs.forEach(input => {
+                if (!input.value.trim() && input.type !== 'radio' && input.type !== 'checkbox') {
+                    valid = false;
+                    input.style.borderColor = "#d93025";
+                } else {
+                    input.style.borderColor = "";
+                }
+            });
+
+            if (n === 2) {
+                const pass = document.getElementById("password").value;
+                const confirm = document.getElementById("confirm_password").value;
+                if (pass.length < 8) {
+                    showToast("Password must be at least 8 characters", "error");
+                    return false;
+                }
+                if (pass !== confirm) {
+                    showToast("Passwords do not match!", "error");
+                    return false;
+                }
+            }
+
+            if (n === 4) {
+                const enrollmentType = document.querySelector('input[name="enrollment_type"]:checked').value;
+                if (enrollmentType === 'subject') {
+                    const subjectId = document.getElementById('subject_id').value;
+                    const teacherId = document.getElementById('selected_teacher_id').value;
+                    if (!subjectId || !teacherId) {
+                        showToast("Please select a subject and a teacher", "error");
+                        return false;
+                    }
+                } else {
+                    const courseId = document.getElementById('course_id').value;
+                    if (!courseId) {
+                        showToast("Please select an online course", "error");
+                        return false;
+                    }
+                }
+            }
+
+            if (!valid) showToast("Please fill all required fields", "error");
+            return valid;
+        }
+
         // Toggle role-based fields (student only now)
         function toggleRoleBasedFields() {
             try {
@@ -1004,12 +1076,12 @@ endforeach; ?>
                 const teacherFields = document.getElementById('teacherFields');
                 const verificationSection = document.getElementById('verificationSection');
                 const submitButtonContainer = document.getElementById('submitButtonContainer');
-                
+
                 // Always show student fields and verification
                 if (studentFields) studentFields.classList.remove('hidden');
                 if (verificationSection) verificationSection.classList.remove('hidden');
                 if (submitButtonContainer) submitButtonContainer.classList.remove('hidden');
-                
+
                 // Always hide teacher fields
                 if (teacherFields) teacherFields.classList.add('hidden');
             } catch (error) {
@@ -1025,7 +1097,7 @@ endforeach; ?>
             educationCount++;
             const container = document.getElementById('educationContainer');
             if (!container) return;
-            
+
             const div = document.createElement('div');
             div.className = 'border border-gray-300 rounded-lg p-4 education-field';
             div.innerHTML = `
@@ -1082,9 +1154,9 @@ endforeach; ?>
             const selectedStreams = Array.from(document.querySelectorAll('.teacher-stream-checkbox:checked')).map(cb => cb.value);
             const subjectContainer = document.getElementById('teacherSubjectContainer');
             const subjectsGrid = document.getElementById('teacherSubjectsGrid');
-            
+
             if (!subjectContainer || !subjectsGrid) return;
-            
+
             if (selectedStreams.length === 0) {
                 subjectContainer.classList.add('hidden');
                 subjectsGrid.innerHTML = '';
@@ -1124,7 +1196,7 @@ endforeach; ?>
                             // Get stream_subject_id
                             const ssResponse = await fetch(`get_stream_subject_id.php?stream_id=${streamId}&subject_id=${subject.id}`);
                             const ssData = await ssResponse.json();
-                            
+
                             if (ssData.success && ssData.stream_subject_id) {
                                 const key = `${streamId}_${subject.id}`;
                                 if (!allStreamSubjects.has(key)) {
@@ -1153,11 +1225,11 @@ endforeach; ?>
         function updateSubjectGrid(streamSubjectsMap) {
             const subjectsGrid = document.getElementById('teacherSubjectsGrid');
             const subjectContainer = document.getElementById('teacherSubjectContainer');
-            
+
             if (!subjectsGrid || !subjectContainer) return;
-            
+
             subjectsGrid.innerHTML = '';
-            
+
             if (streamSubjectsMap.size > 0) {
                 streamSubjectsMap.forEach((item, key) => {
                     const label = document.createElement('label');
@@ -1182,7 +1254,7 @@ endforeach; ?>
             const streamId = document.getElementById('stream_id').value;
             const subjectContainer = document.getElementById('subjectContainer');
             const teachersContainer = document.getElementById('teachersContainer');
-            
+
             if (streamId) {
                 loadSubjects();
             } else {
@@ -1197,7 +1269,7 @@ endforeach; ?>
             const subjectContainer = document.getElementById('subjectContainer');
             const subjectSelect = document.getElementById('subject_id');
             const teachersContainer = document.getElementById('teachersContainer');
-            
+
             if (!streamId) {
                 subjectContainer.classList.add('hidden');
                 teachersContainer.classList.add('hidden');
@@ -1230,7 +1302,7 @@ endforeach; ?>
                 })
                 .then(data => {
                     subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
-                    
+
                     if (data && data.success && data.subjects && Array.isArray(data.subjects) && data.subjects.length > 0) {
                         // Subjects found - show subject dropdown
                         data.subjects.forEach(subject => {
@@ -1244,7 +1316,7 @@ endforeach; ?>
                         // No subjects found - hide subject dropdown
                         subjectContainer.classList.add('hidden');
                     }
-                    
+
                     teachersContainer.classList.add('hidden');
                     document.getElementById('selected_teacher_id').value = '';
                 })
@@ -1259,7 +1331,7 @@ endforeach; ?>
         function handleSubjectChange() {
             const subjectId = document.getElementById('subject_id').value;
             const teachersContainer = document.getElementById('teachersContainer');
-            
+
             if (subjectId) {
                 loadTeachers();
             } else {
@@ -1273,7 +1345,7 @@ endforeach; ?>
             const subjectId = document.getElementById('subject_id').value;
             const teachersContainer = document.getElementById('teachersContainer');
             const teachersGrid = document.getElementById('teachersGrid');
-            
+
             if (!streamId || !subjectId || streamId === 'new' || subjectId === 'new') {
                 teachersContainer.classList.add('hidden');
                 return;
@@ -1284,7 +1356,7 @@ endforeach; ?>
                 .then(response => response.json())
                 .then(data => {
                     teachersGrid.innerHTML = '';
-                    
+
                     if (data.success && data.teachers.length > 0) {
                         data.teachers.forEach(teacher => {
                             const card = createTeacherCard(teacher);
@@ -1295,7 +1367,7 @@ endforeach; ?>
                         teachersContainer.classList.add('hidden');
                         alert('No teachers available for this subject.');
                     }
-                    
+
                     document.getElementById('selected_teacher_id').value = '';
                 })
                 .catch(error => {
@@ -1309,9 +1381,9 @@ endforeach; ?>
             const card = document.createElement('div');
             card.className = 'bg-white border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl cursor-pointer transition-all duration-200 teacher-card flex flex-col h-full';
             card.dataset.teacherId = teacher.teacher_id;
-            
+
             // Large centered profile picture
-            const profilePic = teacher.profile_picture 
+            const profilePic = teacher.profile_picture
                 ? `<div class="flex justify-center mb-6">
                      <img src="${teacher.profile_picture}" alt="Profile" class="w-32 h-32 rounded-full object-cover border-4 border-red-200 shadow-lg">
                    </div>`
@@ -1322,15 +1394,15 @@ endforeach; ?>
                        </svg>
                      </div>
                    </div>`;
-            
+
             // Teacher name - left aligned
             const teacherName = (teacher.first_name || '') + ' ' + (teacher.second_name || '');
             const nameHTML = `<div class="text-left mb-4">
                 <h4 class="font-bold text-xl text-gray-900 mb-1">${teacherName.trim() || 'Teacher'}</h4>
             </div>`;
-            
+
             // WhatsApp number with icon - left aligned
-            const whatsappHTML = teacher.whatsapp_number 
+            const whatsappHTML = teacher.whatsapp_number
                 ? `<div class="text-left mb-4 flex items-center">
                      <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
@@ -1338,7 +1410,7 @@ endforeach; ?>
                      <span class="text-gray-700 font-medium">${teacher.whatsapp_number}</span>
                    </div>`
                 : '';
-            
+
             // Build education details HTML - left aligned
             let educationHTML = '';
             if (teacher.education && teacher.education.length > 0) {
@@ -1348,7 +1420,7 @@ endforeach; ?>
                 educationHTML += '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>';
                 educationHTML += '</svg>Education Details</h5>';
                 educationHTML += '<ul class="space-y-2">';
-                
+
                 teacher.education.forEach(edu => {
                     const qualification = edu.qualification || '';
                     const institution = edu.institution || '';
@@ -1370,7 +1442,7 @@ endforeach; ?>
                         </div>
                     </li>`;
                 });
-                
+
                 educationHTML += '</ul></div>';
             } else {
                 educationHTML = '<div class="text-left mb-4 flex-1">';
@@ -1381,9 +1453,9 @@ endforeach; ?>
                 educationHTML += '<p class="text-sm text-gray-500 italic">No education details available</p>';
                 educationHTML += '</div>';
             }
-            
 
-            
+
+
             card.innerHTML = `
                 ${profilePic}
                 ${nameHTML}
@@ -1398,23 +1470,23 @@ endforeach; ?>
                     </span>
                 </div>
             `;
-            
+
             // Add click event
-            card.addEventListener('click', function() {
+            card.addEventListener('click', function () {
                 // Remove selection from all cards
                 document.querySelectorAll('.teacher-card').forEach(c => {
                     c.classList.remove('border-red-600', 'bg-red-50', 'shadow-xl');
                     c.classList.add('border-red-500');
                 });
-                
+
                 // Select this card
                 card.classList.remove('border-red-500');
                 card.classList.add('border-red-600', 'bg-red-50', 'shadow-xl');
-                
+
                 // Set selected teacher ID
                 document.getElementById('selected_teacher_id').value = teacher.teacher_id;
             });
-            
+
             return card;
         }
 
@@ -1423,11 +1495,11 @@ endforeach; ?>
             const preview = document.getElementById('photoPreview');
             const previewImg = document.getElementById('previewImg');
             const photoError = document.getElementById('photoError');
-            
+
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 const maxSize = 5 * 1024 * 1024; // 5MB
-                
+
                 // Validate file size
                 if (file.size > maxSize) {
                     photoError.textContent = 'File size exceeds 5MB limit.';
@@ -1436,7 +1508,7 @@ endforeach; ?>
                     preview.classList.add('hidden');
                     return;
                 }
-                
+
                 // Validate file type
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                 if (!allowedTypes.includes(file.type)) {
@@ -1446,11 +1518,11 @@ endforeach; ?>
                     preview.classList.add('hidden');
                     return;
                 }
-                
+
                 photoError.classList.add('hidden');
-                
+
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     previewImg.src = e.target.result;
                     preview.classList.remove('hidden');
                 };
@@ -1465,7 +1537,7 @@ endforeach; ?>
         function updatePhotoRequirement() {
             const photoInput = document.getElementById('profile_picture');
             const photoRequired = document.getElementById('photoRequired');
-            
+
             photoInput.removeAttribute('required');
             if (photoRequired) photoRequired.classList.add('hidden');
         }
@@ -1476,71 +1548,71 @@ endforeach; ?>
             if (!name || !name.trim()) {
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('name', name.trim());
-            
+
             fetch('create_stream.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Reload page to refresh stream list
-                    location.reload();
-                } else {
-                    alert('Error: ' + (data.message || 'Failed to create stream'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error creating stream.');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload page to refresh stream list
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.message || 'Failed to create stream'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating stream.');
+                });
         }
 
         // Create New Subject Modal (for teachers)
         function openCreateSubjectModal() {
             const selectedStreams = Array.from(document.querySelectorAll('.teacher-stream-checkbox:checked')).map(cb => cb.value);
-            
+
             if (selectedStreams.length === 0) {
                 alert('Please select at least one stream first.');
                 return;
             }
-            
+
             // Use first selected stream for creation
             const streamId = selectedStreams[0];
-            
+
             const name = prompt('Enter new subject name:');
             if (!name || !name.trim()) {
                 return;
             }
-            
+
             const code = prompt('Enter subject code (optional):') || '';
-            
+
             const formData = new FormData();
             formData.append('name', name.trim());
             formData.append('code', code.trim());
             formData.append('stream_id', streamId);
-            
+
             fetch('create_subject.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Reload subjects for all selected streams
-                    loadTeacherSubjects();
-                    alert('Subject created successfully!');
-                } else {
-                    alert('Error: ' + (data.message || 'Failed to create subject'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error creating subject.');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload subjects for all selected streams
+                        loadTeacherSubjects();
+                        alert('Subject created successfully!');
+                    } else {
+                        alert('Error: ' + (data.message || 'Failed to create subject'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error creating subject.');
+                });
         }
 
 
@@ -1549,12 +1621,12 @@ endforeach; ?>
         function showToast(message, type = 'success') {
             const toastContainer = document.getElementById('toastContainer');
             const toastId = 'toast-' + Date.now();
-            
+
             const bgColor = type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : 'bg-blue-600';
-            const icon = type === 'success' ? 
+            const icon = type === 'success' ?
                 '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>' :
                 '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>';
-            
+
             const toast = document.createElement('div');
             toast.id = toastId;
             toast.className = `${bgColor} text-white px-6 py-4 rounded-lg shadow-lg mb-4 flex items-center space-x-3 transform transition-all duration-300 translate-x-full opacity-0 max-w-md`;
@@ -1569,14 +1641,14 @@ endforeach; ?>
                     </svg>
                 </button>
             `;
-            
+
             toastContainer.appendChild(toast);
-            
+
             // Animate in
             setTimeout(() => {
                 toast.classList.remove('translate-x-full', 'opacity-0');
             }, 10);
-            
+
             // Auto remove after 5 seconds
             setTimeout(() => {
                 closeToast(toastId);
@@ -1600,12 +1672,12 @@ endforeach; ?>
             const nicContainer = document.getElementById('nicVerificationContainer');
             const mobileContainer = document.getElementById('mobileVerificationContainer');
             const verificationStatus = document.getElementById('verificationStatus');
-            
+
             // Reset verification status
             document.getElementById('nic_verified').value = '0';
             document.getElementById('otp_verified').value = '0';
             verificationStatus.classList.add('hidden');
-            
+
             if (nicMethod.checked) {
                 nicContainer.classList.remove('hidden');
                 mobileContainer.classList.add('hidden');
@@ -1617,12 +1689,12 @@ endforeach; ?>
                 mobileContainer.classList.remove('hidden');
                 document.getElementById('nic_number').value = '';
                 document.getElementById('nicVerificationResult').innerHTML = '';
-                
+
                 // Auto-fill mobile number from form fields (use WhatsApp number first, then mobile number)
                 const whatsappNumber = document.getElementById('whatsapp_number').value.trim();
                 const mobileNumber = document.getElementById('mobile_number').value.trim();
                 const verificationMobile = document.getElementById('verification_mobile');
-                
+
                 if (whatsappNumber) {
                     verificationMobile.value = whatsappNumber;
                 } else if (mobileNumber) {
@@ -1630,12 +1702,12 @@ endforeach; ?>
                 } else {
                     verificationMobile.value = '';
                 }
-                
+
                 // Keep the field editable so users can change it before sending OTP
                 verificationMobile.readOnly = false;
                 verificationMobile.classList.remove('bg-gray-50');
                 verificationMobile.placeholder = 'Enter mobile or WhatsApp number';
-                
+
             } else {
                 nicContainer.classList.add('hidden');
                 mobileContainer.classList.add('hidden');
@@ -1648,142 +1720,142 @@ endforeach; ?>
             const resultDiv = document.getElementById('nicVerificationResult');
             const dobField = document.getElementById('dob');
             const genderField = document.getElementById('gender');
-            
+
             if (!nicNumber) {
                 resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter NIC number</div>';
                 showToast('Please enter NIC number', 'error');
                 return;
             }
-            
+
             // Check if DOB and Gender are filled first
             const dob = dobField ? dobField.value.trim() : '';
             const gender = genderField ? genderField.value.trim() : '';
-            
+
             if (!dob) {
                 resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter your Date of Birth first</div>';
                 showToast('Please enter your Date of Birth before verifying NIC', 'error');
                 dobField.focus();
                 return;
             }
-            
+
             if (!gender) {
                 resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please select your Gender first</div>';
                 showToast('Please select your Gender before verifying NIC', 'error');
                 genderField.focus();
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('nic', nicNumber);
-            
+
             // Send DOB and Gender for verification
             formData.append('dob', dob);
             formData.append('gender', gender);
-            
+
             fetch('verify_nic.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.valid) {
-                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">NIC verified successfully against your DOB and Gender!</div>`;
-                    document.getElementById('nic_verified').value = '1';
-                    updateVerificationStatus();
-                    showToast('NIC verified successfully against your information!', 'success');
-                } else {
-                    // Show verification failed message
-                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">NIC verification failed. The NIC number does not match with your Date of Birth and Gender. Please check and try again.</div>';
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.valid) {
+                        resultDiv.innerHTML = `<div class="text-green-600 text-sm">NIC verified successfully against your DOB and Gender!</div>`;
+                        document.getElementById('nic_verified').value = '1';
+                        updateVerificationStatus();
+                        showToast('NIC verified successfully against your information!', 'success');
+                    } else {
+                        // Show verification failed message
+                        resultDiv.innerHTML = '<div class="text-red-600 text-sm">NIC verification failed. The NIC number does not match with your Date of Birth and Gender. Please check and try again.</div>';
+                        document.getElementById('nic_verified').value = '0';
+                        updateVerificationStatus();
+                        showToast('NIC verification failed. Please check your information and try again.', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying NIC. Please try again.</div>';
                     document.getElementById('nic_verified').value = '0';
-                    updateVerificationStatus();
-                    showToast('NIC verification failed. Please check your information and try again.', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying NIC. Please try again.</div>';
-                document.getElementById('nic_verified').value = '0';
-                showToast('Error verifying NIC. Please try again.', 'error');
-            });
+                    showToast('Error verifying NIC. Please try again.', 'error');
+                });
         }
 
         // Send OTP
         function sendOTP() {
             const mobileNumber = document.getElementById('verification_mobile').value.trim();
             const sendOtpBtn = document.getElementById('sendOtpBtn');
-            
+
             if (!mobileNumber) {
                 showToast('Please enter mobile number', 'error');
                 return;
             }
-            
+
             sendOtpBtn.disabled = true;
             sendOtpBtn.textContent = 'Sending...';
-            
+
             const formData = new FormData();
             formData.append('mobile_number', mobileNumber);
-            
+
             fetch('send_otp.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('otpInputContainer').classList.remove('hidden');
-                    // In production, remove the OTP display - it's only for testing
-                    showToast('OTP sent successfully! Check your mobile. OTP: ' + data.otp, 'success');
-                } else {
-                    showToast('Error: ' + (data.message || 'Failed to send OTP'), 'error');
-                }
-                sendOtpBtn.disabled = false;
-                sendOtpBtn.textContent = 'Send OTP';
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error sending OTP. Please try again.', 'error');
-                sendOtpBtn.disabled = false;
-                sendOtpBtn.textContent = 'Send OTP';
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('otpInputContainer').classList.remove('hidden');
+                        // In production, remove the OTP display - it's only for testing
+                        showToast('OTP sent successfully! Check your mobile. OTP: ' + data.otp, 'success');
+                    } else {
+                        showToast('Error: ' + (data.message || 'Failed to send OTP'), 'error');
+                    }
+                    sendOtpBtn.disabled = false;
+                    sendOtpBtn.textContent = 'Send OTP';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error sending OTP. Please try again.', 'error');
+                    sendOtpBtn.disabled = false;
+                    sendOtpBtn.textContent = 'Send OTP';
+                });
         }
 
         // Verify OTP
         function verifyOTP() {
             const otpCode = document.getElementById('otp_code').value.trim();
             const resultDiv = document.getElementById('otpVerificationResult');
-            
+
             if (!otpCode || otpCode.length !== 6) {
                 resultDiv.innerHTML = '<div class="text-red-600 text-sm">Please enter 6-digit OTP code</div>';
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('otp_code', otpCode);
-            
+
             fetch('verify_otp.php', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.verified) {
-                    resultDiv.innerHTML = `<div class="text-green-600 text-sm">OTP verified successfully!</div>`;
-                    document.getElementById('otp_verified').value = '1';
-                    updateVerificationStatus();
-                    showToast('Mobile number verified successfully!', 'success');
-                } else {
-                    resultDiv.innerHTML = `<div class="text-red-600 text-sm">${data.message || 'Invalid OTP code'}</div>`;
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.verified) {
+                        resultDiv.innerHTML = `<div class="text-green-600 text-sm">OTP verified successfully!</div>`;
+                        document.getElementById('otp_verified').value = '1';
+                        updateVerificationStatus();
+                        showToast('Mobile number verified successfully!', 'success');
+                    } else {
+                        resultDiv.innerHTML = `<div class="text-red-600 text-sm">${data.message || 'Invalid OTP code'}</div>`;
+                        document.getElementById('otp_verified').value = '0';
+                        updateVerificationStatus();
+                        showToast(data.message || 'Invalid OTP code', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying OTP. Please try again.</div>';
                     document.getElementById('otp_verified').value = '0';
-                    updateVerificationStatus();
-                    showToast(data.message || 'Invalid OTP code', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                resultDiv.innerHTML = '<div class="text-red-600 text-sm">Error verifying OTP. Please try again.</div>';
-                document.getElementById('otp_verified').value = '0';
-                showToast('Error verifying OTP. Please try again.', 'error');
-            });
+                    showToast('Error verifying OTP. Please try again.', 'error');
+                });
         }
 
         // Update Verification Status
@@ -1791,7 +1863,7 @@ endforeach; ?>
             const verificationStatus = document.getElementById('verificationStatus');
             const nicVerified = document.getElementById('nic_verified').value === '1';
             const otpVerified = document.getElementById('otp_verified').value === '1';
-            
+
             if (nicVerified || otpVerified) {
                 verificationStatus.innerHTML = `<div class="bg-green-50 border-l-4 border-green-400 text-green-700 p-4 rounded">
                     <div class="flex">
@@ -1808,30 +1880,30 @@ endforeach; ?>
         }
 
         // Form Submission Validation (students only)
-        document.getElementById('addUserForm')?.addEventListener('submit', function(e) {
+        document.getElementById('addUserForm')?.addEventListener('submit', function (e) {
             const verificationMethod = document.querySelector('input[name="verification_method"]:checked');
             const nicVerified = document.getElementById('nic_verified').value === '1';
             const otpVerified = document.getElementById('otp_verified').value === '1';
-            
+
             // Students need verification
             if (!verificationMethod) {
                 e.preventDefault();
                 showToast('Please select a verification method and complete the verification.', 'error');
                 return false;
             }
-            
+
             if (verificationMethod.value === 'nic' && !nicVerified) {
                 e.preventDefault();
                 showToast('Please verify your NIC number before submitting.', 'error');
                 return false;
             }
-            
+
             if (verificationMethod.value === 'mobile' && !otpVerified) {
                 e.preventDefault();
                 showToast('Please verify your mobile number with OTP before submitting.', 'error');
                 return false;
             }
-            
+
         });
 
 
@@ -1845,9 +1917,9 @@ endforeach; ?>
         function populateDistricts(filter = '') {
             if (!districtDropdown) return;
             districtDropdown.innerHTML = '';
-            
+
             const filtered = districts.filter(d => d.toLowerCase().includes(filter.toLowerCase()));
-            
+
             if (filtered.length === 0) {
                 const div = document.createElement('div');
                 div.className = 'px-4 py-2 text-gray-500 text-sm';
@@ -1860,7 +1932,7 @@ endforeach; ?>
                 const div = document.createElement('div');
                 div.className = 'px-4 py-2 hover:bg-red-50 cursor-pointer text-gray-700';
                 div.textContent = d;
-                div.onclick = function() {
+                div.onclick = function () {
                     selectDistrict(d);
                 };
                 districtDropdown.appendChild(div);
@@ -1880,34 +1952,35 @@ endforeach; ?>
         function hideDistricts() {
             // Small delay to allow click event to register
             if (districtDropdown) {
-                 districtDropdown.classList.add('hidden');
+                districtDropdown.classList.add('hidden');
             }
         }
 
         function selectDistrict(value) {
-            if(districtSearch) districtSearch.value = value;
-            if(districtInput) districtInput.value = value;
+            if (districtSearch) districtSearch.value = value;
+            if (districtInput) districtInput.value = value;
             hideDistricts();
         }
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+            showStep(currentStep);
             toggleRoleBasedFields();
             updatePhotoRequirement();
-            
+
             // Handle URL parameters for pre-selection
             const urlParams = new URLSearchParams(window.location.search);
             const courseId = urlParams.get('course_id');
             const streamId = urlParams.get('stream_id');
             const subjectId = urlParams.get('subject_id');
-            
+
             if (courseId && courseId > 0) {
                 // Pre-select course enrollment
                 const courseRadio = document.querySelector('input[name="enrollment_type"][value="course"]');
                 if (courseRadio) {
                     courseRadio.checked = true;
                     toggleEnrollmentType();
-                    
+
                     // Wait for DOM update, then select the course
                     setTimeout(() => {
                         const courseCard = document.querySelector(`.course-card[onclick*="${courseId}"]`);
@@ -1926,14 +1999,14 @@ endforeach; ?>
                 if (subjectRadio) {
                     subjectRadio.checked = true;
                     toggleEnrollmentType();
-                    
+
                     // Select stream
                     setTimeout(() => {
                         const streamSelect = document.getElementById('stream_id');
                         if (streamSelect) {
                             streamSelect.value = streamId;
                             handleStreamChange();
-                            
+
                             // If subject_id is also provided, select it after subjects load
                             if (subjectId && subjectId > 0) {
                                 setTimeout(() => {
@@ -1970,44 +2043,7 @@ endforeach; ?>
             }
         }
 
-        function selectCourse(courseId, element) {
-            const hiddenInput = document.getElementById('course_id');
-            const isCurrentlySelected = (hiddenInput.value == courseId);
-
-            // Reset all cards first (Visual Reset)
-            document.querySelectorAll('.course-card').forEach(card => {
-                card.classList.remove('border-red-600', 'bg-red-50');
-                card.classList.add('border-gray-400');
-                
-                // Reset Selection Circle
-                const circle = card.querySelector('.selection-circle');
-                if (circle) {
-                    circle.classList.remove('bg-red-600', 'border-red-600');
-                    circle.classList.add('bg-white', 'border-gray-300');
-                    circle.innerHTML = '';
-                }
-            });
-
-            if (isCurrentlySelected) {
-                // Deselecting logic
-                hiddenInput.value = '';
-            } else {
-                // Selecting logic
-                hiddenInput.value = courseId;
-                
-                // Add selected state to clicked card
-                element.classList.remove('border-gray-400');
-                element.classList.add('border-red-600', 'bg-red-50');
-                
-                // Update Selection Circle
-                const circle = element.querySelector('.selection-circle');
-                if (circle) {
-                    circle.classList.remove('bg-white', 'border-gray-300');
-                    circle.classList.add('bg-red-600', 'border-red-600');
-                    circle.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
-                }
-            }
-        }
     </script>
 </body>
+
 </html>

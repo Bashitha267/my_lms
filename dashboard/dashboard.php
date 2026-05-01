@@ -10,6 +10,12 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $is_logged_in = !empty($user_id);
 
+// Super admin doesn't have a dashboard, redirect to payments
+if ($role === 'super_admin') {
+    header('Location: ../admin/teacher_payments.php');
+    exit;
+}
+
 // Get error/success messages from URL
 $error_message = isset($_GET['error']) ? urldecode($_GET['error']) : '';
 $success_message = isset($_GET['success']) ? urldecode($_GET['success']) : '';
@@ -130,6 +136,23 @@ if ($is_logged_in && $role === 'student') {
 }
 if ($is_logged_in && $role === 'student') {
     require_once __DIR__ . '/../check_al_redirection.php';
+    
+    // Fetch Student Stats
+    $enrolled_count = count($user_enrollment_data);
+    $pending_payments_count = 0;
+    foreach ($user_enrollment_data as $data) {
+        if (($data['monthly_status'] ?? '') === 'Pending' || ($data['monthly_status'] ?? '') === 'not_paid') {
+            $pending_payments_count++;
+        }
+    }
+    
+    $exams_query = "SELECT COUNT(*) as count FROM exams WHERE status = 'active'";
+    $exams_res = $conn->query($exams_query);
+    $upcoming_exams_count = $exams_res ? $exams_res->fetch_assoc()['count'] : 0;
+
+    $courses_enrolled_query = "SELECT COUNT(*) as count FROM course_enrollments WHERE student_id = '$user_id'";
+    $courses_enrolled_res = $conn->query($courses_enrolled_query);
+    $enrolled_courses_count = $courses_enrolled_res ? $courses_enrolled_res->fetch_assoc()['count'] : 0;
 }
 ?>
 <!DOCTYPE html>
@@ -141,6 +164,14 @@ if ($is_logged_in && $role === 'student') {
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        /* Modern Design System Tokens */
+        :root {
+            --primary: #dc2626;
+            --primary-light: #f87171;
+            --primary-dark: #991b1b;
+            --slate-900: #0f172a;
+        }
+
         /* Hero Animations */
         @keyframes fadeInUp {
             from {
@@ -172,7 +203,7 @@ if ($is_logged_in && $role === 'student') {
             100% { transform: translateX(-50%); }
         }
 
-        /* Custom Scrollbar for modern look */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
@@ -180,11 +211,46 @@ if ($is_logged_in && $role === 'student') {
             background: #f1f1f1;
         }
         ::-webkit-scrollbar-thumb {
-            background: #fca5a5;
+            background: #cbd5e1;
             border-radius: 10px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #ef4444;
+            background: #94a3b8;
+        }
+
+        /* Premium Design Utilities */
+        .blob {
+            position: absolute;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+        .blob-1 { background: rgba(239, 68, 68, 0.2); top: -300px; left: -200px; }
+        .blob-2 { background: rgba(248, 113, 113, 0.2); top: -200px; right: -200px; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+        }
+
+        .search-container {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+        }
+
+        .hero-bg {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), url('../assests/rdbg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
     </style>
 </head>
@@ -199,228 +265,255 @@ if ($is_logged_in && $role === 'student') {
 </style>
 
         <?php if (!$is_logged_in): ?>
-            <!-- Full Screen Hero Section -->
-            <section class="relative min-h-screen flex items-center overflow-hidden mb-8 bg-cover bg-center bg-no-repeat" style="background-image: url('../assests/rdbg.jpg');">
-            <!-- Dark Overlay for better contrast -->
-            <div class="absolute inset-0 bg-slate-900/20 z-0"></div>
-            <!-- Subtle background decorative elements to fill space -->
-            <div class="absolute top-20 right-20 w-64 h-64 bg-red-600/5 rounded-full blur-3xl"></div>
-            <div class="absolute bottom-20 left-20 w-96 h-96 bg-red-600/5 rounded-full blur-3xl"></div>
+            <!-- Premium Redesigned Hero Section -->
+            <section class="relative hero-bg min-h-[55vh] flex items-center justify-center overflow-hidden pt-12 pb-8">
+                <!-- Decorative Blobs -->
+                <div class="blob blob-1"></div>
+                <div class="blob blob-2"></div>
 
-            <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-12 w-full">
-                <div class="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-                    
-                    <!-- Right Side: Student Image (Top on mobile) -->
-                    <div class="lg:col-span-5 order-first lg:order-last relative animate-fade-in-right">
-                        <div class="relative z-10 w-full max-w-[280px] md:max-w-md mx-auto mt-16 lg:mt-0">
-                            <img src="../assests/student.png" alt="Student" class="w-full h-auto drop-shadow-2xl scale-110 lg:scale-125">
-                            
-                            <!-- Floating UI Decorations -->
-                            <div class="absolute -top-4 -right-4 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow border border-white/50">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-star text-[10px]"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Top Rated</p>
-                                        <p class="text-[9px] text-slate-800 font-black">#1 Academy</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="absolute bottom-10 -left-6 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow delay-700 border border-white/50">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-user-tie text-[10px]"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Instructors</p>
-                                        <p class="text-[9px] text-slate-800 font-black">10+ Teachers</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="absolute top-1/2 -right-8 bg-white/90 backdrop-blur-md p-2 rounded-xl shadow-lg animate-bounce-slow delay-500 border border-white/50">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-users text-[10px]"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-[7px] text-slate-400 font-black uppercase leading-none">Community</p>
-                                        <p class="text-[9px] text-slate-800 font-black">1000+ Students</p>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                    <!-- Badge -->
+                    <div class="inline-flex items-center gap-2 px-5 py-2 bg-white rounded-full shadow-sm border border-slate-100 mb-6 animate-fade-in-up">
+                        <div class="w-4 h-4 bg-red-100 rounded flex items-center justify-center text-red-600">
+                            <i class="fas fa-graduation-cap text-[8px]"></i>
                         </div>
-                        <!-- Backdrop decoration -->
-                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] lg:w-[550px] h-[300px] lg:h-[550px] bg-red-600/5 rounded-full blur-3xl -z-0"></div>
+                        <span class="text-[9px] font-black uppercase tracking-wider text-slate-600">Sri Lanka's #1 Platform for Online Learning</span>
                     </div>
 
-                    <!-- Left Side: Text and Login -->
-                    <div class="lg:col-span-7 text-left animate-fade-in-left relative z-10">
-                        <h1 class="text-3xl md:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight mb-6 tracking-tight">
-                            Empower Your Future. <br>
-                            <span class="text-red-600">Start Learning Today.</span>
+                    <!-- Hero Texts (Preserved Paragraphs) -->
+                    <div class="max-w-4xl mx-auto mb-8 animate-fade-in-up" style="animation-delay: 0.1s">
+                        <h1 class="text-2xl md:text-4xl font-black text-slate-900 leading-[1.1] mb-6">
+                            ආයුබෝවන්!! <br>
+                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-500">Learner.LK වෙත සාදරයෙන් පිළිගනිමු</span>
                         </h1>
-                        <p class="max-w-2xl text-lg md:text-xl text-slate-600 font-medium mb-4 leading-relaxed">
-                            Access high-quality live classes, recorded sessions, and professional courses tailored for your success.
+                        
+                        <p class="text-sm md:text-base text-slate-500 font-medium leading-relaxed mb-6">
+                            ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
                         </p>
-                        <p class="max-w-2xl text-sm md:text-base text-slate-500 font-normal mb-10 leading-relaxed">
-                            ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න. 
-                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති Register Button එක click කරන්න.
+                        <p class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
+                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-600">Register Button</span> එක click කරන්න.
                         </p>
-                        <!-- Login Bar -->
-                        <div class="max-w-2xl pb-16 lg:pb-0">
-                            <form action="../auth.php" method="POST" class="bg-white p-2 rounded-2xl md:rounded-full border border-slate-200 shadow-xl flex flex-col md:flex-row items-center gap-2 transition-all hover:shadow-2xl">
-                                <div class="flex-1 flex items-center px-6 py-2 w-full">
-                                    <i class="fas fa-mobile-alt text-slate-500 mr-3 text-sm"></i>
-                                    <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 placeholder-slate-500 font-bold text-sm">
-                                </div>
-                                <div class="flex-1 flex items-center px-6 py-2 w-full border-t md:border-t-0 md:border-l border-slate-100">
-                                    <i class="fas fa-lock text-slate-500 mr-3 text-sm"></i>
-                                    <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 placeholder-slate-500 font-bold text-sm">
-                                </div>
-                                <button type="submit" name="login" class="w-full md:w-auto bg-red-600 text-white px-12 py-4 rounded-xl md:rounded-full font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
-                                    Login Now
-                                </button>
-                            </form>
-                        </div>
                     </div>
-                </div>
-            </div>
-            </section>
 
-            <!-- Results Section: Automatic Moving Slider -->
-            <section class="py-12 bg-gray-50 overflow-hidden">
-                <div class="max-w-7xl mx-auto px-4 mb-10 text-center">
-                    <h2 class="text-3xl font-black text-slate-800 tracking-tight uppercase">Our Top Results</h2>
-                    <div class="w-20 h-1 bg-red-600 mx-auto mt-4 rounded-full"></div>
-                </div>
-
-                <!-- Slider Container -->
-                <div class="relative marquee-container py-8">
-                    <div class="flex overflow-hidden group">
-                        <!-- First Marquee Group -->
-                        <div class="flex animate-marquee whitespace-nowrap gap-6 group-hover:pause">
-                            <?php 
-                            $results = [
-                                ['name' => 'Nipuna Diyalagoda', 'id' => '123456', 'stream' => 'Physical Science', 'year' => '2025', 'maths' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Gampaha', 'drank' => '24', 'irank' => '325'],
-                                ['name' => 'Kasun Perera', 'id' => '654321', 'stream' => 'Biological Science', 'year' => '2025', 'bio' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Colombo', 'drank' => '12', 'irank' => '105'],
-                                ['name' => 'Sanduni Silva', 'id' => '789012', 'stream' => 'Commerce', 'year' => '2025', 'acc' => 'A', 'econ' => 'A', 'bs' => 'A', 'district' => 'Kandy', 'drank' => '05', 'irank' => '42'],
-                                ['name' => 'Malith Ranasinghe', 'id' => '345678', 'stream' => 'Physical Science', 'year' => '2025', 'maths' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Matara', 'drank' => '18', 'irank' => '210'],
-                                ['name' => 'Dulani Mendis', 'id' => '901234', 'stream' => 'Biological Science', 'year' => '2025', 'bio' => 'A', 'physics' => 'A', 'chem' => 'A', 'district' => 'Galle', 'drank' => '08', 'irank' => '88']
-                            ];
-                            
-                            foreach ($results as $res): ?>
-                            <div class="flex-shrink-0 w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.06)] p-6 border border-slate-100 mx-3">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border-2 border-red-50">
-                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=<?php echo urlencode($res['name']); ?>" class="w-full h-full object-cover">
-                                    </div>
-                                    <div class="whitespace-normal">
-                                        <h3 class="font-black text-slate-800 text-base leading-tight"><?php echo $res['name']; ?></h3>
-                                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Adm No: <?php echo $res['id']; ?></p>
-                                        <p class="text-[10px] text-red-600 font-black uppercase"><?php echo $res['stream']; ?> - <?php echo $res['year']; ?></p>
-                                    </div>
-                                </div>
-                                
-                                <div class="space-y-3 mb-6">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['maths']) ? 'Combined Mathematics' : (isset($res['bio']) ? 'Biology' : 'Accounting'); ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['physics']) ? 'Physics' : 'Economics'; ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['chem']) ? 'Chemistry' : 'Business Studies'; ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="pt-4 border-t border-slate-50 grid grid-cols-3 gap-2 text-center">
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">District</p><p class="text-xs font-black text-slate-700"><?php echo $res['district']; ?></p></div>
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Dist. Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['drank']; ?></p></div>
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Island Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['irank']; ?></p></div>
-                                </div>
+                    <!-- Login Form (Redesigned as a modern search bar) -->
+                    <div class="max-w-2xl mx-auto mb-8 animate-fade-in-up" style="animation-delay: 0.2s">
+                        <form action="../auth.php" method="POST" class="search-container p-1 bg-white rounded-xl md:rounded-[25px] flex flex-col md:flex-row gap-1 transition-all hover:ring-4 hover:ring-red-50 group">
+                            <div class="flex-1 flex items-center px-4 py-4 border-b md:border-b-0 md:border-r border-slate-100">
+                                <i class="fas fa-mobile-alt text-red-400 mr-3 text-sm"></i>
+                                <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-bold text-sm placeholder-slate-300">
                             </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <!-- Second Marquee Group -->
-                        <div class="flex animate-marquee whitespace-nowrap gap-6 group-hover:pause" aria-hidden="true">
-                            <?php foreach ($results as $res): ?>
-                            <div class="flex-shrink-0 w-80 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.06)] p-6 border border-slate-100 mx-3">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div class="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border-2 border-red-50">
-                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=<?php echo urlencode($res['name']); ?>" class="w-full h-full object-cover">
-                                    </div>
-                                    <div class="whitespace-normal">
-                                        <h3 class="font-black text-slate-800 text-base leading-tight"><?php echo $res['name']; ?></h3>
-                                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Adm No: <?php echo $res['id']; ?></p>
-                                        <p class="text-[10px] text-red-600 font-black uppercase"><?php echo $res['stream']; ?> - <?php echo $res['year']; ?></p>
-                                    </div>
-                                </div>
-                                <div class="space-y-3 mb-6">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['maths']) ? 'Combined Mathematics' : (isset($res['bio']) ? 'Biology' : 'Accounting'); ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['physics']) ? 'Physics' : 'Economics'; ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-sm font-bold text-slate-600"><?php echo isset($res['chem']) ? 'Chemistry' : 'Business Studies'; ?></span>
-                                        <span class="text-xl font-black text-red-600">A</span>
-                                    </div>
-                                </div>
-                                <div class="pt-4 border-t border-slate-50 grid grid-cols-3 gap-2 text-center">
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">District</p><p class="text-xs font-black text-slate-700"><?php echo $res['district']; ?></p></div>
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Dist. Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['drank']; ?></p></div>
-                                    <div><p class="text-[8px] text-slate-400 font-bold uppercase">Island Rank</p><p class="text-xs font-black text-slate-700"><?php echo $res['irank']; ?></p></div>
-                                </div>
+                            <div class="flex-1 flex items-center px-4 py-4">
+                                <i class="fas fa-lock text-red-400 mr-3 text-sm"></i>
+                                <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-bold text-sm placeholder-slate-300">
                             </div>
-                            <?php endforeach; ?>
-                        </div>
+                            <button type="submit" name="login" class="bg-red-600 text-white px-8 py-4 rounded-lg md:rounded-[20px] font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
+                                Login Now
+                            </button>
+                        </form>
                     </div>
-                </div>
-
-                <!-- See All Button -->
-                <div class="mt-8 text-center">
-                    <a href="ALDetails.php" class="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-all shadow-lg shadow-red-600/30 hover:shadow-red-600/50 transform hover:-translate-y-0.5 active:scale-95 uppercase text-sm">
-                        <span>See All Results</span>
-                        <i class="fas fa-chevron-right text-xs"></i>
-                    </a>
-                </div>
-
-                <style>
-                @keyframes marquee {
-                    0% { transform: translateX(0); }
-                    100% { transform: translateX(-100%); }
-                }
-                .animate-marquee {
-                    animation: marquee 40s linear infinite;
-                }
-                .group:hover .animate-marquee {
-                    animation-play-state: paused;
-                }
-                </style>
+                </div> <!-- End of text-center container -->
             </section>
-
         <?php else: ?>
-            <!-- Welcome Section for Logged In Users -->
-            <div class="px-4 mb-8">
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h1 class="text-3xl font-bold text-gray-900">
-                       ආයුබෝවන් <span class="ml-2 text-red-600"><?php echo htmlspecialchars(trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['second_name'] ?? '')) ?: 'User'); ?></span>
-                    </h1>
+            <!-- Enhanced Welcome & Stats Section for Logged In Users -->
+            <div class="max-w-[1400px] mx-auto px-4 mb-8 pt-8 animate-fade-in-up">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Welcome Card -->
+                    <div class="lg:col-span-4 bg-white rounded-[32px] shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
+                        <div class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-full blur-3xl opacity-50 -mr-24 -mt-24"></div>
+                        <div class="relative z-10">
+                            <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
+                                <i class="fas fa-user-graduate text-2xl"></i>
+                            </div>
+                            <h1 class="text-2xl font-black text-slate-900 leading-tight">
+                               ආයුබෝවන් <br>
+                               <span class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
+                            </h1>
+                            <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන් පිළිගනිමු.</p>
+                            
+                            <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID: <?php echo $user_id; ?></span>
+                                <a href="profile.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Enrolled Classes -->
+                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-book-reader"></i>
+                            </div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled Classes</p>
+                            <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
+                            <a href="recordings.php" class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View Lessons</a>
+                        </div>
+
+                        <!-- Pending Payments -->
+                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                            <div class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments</p>
+                            <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
+                            <a href="payments.php" class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay Now</a>
+                        </div>
+
+                        <!-- Upcoming Exams -->
+                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-file-signature"></i>
+                            </div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Exams</p>
+                            <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
+                            <a href="exam_center.php" class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go to Center</a>
+                        </div>
+
+                        <!-- Extra Courses -->
+                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses</p>
+                            <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
+                            <a href="online_courses.php" class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore More</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>
+
+        <!-- Universal AL Results Section -->
+        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-0 mb-12 animate-fade-in-up" style="animation-delay: 0.3s">
+            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-sm border-l-4 border-red-600">
+                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">A/L Top Achievers</h2>
+                <a href="ALDetails.php" class="text-red-500 text-[10px] font-black uppercase tracking-widest hover:text-red-400 transition-colors">
+                    View All Results <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+
+                    <?php 
+                    // Curated Demo Data for A/L Achievers (Directly using array as requested)
+                    $al_results = [
+                        ['name' => 'Sugath Perera', 'stream' => 'Combined Mathematics', 'district' => 'Gampaha', 'drank' => '02', 'irank' => '14', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Nipuna Diyalagoda', 'stream' => 'Physical Science', 'district' => 'Gampaha', 'drank' => '24', 'irank' => '325', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Kasun Perera', 'stream' => 'Biological Science', 'district' => 'Colombo', 'drank' => '12', 'irank' => '105', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Sanduni Silva', 'stream' => 'Commerce', 'district' => 'Kandy', 'drank' => '05', 'irank' => '42', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
+                        ['name' => 'Malith Ranasinghe', 'stream' => 'Physical Science', 'district' => 'Matara', 'drank' => '18', 'irank' => '210', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Dilshani Silva', 'stream' => 'Biological Science', 'district' => 'Kalutara', 'drank' => '08', 'irank' => '88', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Pathum Perera', 'stream' => 'Physical Science', 'district' => 'Galle', 'drank' => '15', 'irank' => '156', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Kavindi Perera', 'stream' => 'Commerce', 'district' => 'Ratnapura', 'drank' => '03', 'irank' => '22', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
+                        ['name' => 'Tharindu Silva', 'stream' => 'Physical Science', 'district' => 'Kurunegala', 'drank' => '21', 'irank' => '288', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                        ['name' => 'Ruwan Perera', 'stream' => 'Biological Science', 'district' => 'Badulla', 'drank' => '10', 'irank' => '95', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']]
+                    ];
+                    ?>
+                    
+                    <div class="relative overflow-hidden group/slider">
+                        <div id="achieverSlider" class="flex flex-nowrap w-full transition-transform duration-700 ease-in-out">
+                                <?php foreach ($al_results as $res): ?>
+                                <div class="w-full sm:w-1/2 lg:w-1/4 flex-none px-4">
+                                    <div class="card-hover bg-white rounded-[40px] p-8 border border-slate-100 transition-all duration-500 relative group h-full">
+                                        <!-- Card Header -->
+                                        <div class="relative mb-8">
+                                            <div class="w-24 h-24 mx-auto rounded-[30px] overflow-hidden bg-slate-50 border-4 border-white shadow-lg">
+                                                <?php if (isset($res['photo']) && !empty($res['photo'])): ?>
+                                                    <img src="../<?php echo $res['photo']; ?>" class="w-full h-full object-cover">
+                                                <?php else: ?>
+                                                    <img src="../assests/student_avatar.png" class="w-full h-full object-cover">
+                                                <?php endif; ?>
+                                            </div>
+                                            <!-- Stream Label -->
+                                            <div class="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest whitespace-nowrap shadow-lg">
+                                                <?php echo $res['stream']; ?>
+                                            </div>
+                                        </div>
+
+                                        <!-- Info -->
+                                        <div class="text-center mb-6">
+                                            <h3 class="font-black text-slate-800 text-lg leading-tight mb-1"><?php echo $res['name']; ?></h3>
+                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest"><?php echo $res['district']; ?> District</p>
+                                        </div>
+
+                                        <!-- Grades -->
+                                        <div class="space-y-3 mb-8">
+                                            <?php 
+                                            $results_to_show = isset($res['results']) ? $res['results'] : [
+                                                'Combined Mathematics' => 'A',
+                                                'Physics' => 'A',
+                                                'Chemistry' => 'A'
+                                            ];
+                                            foreach ($results_to_show as $subject => $grade): ?>
+                                            <div class="flex justify-between items-center px-4 py-2 bg-slate-50 rounded-xl group-hover:bg-red-50 transition-colors">
+                                                <span class="text-[9px] font-bold text-slate-500 truncate mr-2"><?php echo $subject; ?></span>
+                                                <span class="text-lg font-black text-red-600"><?php echo $grade; ?></span>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <!-- Ranks -->
+                                        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
+                                            <div class="text-center">
+                                                <p class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">Dist. Rank</p>
+                                                <p class="text-lg font-black text-slate-800"><?php echo $res['drank']; ?></p>
+                                            </div>
+                                            <div class="text-center">
+                                                <p class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">Island Rank</p>
+                                                <p class="text-lg font-black text-red-600"><?php echo $res['irank']; ?></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <!-- Slider Controls -->
+                            <button onclick="moveSlider('prev')" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-full flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button onclick="moveSlider('next')" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-full flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <script>
+                            let currentSlide = 0;
+                            const slider = document.getElementById('achieverSlider');
+                            const totalSlides = <?php echo count($al_results); ?>;
+                            let slidesToShow = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 640 ? 2 : 1);
+                            
+                            function moveSlider(direction) {
+                                const maxSlide = totalSlides - slidesToShow;
+                                if (direction === 'next') {
+                                    currentSlide = currentSlide >= maxSlide ? 0 : currentSlide + 1;
+                                } else {
+                                    currentSlide = currentSlide <= 0 ? maxSlide : currentSlide - 1;
+                                }
+                                const offset = currentSlide * (100 / slidesToShow);
+                                slider.style.transform = `translateX(-${offset}%)`;
+                            }
+
+                            // Auto slide
+                            let autoSlide = setInterval(() => moveSlider('next'), 3000);
+                            
+                            // Pause on hover
+                            slider.parentElement.addEventListener('mouseenter', () => clearInterval(autoSlide));
+                            slider.parentElement.addEventListener('mouseleave', () => {
+                                clearInterval(autoSlide);
+                                autoSlide = setInterval(() => moveSlider('next'), 3000);
+                            });
+                            
+                            // Re-calculate on resize
+                            window.addEventListener('resize', () => {
+                                slidesToShow = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 640 ? 2 : 1);
+                                currentSlide = 0;
+                                slider.style.transform = `translateX(0)`;
+                            });
+                        </script>
+                    </div>
+                </div>
+            </div>
         <!-- Bento Grid Gallery Section -->
-        <section class="mb-4">
+        <section class="max-w-[1400px] mx-auto px-4 mb-4">
             <?php 
             $gallery_images = [];
             $posts_result = $conn->query("SELECT image_path FROM home_posts ORDER BY created_at DESC");
@@ -502,12 +595,10 @@ if ($is_logged_in && $role === 'student') {
             </div>
         </section>
         <!-- Available Classes Section -->
-        <div class="px-4  mt-8 mb-16" id="classes-section">
-            <div class="text-center mb-10">
-                <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block shadow-sm">Popular Classes</span>
-                <h2 class="text-4xl font-black text-gray-900 mb-4">පවතින පන්ති</h2>
-                <p class="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg font-medium">විෂය ධාරාවන් අනුව පන්ති තෝරාගෙන අදම ලියාපදිංචි වන්න</p>
-                <div class="h-1.5 w-32 bg-red-600 mx-auto mt-6 rounded-full"></div>
+        <div class="max-w-[1400px] mx-auto px-4 mt-8 mb-12" id="classes-section">
+            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-red-600">
+                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">පවතින පන්ති</h2>
+                <span class="text-white/60 text-[10px] font-black uppercase tracking-widest hidden md:block">Academic Sessions</span>
             </div>
             
             <?php if (empty($assignments_by_stream)): ?>
@@ -553,9 +644,9 @@ if ($is_logged_in && $role === 'student') {
                                     </div>
                                 </div>
 
-                                <div class="p-5">
+                                <div class="p-4">
                                     <!-- Subject & Teacher -->
-                                    <h3 class="text-base font-bold text-gray-800 mb-1 leading-snug" title="<?php echo htmlspecialchars($class['subject_name']); ?>">
+                                    <h3 class="text-sm font-bold text-gray-800 mb-1 leading-snug" title="<?php echo htmlspecialchars($class['subject_name']); ?>">
                                         <?php echo htmlspecialchars($class['subject_name']); ?>
                                     </h3>
                                     
@@ -618,18 +709,18 @@ if ($is_logged_in && $role === 'student') {
                                     <?php if ($is_logged_in): ?>
                                         <?php if ($enrolled_data): ?>
                                             <a href="recordings.php" 
-                                               class="block w-full text-center bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-sm font-medium">
+                                               class="block w-full text-center bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-[11px] font-medium">
                                                 View Details
                                             </a>
                                         <?php else: ?>
                                             <button onclick="openEnrollModal(<?php echo $class['stream_subject_id']; ?>, '<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>')" 
-                                                    class="block w-full text-center bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-200 text-sm font-medium">
+                                                    class="block w-full text-center bg-gray-900 text-white py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors duration-200 text-[11px] font-medium">
                                                 Enroll Now
                                             </button>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <a href="../register.php?stream_id=<?php echo $stream_id; ?>&subject_id=<?php echo $class['subject_id']; ?>"
-                                           class="block w-full text-center bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors duration-200 text-sm font-medium">
+                                           class="block w-full text-center bg-gray-900 text-white py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors duration-200 text-[11px] font-medium">
                                             Enroll Now
                                         </a>
                                     <?php endif; ?>
@@ -658,12 +749,10 @@ if ($is_logged_in && $role === 'student') {
             }
         </script>
 
-        <div class="px-4 mb-20">
-            <div class="text-center mb-10">
-                <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4 inline-block shadow-sm">Popular Courses</span>
-                <h2 class="text-4xl font-black text-gray-900 mb-4">අපගේ බාහිර පාඨමාලා</h2>
-                <p class="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg font-medium">ඔබේ අනාගතය සාර්ථක කර ගැනීමට අපගේ අන්තර්ජාල පාඨමාලා හා එක්වන්න</p>
-                <div class="h-1.5 w-32 bg-red-600 mx-auto mt-6 rounded-full"></div>
+        <div class="max-w-[1400px] mx-auto px-4 mb-16">
+            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-red-600">
+                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">අපගේ බාහිර පාඨමාලා</h2>
+                <span class="text-white/60 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra Learning</span>
             </div>
             <?php if (empty($courses)): ?>
                 <div class="bg-white rounded-lg shadow p-8 text-center">
@@ -688,11 +777,11 @@ if ($is_logged_in && $role === 'student') {
 
                             <!-- Course Content -->
                             <div class="p-6">
-                                <h3 class="font-bold text-xl text-gray-900 mb-2">
+                                <h3 class="font-bold text-lg text-gray-900 mb-2">
                                     <?php echo htmlspecialchars($course['title']); ?>
                                 </h3>
                                 
-                                <p class="text-sm text-gray-600 mb-3">
+                                <p class="text-xs text-gray-600 mb-3">
                                     <i class="fas fa-user text-red-600 mr-1"></i>
                                     By <?php echo htmlspecialchars($course['teacher_name'] ?: 'Unknown'); ?>
                                 </p>
@@ -704,14 +793,14 @@ if ($is_logged_in && $role === 'student') {
                                 <?php endif; ?>
 
                                 <div class="flex items-center justify-between mt-4">
-                                    <span class="text-red-600 font-bold text-2xl">
+                                    <span class="text-red-600 font-bold text-xl">
                                         Rs. <?php echo number_format($course['price'], 2); ?>
                                     </span>
                                 </div>
 
                                 <a href="../register.php?course_id=<?php echo $course['id']; ?>"
-                                   class="block w-full text-center bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition font-semibold mt-4">
-                                    <i class="fas fa-cart-plus mr-2"></i>Enroll Now
+                                   class="block w-full text-center bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition font-semibold mt-4 text-xs">
+                                    <i class="fas fa-cart-plus mr-1"></i>Enroll Now
                                 </a>
                             </div>
                         </div>
@@ -722,16 +811,16 @@ if ($is_logged_in && $role === 'student') {
     </div>
 
     <!-- Footer Section -->
-    <footer class="bg-red-600 py-12 mt-auto">
+    <footer class="bg-red-600 py-10 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="mb-6">
-                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Learner.LK</h2>
-                <div class="h-1 w-20 bg-white/30 mx-auto rounded-full"></div>
+                <h2 class="text-lg md:text-xl font-black text-white mb-2">Learner.LK</h2>
+                <div class="h-0.5 w-16 bg-white/30 mx-auto rounded-full"></div>
             </div>
             
-            <div class="space-y-3">
-                <p class="text-lg md:text-xl font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
-                <p class="text-red-100 font-semibold text-sm md:text-base tracking-wide">Learner.LK is the best online academy in Sri Lanka.</p>
+            <div class="space-y-2">
+                <p class="text-base md:text-lg font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
+                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Learner.LK is the best online academy in Sri Lanka.</p>
             </div>
 
             <div class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
