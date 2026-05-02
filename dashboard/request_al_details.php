@@ -7,7 +7,7 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
 // Only Admin and Teachers can access
-if ($role !== 'admin' && $role !== 'teacher') {
+if (!in_array($role, ['admin', 'super_admin']) && $role !== 'teacher') {
     header('Location: ../dashboard/dashboard.php');
     exit;
 }
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
     $params = [];
     $types = "";
 
-    if ($request_type === 'stream' && $role === 'admin') {
+    if ($request_type === 'stream' && in_array($role, ['admin', 'super_admin'])) {
         // Find enrolled students for this STREAM (joined via stream_subjects)
         $query = "SELECT DISTINCT u.whatsapp_number, u.first_name, u.user_id 
                   FROM users u
@@ -152,7 +152,7 @@ while ($row = $result->fetch_assoc()) {
 <body class="bg-gray-50">
     <div class="min-h-screen flex flex-col">
         <?php 
-        if ($role === 'admin') {
+        if (in_array($role, ['admin', 'super_admin'])) {
             $admin_header_prefix = '../admin/';
             include '../admin/header.php';
         } else {
@@ -166,7 +166,7 @@ while ($row = $result->fetch_assoc()) {
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">A/L Exam Details Collection</h1>
                     <p class="text-gray-500 mt-1">
-                        <?php echo $role === 'admin' ? 'Request details from students in specific streams.' : 'Request details from your classes.'; ?>
+                        <?php echo in_array($role, ['admin', 'super_admin']) ? 'Request details from students in specific streams.' : 'Request details from your classes.'; ?>
                     </p>
                 </div>
             </div>

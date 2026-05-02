@@ -53,7 +53,7 @@ if ($is_teacher) {
     $stmt->close();
 } else {
     // Other roles? Admin?
-    if ($role === 'admin') $access_level = 'full';
+    if (in_array($role, ['admin', 'super_admin'])) $access_level = 'full';
 }
 
 // Helper to get YT ID

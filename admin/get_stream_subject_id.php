@@ -2,7 +2,7 @@
 require_once '../check_session.php';
 
 // Verify user is admin
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();

@@ -2,7 +2,7 @@
 require_once '../check_session.php';
 require_once '../config.php';
 
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']); exit;
 }
 

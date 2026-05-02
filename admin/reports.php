@@ -237,7 +237,7 @@ for ($m = 1; $m <= 12; $m++) {
                             <div style="font-size:13pt; font-weight:800; color:#dc2626;">Rs.<?php echo number_format($total_commission, 2); ?></div>
                         </td>
                         <td style="width:25%; padding:10px 14px; background:#f9f9f9; border:1px solid #e0e0e0; border-left:none; border-right:3px solid #dc2626;">
-                            <div style="font-size:7pt; color:#888; text-transform:uppercase; letter-spacing:.8px; margin-bottom:3px;">INSTRUCTOR SALARIES PAID</div>
+                            <div style="font-size:7pt; color:#888; text-transform:uppercase; letter-spacing:.8px; margin-bottom:3px;">TEACHER SALARIES PAID</div>
                             <div style="font-size:13pt; font-weight:800; color:#111;">Rs.<?php echo number_format($total_teacher_salaries, 2); ?></div>
                         </td>
                         <td style="width:25%; padding:10px 14px; background:#f9f9f9; border:1px solid #e0e0e0; border-left:none;">
@@ -253,13 +253,13 @@ for ($m = 1; $m <= 12; $m++) {
                     <div style="display:flex; align-items:center; margin-bottom:8px;">
                         <div style="background:#dc2626; color:#fff; font-size:8pt; font-weight:800; padding:4px 12px; letter-spacing:.5px; text-transform:uppercase;">INCOME</div>
                         <div style="flex:1; height:1px; background:#dc2626; margin-left:0;"></div>
-                        <div style="background:#111; color:#fff; font-size:7pt; padding:4px 10px; font-weight:700;">Student Payments by Instructor</div>
+                        <div style="background:#111; color:#fff; font-size:7pt; padding:4px 10px; font-weight:700;">Student Payments by Teacher</div>
                     </div>
                     <table style="width:100%; border-collapse:collapse; font-size:8.5pt;">
                         <thead>
                             <tr style="background:#111; color:#fff;">
                                 <th style="padding:7px 10px; text-align:left; font-weight:700; width:5%;">#</th>
-                                <th style="padding:7px 10px; text-align:left; font-weight:700;">Instructor Name</th>
+                                <th style="padding:7px 10px; text-align:left; font-weight:700;">Teacher Name</th>
                                 <th style="padding:7px 10px; text-align:right; font-weight:700;">Enrollment Fees</th>
                                 <th style="padding:7px 10px; text-align:right; font-weight:700;">Monthly Fees</th>
                                 <th style="padding:7px 10px; text-align:right; font-weight:700;">Total Collected</th>
@@ -333,17 +333,17 @@ for ($m = 1; $m <= 12; $m++) {
                             </tr>
                             <?php endforeach; endif; ?>
 
-                            <!-- Instructor Salaries -->
-                            <tr><td colspan="4" style="padding:5px 10px; font-size:7pt; font-weight:800; text-transform:uppercase; color:#888; letter-spacing:.8px; background:#f5f5f5; border-bottom:1px solid #e0e0e0;">Instructor Salary Payments</td></tr>
+                            <!-- Teacher Salaries -->
+                            <tr><td colspan="4" style="padding:5px 10px; font-size:7pt; font-weight:800; text-transform:uppercase; color:#888; letter-spacing:.8px; background:#f5f5f5; border-bottom:1px solid #e0e0e0;">Teacher Salary Payments</td></tr>
                             <?php if (!empty($teacher_salaries)): foreach ($teacher_salaries as $ts): ?>
                             <tr style="background:<?php echo $exp_idx % 2 === 0 ? '#f9f9f9' : '#fff'; ?>; border-bottom:1px solid #eeeeee;">
                                 <td style="padding:7px 10px; color:#888;"><?php echo $exp_idx++; ?></td>
-                                <td style="padding:7px 10px; font-weight:500;"><?php echo htmlspecialchars($ts['first_name'] . ' ' . $ts['second_name']); ?> <span style="color:#888; font-size:7.5pt;">(Instructor Salary)</span></td>
+                                <td style="padding:7px 10px; font-weight:500;"><?php echo htmlspecialchars($ts['first_name'] . ' ' . $ts['second_name']); ?> <span style="color:#888; font-size:7.5pt;">(Teacher Salary)</span></td>
                                 <td style="padding:7px 10px; text-align:center;"><span style="background:#fdf4ff; color:#7c3aed; font-size:7pt; font-weight:700; padding:2px 8px; border:1px solid #e9d5ff;">SALARY</span></td>
                                 <td style="padding:7px 10px; text-align:right; font-weight:600;">Rs.<?php echo number_format($ts['paid_amount'], 2); ?></td>
                             </tr>
                             <?php endforeach; else: ?>
-                            <tr><td colspan="4" style="padding:8px 10px; text-align:center; color:#aaa; font-style:italic; font-size:8pt;">No instructor salaries paid this period.</td></tr>
+                            <tr><td colspan="4" style="padding:8px 10px; text-align:center; color:#aaa; font-style:italic; font-size:8pt;">No teacher salaries paid this period.</td></tr>
                             <?php endif; ?>
                         </tbody>
                         <tfoot>
@@ -359,14 +359,14 @@ for ($m = 1; $m <= 12; $m++) {
                 <?php if (!empty($teachers_with_income)): ?>
                 <div style="margin-bottom:18px;">
                     <div style="display:flex; align-items:center; margin-bottom:8px;">
-                        <div style="background:#dc2626; color:#fff; font-size:8pt; font-weight:800; padding:4px 12px; letter-spacing:.5px; text-transform:uppercase;">INSTRUCTOR INCOME RANKING</div>
+                        <div style="background:#dc2626; color:#fff; font-size:8pt; font-weight:800; padding:4px 12px; letter-spacing:.5px; text-transform:uppercase;">TEACHER INCOME RANKING</div>
                         <div style="flex:1; height:1px; background:#dc2626;"></div>
                     </div>
                     <table style="width:100%; border-collapse:collapse; font-size:8.5pt;">
                         <thead>
                             <tr style="background:#dc2626; color:#fff;">
                                 <th style="padding:6px 10px; text-align:center; width:8%;">Rank</th>
-                                <th style="padding:6px 10px; text-align:left;">Instructor</th>
+                                <th style="padding:6px 10px; text-align:left;">Teacher</th>
                                 <th style="padding:6px 10px; text-align:right;">Total Students Paid</th>
                                 <th style="padding:6px 10px; text-align:right;">Institute Commission</th>
                             </tr>
@@ -611,7 +611,7 @@ for ($m = 1; $m <= 12; $m++) {
                         <tr class="border-b border-gray-100">
                             <td colspan="3" class="px-5 py-3 text-sm font-bold text-gray-700">
                                 <i class="fas fa-chalkboard-teacher text-purple-500 mr-2"></i>
-                                Instructor Salaries (Paid this month)
+                                Teacher Salaries (Paid this month)
                             </td>
                             <td class="px-5 py-3 text-right font-bold text-purple-700">Rs.<?php echo number_format($total_teacher_salaries, 2); ?></td>
                             <td class="no-print"></td>
@@ -650,7 +650,7 @@ for ($m = 1; $m <= 12; $m++) {
                     <i class="fas fa-chalkboard-teacher"></i>
                 </div>
                 <div>
-                    <h2 class="text-base font-extrabold text-gray-900">Instructor Salary Payments</h2>
+                    <h2 class="text-base font-extrabold text-gray-900">Teacher Salary Payments</h2>
                     <p class="text-xs text-gray-400"><?php echo $month_name . ' ' . $filter_year; ?> · Sorted by amount paid</p>
                 </div>
             </div>
@@ -659,7 +659,7 @@ for ($m = 1; $m <= 12; $m++) {
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">#</th>
-                            <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Instructor</th>
+                            <th class="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase">Teacher</th>
                             <th class="px-5 py-3 text-right text-xs font-bold text-gray-500 uppercase">Amount Paid</th>
                         </tr>
                     </thead>

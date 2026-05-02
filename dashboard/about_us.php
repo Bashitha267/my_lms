@@ -97,7 +97,7 @@ $stmt->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us - LMS</title>
+    <title>About Us - Learner.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -357,7 +357,7 @@ $stmt->close();
                             </div>
                             <div>
                                 <h4 class="font-bold text-lg mb-1">Official Email</h4>
-                                <p class="text-gray-400">support@lms.lk<br>info@ouracademy.com</p>
+                                <p class="text-gray-400">support@learner.lk<br>info@learner.lk</p>
                             </div>
                         </div>
                     </div>
@@ -379,7 +379,7 @@ $stmt->close();
         <footer class="bg-black py-12 px-4 border-t border-gray-900">
             <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
                 <div class="mb-8 md:mb-0 text-center md:text-left">
-                    <h2 class="text-2xl font-black text-white mb-2 tracking-tighter">LMS ACADEMY</h2>
+                    <h2 class="text-2xl font-black text-white mb-2 tracking-tighter">Learner.LK</h2>
                     <p class="text-gray-600 text-xs uppercase tracking-widest font-bold">&copy; <?php echo date('Y'); ?> All Rights Reserved.</p>
                 </div>
                 <div class="flex space-x-8">

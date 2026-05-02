@@ -412,24 +412,96 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #f8f9fa;
+            background: #fff;
             min-height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 40px 0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Premium Colorful Background Design */
+        .bg-design {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #fdf2f2 0%, #fff 100%);
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            z-index: -1;
+            animation: move 20s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: #fecaca; /* red-200 */
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            background: #fed7aa; /* orange-200 */
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: #fbcfe8; /* pink-200 */
+            top: 40%;
+            right: 10%;
+            animation-delay: -10s;
+        }
+
+        @keyframes move {
+            from { transform: translate(0, 0) scale(1); }
+            to { transform: translate(100px, 100px) scale(1.1); }
         }
 
         .registration-container {
             width: 100%;
             max-width: 550px;
-            background: white;
-            border: 1px solid #dadce0;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 24px;
             padding: 40px;
-            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 20px 16px;
+                display: block; /* Allow scrolling on mobile if form is long */
+            }
+            .registration-container {
+                padding: 24px 20px;
+                border-radius: 20px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
         }
 
         .step-content {
@@ -662,6 +734,13 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
 <body>
 
+    <!-- Background Design Elements -->
+    <div class="bg-design">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
     <div class="registration-container">
         <!-- LERNERR.LK Logo -->
         <div class="google-logo">
@@ -792,6 +871,12 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     <label for="address" class="google-label">Address (ලිපිනය)</label>
                 </div>
 
+                <div class="google-input-group">
+                    <input type="text" id="school_name" name="school_name" class="google-input" placeholder=" "
+                        required value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
+                    <label for="school_name" class="google-label">School Name (පාසලේ නම)</label>
+                </div>
+
                 <div class="flex justify-between items-center mt-10">
                     <button type="button" onclick="prevStep(3)" class="btn-google-outline">Back</button>
                     <button type="button" onclick="nextStep(3)" class="btn-google px-8">Next</button>
@@ -800,35 +885,36 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
             <!-- STEP 4: Education & Enrollment -->
             <div class="step-content" id="step4">
-                <div class="google-input-group">
-                    <input type="text" id="school_name" name="school_name" class="google-input" placeholder=" "
-                        value="<?php echo htmlspecialchars($_POST['school_name'] ?? ''); ?>">
-                    <label for="school_name" class="google-label">School Name (පාසලේ නම)</label>
-                </div>
-
-                <div class="mb-6">
-                    <label
-                        class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Enrollment
-                        Type</label>
-                    <div class="flex space-x-3">
-                        <label
-                            class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md hover:bg-gray-50 flex-1 transition-colors">
-                            <input type="radio" name="enrollment_type" value="subject" checked
-                                onchange="toggleEnrollmentType()">
-                            <span class="text-sm font-medium">Class Enrollment</span>
+                <div class="mb-8">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Choose Your Path</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="relative cursor-pointer group">
+                            <input type="radio" name="enrollment_type" value="subject" checked onchange="toggleEnrollmentType()" class="peer sr-only">
+                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 peer-checked:bg-red-50/50 group-hover:border-red-200">
+                                <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <h3 class="font-bold text-sm text-slate-800">Class Enrollment</h3>
+                                <p class="text-[10px] text-slate-500 mt-1">Join weekly sessions</p>
+                            </div>
                         </label>
-                        <label
-                            class="flex items-center space-x-2 cursor-pointer p-3 border rounded-md hover:bg-gray-50 flex-1 transition-colors">
-                            <input type="radio" name="enrollment_type" value="course" onchange="toggleEnrollmentType()">
-                            <span class="text-sm font-medium">Online Course</span>
+                        <label class="relative cursor-pointer group">
+                            <input type="radio" name="enrollment_type" value="course" onchange="toggleEnrollmentType()" class="peer sr-only">
+                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 peer-checked:bg-red-50/50 group-hover:border-red-200">
+                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </div>
+                                <h3 class="font-bold text-sm text-slate-800">Online Course</h3>
+                                <p class="text-[10px] text-slate-500 mt-1">Self-paced learning</p>
+                            </div>
                         </label>
                     </div>
                 </div>
 
-                <div id="classEnrollmentContainer" class="space-y-4">
+                <div id="classEnrollmentContainer" class="space-y-6">
                     <div class="google-input-group">
                         <select id="stream_id" name="stream_id" class="google-input" onchange="handleStreamChange()">
-                            <option value="">-- Select Stream --</option>
+                            <option value="" disabled selected hidden></option>
                             <?php foreach ($streams as $stream): ?>
                                 <option value="<?php echo $stream['id']; ?>" <?php echo ($stream_id_selected == $stream['id']) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($stream['name']); ?>
@@ -840,38 +926,40 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
                     <div id="subjectContainer" class="google-input-group hidden">
                         <select id="subject_id" name="subject_id" class="google-input" onchange="handleSubjectChange()">
-                            <option value="">-- Select Subject --</option>
+                            <option value="" disabled selected hidden></option>
                         </select>
                         <label for="subject_id" class="google-label">Select Subject (විෂය තෝරන්න)</label>
                     </div>
 
                     <div id="teachersContainer" class="hidden">
-                        <label
-                            class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Select
-                            Teacher</label>
-                        <div id="teachersGrid" class="space-y-2 max-h-48 overflow-y-auto p-1 border rounded-md"></div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Available Teachers</p>
+                        <div id="teachersGrid" class="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto p-2 bg-slate-50/50 rounded-2xl border border-slate-100"></div>
                         <input type="hidden" id="selected_teacher_id" name="selected_teacher_id" value="">
                     </div>
                 </div>
 
-                <div id="courseEnrollmentContainer" class="hidden">
-                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 ml-1">Select
-                        Online Course</label>
-                    <input type="hidden" id="course_id" name="course_id"
-                        value="<?php echo htmlspecialchars($course_id_selected); ?>">
-                    <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto p-1 border rounded-md">
+                <div id="courseEnrollmentContainer" class="hidden space-y-4">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Select Online Course</p>
+                    <input type="hidden" id="course_id" name="course_id" value="<?php echo htmlspecialchars($course_id_selected); ?>">
+                    <div class="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto p-2 bg-slate-50/50 rounded-2xl border border-slate-100">
                         <?php foreach ($courses as $course): ?>
                             <div onclick="selectCourse(<?php echo $course['id']; ?>, this)"
-                                class="course-item cursor-pointer border p-4 rounded-md hover:bg-blue-50 transition-colors text-sm flex justify-between items-center group">
-                                <div>
-                                    <div class="font-bold text-gray-800 group-hover:text-blue-700">
-                                        <?php echo htmlspecialchars($course['title']); ?>
+                                class="course-item cursor-pointer bg-white border-2 border-slate-100 p-4 rounded-2xl hover:border-red-200 hover:shadow-sm transition-all text-sm flex justify-between items-center group">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden">
+                                        <img src="<?php echo $course['cover_image'] ? $course['cover_image'] : 'assests/course_placeholder.png'; ?>" class="w-full h-full object-cover">
                                     </div>
-                                    <div class="text-xs text-gray-500">By
-                                        <?php echo htmlspecialchars($course['teacher_name']); ?>
+                                    <div>
+                                        <div class="font-bold text-slate-800 group-hover:text-red-600 transition-colors">
+                                            <?php echo htmlspecialchars($course['title']); ?>
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                            By <?php echo htmlspecialchars($course['teacher_name']); ?>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="text-blue-600 font-bold">Rs. <?php echo number_format($course['price'], 2); ?>
+                                <div class="bg-red-50 text-red-600 px-3 py-1 rounded-full font-black text-[11px] whitespace-nowrap">
+                                    Rs. <?php echo number_format($course['price'], 2); ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -888,16 +976,16 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
             <div class="step-content" id="step5">
                 <div class="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-100">
                     <label class="block text-sm font-medium text-gray-700 mb-3">Profile Picture (Optional)</label>
-                    <div class="flex items-center space-x-6">
+                    <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
                         <div id="photoPreview"
-                            class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-200 shadow-sm">
+                            class="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-200 shadow-sm flex-shrink-0">
                             <img id="previewImg" src="" alt="Preview" class="w-full h-full object-cover hidden">
                             <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                         </div>
-                        <div class="flex-1">
+                        <div class="flex-1 text-center sm:text-left">
                             <input type="file" id="profile_picture" name="profile_picture" accept="image/*"
                                 class="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                 onchange="previewProfilePicture(this)">
@@ -911,49 +999,55 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                         Verification</p>
                     <div class="grid grid-cols-1 gap-3 mb-6">
                         <label
-                            class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors border-gray-200">
-                            <input type="radio" name="verification_method" value="nic"
-                                onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
-                            <div>
-                                <span class="text-sm font-bold text-gray-800">Verify by NIC</span>
-                                <p class="text-[11px] text-gray-500">Quickest way using your ID card</p>
+                            class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-all border-slate-200 group has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/30">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <input type="radio" id="verify_nic" name="verification_method" value="nic"
+                                    onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
+                                <div>
+                                    <span class="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">Verify by NIC</span>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Quickest way using your ID card</p>
+                                </div>
+                            </div>
+                            <!-- NIC Input Container moved here -->
+                            <div id="nicVerificationContainer" class="hidden mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+                                <div class="flex space-x-2">
+                                    <input type="text" id="nic_number" name="nic_number" class="google-input !mb-0 !py-2.5 !text-sm"
+                                        placeholder="Enter NIC Number">
+                                    <button type="button" onclick="verifyNIC()" class="btn-google !py-2.5 !px-4 !text-[10px] uppercase font-black tracking-widest">Verify</button>
+                                </div>
+                                <div id="nicVerificationResult" class="mt-2 text-[10px] font-bold uppercase"></div>
+                                <input type="hidden" id="nic_verified" name="nic_verified" value="0">
                             </div>
                         </label>
                         <label
-                            class="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors border-gray-200">
-                            <input type="radio" name="verification_method" value="mobile"
-                                onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
-                            <div>
-                                <span class="text-sm font-bold text-gray-800">Verify by Mobile OTP</span>
-                                <p class="text-[11px] text-gray-500">Receive a code via SMS/WhatsApp</p>
+                            class="flex flex-col p-4 border rounded-2xl cursor-pointer hover:bg-blue-50/50 transition-all border-slate-200 group has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50/30">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <input type="radio" id="verify_mobile" name="verification_method" value="mobile"
+                                    onchange="handleVerificationMethodChange()" class="w-4 h-4 text-blue-600">
+                                <div>
+                                    <span class="text-sm font-black text-slate-800 group-hover:text-blue-600 transition-colors">Verify by Mobile OTP</span>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Receive a code via SMS/WhatsApp</p>
+                                </div>
+                            </div>
+                            <!-- Mobile Input Container moved here -->
+                            <div id="mobileVerificationContainer" class="hidden mt-4 pt-4 border-t border-slate-100 space-y-4 animate-fadeIn">
+                                <div class="flex space-x-2">
+                                    <input type="text" id="verification_mobile" class="google-input !mb-0 !py-2.5 !text-sm"
+                                        placeholder="Mobile Number">
+                                    <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="btn-google !py-2.5 !px-4 !text-[10px] uppercase font-black tracking-widest">Send Code</button>
+                                </div>
+                                <div id="otpInputContainer" class="hidden flex space-x-2">
+                                    <input type="text" id="otp_code" class="google-input !mb-0 !py-2.5 !text-sm"
+                                        placeholder="6-digit Code">
+                                    <button type="button" onclick="verifyOTP()" class="btn-google !bg-green-600 !py-2.5 !px-4 !text-[10px] uppercase font-black tracking-widest">Verify</button>
+                                </div>
+                                <div id="otpVerificationResult" class="mt-2 text-[10px] font-bold uppercase"></div>
+                                <input type="hidden" id="otp_verified" name="otp_verified" value="0">
                             </div>
                         </label>
                     </div>
 
-                    <div id="nicVerificationContainer" class="hidden animate-fadeIn">
-                        <div class="flex space-x-2">
-                            <input type="text" id="nic_number" name="nic_number" class="google-input !mb-0"
-                                placeholder="NIC Number (e.g. 199912345678) (හැඳුනුම්පත් අංකය)">
-                            <button type="button" onclick="verifyNIC()" class="btn-google">Verify</button>
-                        </div>
-                        <input type="hidden" id="nic_verified" name="nic_verified" value="0">
-                    </div>
 
-                    <div id="mobileVerificationContainer" class="hidden space-y-4 animate-fadeIn">
-                        <div class="flex space-x-2">
-                            <input type="text" id="verification_mobile" class="google-input !mb-0"
-                                placeholder="Mobile Number (ජංගම දුරකථන අංකය)">
-                            <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="btn-google">Send
-                                Code</button>
-                        </div>
-                        <div id="otpInputContainer" class="hidden flex space-x-2">
-                            <input type="text" id="otp_code" class="google-input !mb-0"
-                                placeholder="6-digit Code (රහස් අංකය)">
-                            <button type="button" onclick="verifyOTP()" class="btn-google !bg-green-600">Verify
-                                OTP</button>
-                        </div>
-                        <input type="hidden" id="otp_verified" name="otp_verified" value="0">
-                    </div>
                     <div id="verificationStatus" class="mt-3 text-sm text-center font-medium"></div>
                 </div>
 
@@ -973,6 +1067,74 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <script>
         let currentStep = 1;
         const totalSteps = 5;
+
+        // Auto-save Logic
+        const STORAGE_KEY = 'learner_registration_data';
+
+        function saveFormData() {
+            const formData = {};
+            const inputs = document.querySelectorAll('#addUserForm input, #addUserForm select, #addUserForm textarea');
+            inputs.forEach(input => {
+                if (input.type === 'password' || input.type === 'file') return;
+                if (input.type === 'radio' || input.type === 'checkbox') {
+                    if (input.checked) formData[input.name] = input.value;
+                } else {
+                    formData[input.id || input.name] = input.value;
+                }
+            });
+            formData['currentStep'] = currentStep;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        }
+
+        function restoreFormData() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (!savedData) return;
+            
+            const formData = JSON.parse(savedData);
+            Object.keys(formData).forEach(key => {
+                if (key === 'currentStep') {
+                    currentStep = parseInt(formData[key]);
+                    return;
+                }
+                const input = document.getElementById(key) || document.querySelector(`[name="${key}"]`);
+                if (!input) return;
+
+                if (input.type === 'radio' || input.type === 'checkbox') {
+                    if (input.value === formData[key]) input.checked = true;
+                } else {
+                    input.value = formData[key];
+                    // Trigger input labels for Google-style inputs
+                    if (input.classList.contains('google-input')) {
+                        input.dispatchEvent(new Event('input'));
+                    }
+                }
+            });
+
+            // Trigger necessary UI toggles
+            toggleEnrollmentType();
+            if (formData['stream_id']) {
+                loadSubjects();
+                // We can't easily restore subjects/teachers because they are loaded via AJAX
+                // but we can at least show the step.
+            }
+            
+            showStep(currentStep);
+        }
+
+        // Initialize Auto-save listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            restoreFormData();
+            
+            const form = document.getElementById('addUserForm');
+            form.addEventListener('input', saveFormData);
+            form.addEventListener('change', saveFormData);
+            
+            // Clear on submit
+            form.addEventListener('submit', () => {
+                // We'll clear after the actual redirect, but for now:
+                // localStorage.removeItem(STORAGE_KEY);
+            });
+        });
 
         function showStep(n) {
             const steps = document.getElementsByClassName("step-content");
@@ -1376,124 +1538,50 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 });
         }
 
-        // Create teacher card
+        // Create teacher card (Redesigned for better visibility)
         function createTeacherCard(teacher) {
             const card = document.createElement('div');
-            card.className = 'bg-white border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl cursor-pointer transition-all duration-200 teacher-card flex flex-col h-full';
+            card.className = 'bg-white border-2 border-slate-100 rounded-2xl p-4 hover:border-red-600 hover:shadow-md cursor-pointer transition-all duration-300 teacher-card flex items-center gap-4 group relative overflow-hidden';
             card.dataset.teacherId = teacher.teacher_id;
 
-            // Large centered profile picture
-            const profilePic = teacher.profile_picture
-                ? `<div class="flex justify-center mb-6">
-                     <img src="${teacher.profile_picture}" alt="Profile" class="w-32 h-32 rounded-full object-cover border-4 border-red-200 shadow-lg">
-                   </div>`
-                : `<div class="flex justify-center mb-6">
-                     <div class="w-32 h-32 rounded-full bg-red-100 flex items-center justify-center border-4 border-red-200 shadow-lg">
-                       <svg class="w-16 h-16 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                       </svg>
-                     </div>
-                   </div>`;
-
-            // Teacher name - left aligned
             const teacherName = (teacher.first_name || '') + ' ' + (teacher.second_name || '');
-            const nameHTML = `<div class="text-left mb-4">
-                <h4 class="font-bold text-xl text-gray-900 mb-1">${teacherName.trim() || 'Teacher'}</h4>
-            </div>`;
-
-            // WhatsApp number with icon - left aligned
-            const whatsappHTML = teacher.whatsapp_number
-                ? `<div class="text-left mb-4 flex items-center">
-                     <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                       <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                     </svg>
-                     <span class="text-gray-700 font-medium">${teacher.whatsapp_number}</span>
-                   </div>`
-                : '';
-
-            // Build education details HTML - left aligned
-            let educationHTML = '';
-            if (teacher.education && teacher.education.length > 0) {
-                educationHTML = '<div class="text-left mb-4 flex-1">';
-                educationHTML += '<h5 class="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide flex items-center">';
-                educationHTML += '<svg class="w-4 h-4 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
-                educationHTML += '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>';
-                educationHTML += '</svg>Education Details</h5>';
-                educationHTML += '<ul class="space-y-2">';
-
-                teacher.education.forEach(edu => {
-                    const qualification = edu.qualification || '';
-                    const institution = edu.institution || '';
-                    const details = [
-                        edu.field_of_study,
-                        edu.year_obtained ? `(${edu.year_obtained}${edu.grade_or_class ? ' - ' + edu.grade_or_class : ''})` : edu.grade_or_class
-                    ].filter(Boolean).join(' - ');
-
-                    educationHTML += `<li class="text-sm text-gray-700 flex items-start bg-red-50 p-4 rounded-xl border border-red-100 mb-3 hover:shadow-md transition-shadow">
-                        <div class="bg-red-600 rounded-full p-1.5 mr-4 mt-1 flex-shrink-0 shadow-sm">
-                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <div class="font-bold text-gray-900 text-base mb-0.5">${qualification}</div>
-                            ${institution ? `<div class="text-red-700 font-medium">${institution}</div>` : ''}
-                            ${details ? `<div class="text-gray-500 text-xs mt-1 uppercase tracking-tight">${details}</div>` : ''}
-                        </div>
-                    </li>`;
-                });
-
-                educationHTML += '</ul></div>';
-            } else {
-                educationHTML = '<div class="text-left mb-4 flex-1">';
-                educationHTML += '<h5 class="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide flex items-center">';
-                educationHTML += '<svg class="w-4 h-4 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
-                educationHTML += '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>';
-                educationHTML += '</svg>Education Details</h5>';
-                educationHTML += '<p class="text-sm text-gray-500 italic">No education details available</p>';
-                educationHTML += '</div>';
-            }
-
-
-
+            
             card.innerHTML = `
-                ${profilePic}
-                ${nameHTML}
-                ${whatsappHTML}
-                ${educationHTML}
-                <div class="mt-4 pt-4 border-t border-gray-200 text-center">
-                    <span class="inline-flex items-center px-4 py-2 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        Select Teacher
-                    </span>
+                <div class="absolute top-0 right-0 w-24 h-24 bg-red-50 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity -mr-12 -mt-12"></div>
+                <div class="relative z-10 w-16 h-16 rounded-xl overflow-hidden border-2 border-slate-50 shadow-sm flex-shrink-0">
+                    <img src="${teacher.profile_picture ? teacher.profile_picture : 'assests/student_avatar.png'}" 
+                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                         onerror="this.src='assests/student_avatar.png'">
+                </div>
+                <div class="relative z-10 flex-1">
+                    <h4 class="font-bold text-slate-800 group-hover:text-red-600 transition-colors">${teacherName.trim() || 'Teacher'}</h4>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Subject Expert</p>
+                    <div class="flex items-center mt-2">
+                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></div>
+                        <span class="text-[10px] text-slate-500 font-medium">Available for Enrollment</span>
+                    </div>
+                </div>
+                <div class="relative z-10 w-8 h-8 rounded-full border border-slate-100 flex items-center justify-center text-slate-300 group-hover:border-red-600 group-hover:text-red-600 transition-all">
+                    <i class="fas fa-chevron-right text-[10px]"></i>
                 </div>
             `;
 
-            // Add click event
-            card.addEventListener('click', function () {
-                // Remove selection from all cards
-                document.querySelectorAll('.teacher-card').forEach(c => {
-                    c.classList.remove('border-red-600', 'bg-red-50', 'shadow-xl');
-                    c.classList.add('border-red-500');
-                });
-
-                // Select this card
-                card.classList.remove('border-red-500');
-                card.classList.add('border-red-600', 'bg-red-50', 'shadow-xl');
-
-                // Set selected teacher ID
+            card.onclick = function() {
+                document.querySelectorAll('.teacher-card').forEach(c => c.classList.remove('active-teacher', 'border-red-600', 'bg-red-50/50'));
+                card.classList.add('active-teacher', 'border-red-600', 'bg-red-50/50');
                 document.getElementById('selected_teacher_id').value = teacher.teacher_id;
-            });
+                saveFormData(); // Auto-save selection
+            };
 
             return card;
         }
+
 
         // Preview profile picture
         function previewProfilePicture(input) {
             const preview = document.getElementById('photoPreview');
             const previewImg = document.getElementById('previewImg');
+            const defaultIcon = preview.querySelector('svg');
             const photoError = document.getElementById('photoError');
 
             if (input.files && input.files[0]) {
@@ -1502,34 +1590,42 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
                 // Validate file size
                 if (file.size > maxSize) {
-                    photoError.textContent = 'File size exceeds 5MB limit.';
-                    photoError.classList.remove('hidden');
+                    if (photoError) {
+                        photoError.textContent = 'File size exceeds 5MB limit.';
+                        photoError.classList.remove('hidden');
+                    }
                     input.value = '';
-                    preview.classList.add('hidden');
+                    previewImg.classList.add('hidden');
+                    if (defaultIcon) defaultIcon.classList.remove('hidden');
                     return;
                 }
 
                 // Validate file type
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                 if (!allowedTypes.includes(file.type)) {
-                    photoError.textContent = 'Invalid file type. Please select an image file.';
-                    photoError.classList.remove('hidden');
+                    if (photoError) {
+                        photoError.textContent = 'Invalid file type. Please select an image file.';
+                        photoError.classList.remove('hidden');
+                    }
                     input.value = '';
-                    preview.classList.add('hidden');
+                    previewImg.classList.add('hidden');
+                    if (defaultIcon) defaultIcon.classList.remove('hidden');
                     return;
                 }
 
-                photoError.classList.add('hidden');
+                if (photoError) photoError.classList.add('hidden');
 
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     previewImg.src = e.target.result;
-                    preview.classList.remove('hidden');
+                    previewImg.classList.remove('hidden');
+                    if (defaultIcon) defaultIcon.classList.add('hidden');
                 };
                 reader.readAsDataURL(file);
             } else {
-                preview.classList.add('hidden');
-                photoError.classList.add('hidden');
+                previewImg.classList.add('hidden');
+                if (defaultIcon) defaultIcon.classList.remove('hidden');
+                if (photoError) photoError.classList.add('hidden');
             }
         }
 

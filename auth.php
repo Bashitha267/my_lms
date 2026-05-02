@@ -130,10 +130,21 @@ if (isset($_POST['login'])) {
                 }
 
 
-                // Redirect based on role
-                switch ($user['role']) {
+                // Redirection based on role
+                $redirect_role = $user['role'];
+                
+                // Fallback for super_admin if role is empty but ID starts with sad_
+                if (empty($redirect_role) && strpos($user_id, 'sad_') === 0) {
+                    $redirect_role = 'super_admin';
+                    $_SESSION['role'] = 'super_admin'; // Update session role as well
+                }
+
+                switch ($redirect_role) {
                     case 'admin':
                         header("Location: admin/dashboard.php");
+                        break;
+                    case 'super_admin':
+                        header("Location: admin/teacher_payments.php");
                         break;
                     case 'teacher':
                         header("Location: dashboard/profile.php");

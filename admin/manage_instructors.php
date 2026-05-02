@@ -3,7 +3,7 @@ require_once '../check_session.php';
 require_once '../config.php';
 
 // Verify user is admin
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header("Location: /lms/login.php");
     exit();
 }

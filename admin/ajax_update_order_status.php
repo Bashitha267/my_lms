@@ -5,7 +5,7 @@ require_once '../whatsapp_config.php';
 
 header('Content-Type: application/json');
 
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }

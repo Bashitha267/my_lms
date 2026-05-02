@@ -7,7 +7,7 @@ header('Content-Type: application/json');
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
-if (($role !== 'teacher' && $role !== 'admin') || empty($user_id)) {
+if (($role !== 'teacher' && !in_array($role, ['admin', 'super_admin'])) || empty($user_id)) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }

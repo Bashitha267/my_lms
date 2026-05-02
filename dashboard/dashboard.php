@@ -669,9 +669,9 @@ if ($is_logged_in && $role === 'student') {
                                     ?>
                                         <div class="grid grid-cols-2 gap-3 mb-4">
                                             <!-- Enrollment Status -->
-                                            <div class="<?php echo $enrolled_data['enrollment_paid'] ? 'bg-green-50 border-green-100' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-red-50 border-red-100'); ?> rounded-lg p-2 text-center border">
-                                                <p class="text-[10px] <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-500' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-600' : 'text-red-500'); ?> uppercase tracking-wider font-semibold mb-1">Enrollment</p>
-                                                <p class="text-xs font-bold <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-700' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-700' : 'text-red-700'); ?>">
+                                            <div class="<?php echo $enrolled_data['enrollment_paid'] ? 'bg-green-50 border-green-100' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
+                                                <p class="text-[10px] <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-500' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1">Enrollment</p>
+                                                <p class="text-xs font-bold <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-700' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
                                                     <?php 
                                                         if (isset($enrolled_data['enrollment_status'])) {
                                                             echo $enrolled_data['enrollment_status'] == 'not_paid' ? 'Unpaid' : $enrolled_data['enrollment_status'];
@@ -683,9 +683,9 @@ if ($is_logged_in && $role === 'student') {
                                             </div>
 
                                             <!-- Monthly Status -->
-                                            <div class="<?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'bg-green-50 border-green-100' : ($enrolled_data['monthly_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-red-50 border-red-100'); ?> rounded-lg p-2 text-center border">
-                                                <p class="text-[10px] <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-500' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-600' : 'text-red-500'); ?> uppercase tracking-wider font-semibold mb-1"><?php echo date('F'); ?></p>
-                                                <p class="text-xs font-bold <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-700' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-700' : 'text-red-700'); ?>">
+                                            <div class="<?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'bg-green-50 border-green-100' : ($enrolled_data['monthly_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
+                                                <p class="text-[10px] <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-500' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1"><?php echo date('F'); ?></p>
+                                                <p class="text-xs font-bold <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-700' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
                                                     <?php 
                                                         if ($enrolled_data['monthly_status'] == 'not_paid') echo 'Unpaid';
                                                         else echo $enrolled_data['monthly_status'];
@@ -714,7 +714,7 @@ if ($is_logged_in && $role === 'student') {
                                             </a>
                                         <?php else: ?>
                                             <button onclick="openEnrollModal(<?php echo $class['stream_subject_id']; ?>, '<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>')" 
-                                                    class="block w-full text-center bg-gray-900 text-white py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors duration-200 text-[11px] font-medium">
+                                                    class="block w-full text-center bg-slate-900 text-white py-1.5 px-3 rounded-lg hover:bg-slate-800 transition-colors duration-200 text-[11px] font-medium shadow-md">
                                                 Enroll Now
                                             </button>
                                         <?php endif; ?>
@@ -750,7 +750,7 @@ if ($is_logged_in && $role === 'student') {
         </script>
 
         <div class="max-w-[1400px] mx-auto px-4 mb-16">
-            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-red-600">
+            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-blue-500">
                 <h2 class="text-lg md:text-xl font-black text-white tracking-tight">අපගේ බාහිර පාඨමාලා</h2>
                 <span class="text-white/60 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra Learning</span>
             </div>
@@ -799,7 +799,7 @@ if ($is_logged_in && $role === 'student') {
                                 </div>
 
                                 <a href="../register.php?course_id=<?php echo $course['id']; ?>"
-                                   class="block w-full text-center bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition font-semibold mt-4 text-xs">
+                                   class="block w-full text-center bg-slate-900 text-white py-2 px-4 rounded-lg hover:bg-slate-800 transition font-semibold mt-4 text-xs shadow-md">
                                     <i class="fas fa-cart-plus mr-1"></i>Enroll Now
                                 </a>
                             </div>
@@ -845,7 +845,7 @@ if ($is_logged_in && $role === 'student') {
             
             <div class="space-y-4">
                 <a href="#login-section" onclick="closeAuthModal(); scrollToLogin();"
-                   class="block w-full bg-red-600 text-white py-4 px-6 rounded-xl hover:bg-red-700 font-bold transition-all transform active:scale-95 shadow-lg shadow-red-200">
+                   class="block w-full bg-slate-900 text-white py-4 px-6 rounded-xl hover:bg-slate-800 font-bold transition-all transform active:scale-95 shadow-lg">
                     ඇතුළු වන්න (Login)
                 </a>
                 <a href="../register.php"
@@ -875,7 +875,7 @@ if ($is_logged_in && $role === 'student') {
                         Cancel
                     </button>
                     <button onclick="processEnrollment()" 
-                            class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-semibold shadow-lg hover:shadow-red-500/30 transition-colors">
+                            class="flex-1 px-4 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-semibold shadow-lg transition-colors">
                         Yes, Enroll
                     </button>
                 </div>

@@ -4,7 +4,7 @@ require_once '../config.php';
 require_once '../whatsapp_config.php';
 
 // Verify user is admin
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header("Location: /lms/login.php");
     exit();
 }

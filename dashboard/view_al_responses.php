@@ -5,7 +5,7 @@ require_once '../config.php';
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
-if ($role !== 'admin' && $role !== 'teacher') {
+if (!in_array($role, ['admin', 'super_admin']) && $role !== 'teacher') {
     header('Location: ../dashboard/dashboard.php');
     exit;
 }

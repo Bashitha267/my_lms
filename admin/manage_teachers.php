@@ -3,7 +3,7 @@ require_once '../check_session.php';
 require_once '../config.php';
 
 // Only admins can access this page
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header('Location: dashboard.php');
     exit;
 }

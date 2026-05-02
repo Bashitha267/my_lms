@@ -652,7 +652,7 @@ ksort($recordings_by_month);
                                             <h3 class="font-semibold text-gray-900 line-clamp-2 flex-1" title="<?php echo htmlspecialchars($recording['title']); ?>">
                                                 <?php echo htmlspecialchars($recording['title']); ?>
                                             </h3>
-                                             <?php if ($role === 'teacher' || $role === 'admin'): ?>
+                                             <?php if ($role === 'teacher' || in_array($role, ['admin', 'super_admin'])): ?>
                                                 <div class="flex items-center gap-2 ml-2 flex-shrink-0">
                                                     <!-- Free Video Toggle Button -->
                                                     <?php if ($role === 'teacher'): ?>
@@ -905,7 +905,7 @@ ksort($recordings_by_month);
     <?php endif; ?>
     
     <!-- Participant Report Modal (Teachers & Admins Only) -->
-    <?php if ($role === 'teacher' || $role === 'admin'): ?>
+    <?php if ($role === 'teacher' || in_array($role, ['admin', 'super_admin'])): ?>
         <div id="participantReportModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
                 <div class="flex items-center justify-between mb-4 pb-4 border-b">

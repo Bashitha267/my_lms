@@ -4,7 +4,7 @@ require_once '../config.php';
 require_once '../whatsapp_config.php';
 
 // Only admins can access this page
-if ($_SESSION['role'] !== 'admin') {
+if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     header('Location: dashboard.php');
     exit;
 }
@@ -158,14 +158,16 @@ if (isset($_GET['search_query'])) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-50">
     <?php include 'header.php'; ?>
 
     <div class="max-w-3xl mx-auto px-4 py-6">
-        <div class="glass-card p-6 md:p-8">
+        <div class="glass-card p-6 md:p-10">
             <div class="flex items-center gap-4 mb-6">
                 <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
                     <i class="fas fa-paper-plane text-lg"></i>
@@ -188,10 +190,22 @@ if (isset($_GET['search_query'])) {
                 </div>
             <?php endif; ?>
 
-            <div class="mb-6 flex border-b border-slate-100 overflow-x-auto whitespace-nowrap">
-                <button onclick="switchTab('mass')" id="tab-mass" class="px-6 py-3 font-bold text-xs border-b-2 border-blue-600 text-blue-600 transition-all">Mass Broadcast</button>
-                <button onclick="switchTab('individual')" id="tab-individual" class="px-6 py-3 font-bold text-xs border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all">Individual Message</button>
-                <button onclick="switchTab('marketing')" id="tab-marketing" class="px-6 py-3 font-bold text-xs border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all">Marketing Message</button>
+            <!-- Mobile Friendly Tab System -->
+            <div class="mb-8 -mx-6 md:mx-0 px-6 md:px-0 overflow-x-auto no-scrollbar scroll-smooth">
+                <div class="flex border-b border-slate-100 min-w-max md:min-w-0">
+                    <button onclick="switchTab('mass')" id="tab-mass" 
+                            class="flex items-center gap-2 px-6 py-4 font-black text-[10px] uppercase tracking-widest border-b-2 border-blue-600 text-blue-600 transition-all whitespace-nowrap active:bg-slate-50">
+                        <i class="fas fa-users text-xs"></i> Mass Broadcast
+                    </button>
+                    <button onclick="switchTab('individual')" id="tab-individual" 
+                            class="flex items-center gap-2 px-6 py-4 font-black text-[10px] uppercase tracking-widest border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all whitespace-nowrap active:bg-slate-50">
+                        <i class="fas fa-user text-xs"></i> Individual Message
+                    </button>
+                    <button onclick="switchTab('marketing')" id="tab-marketing" 
+                            class="flex items-center gap-2 px-6 py-4 font-black text-[10px] uppercase tracking-widest border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition-all whitespace-nowrap active:bg-slate-50">
+                        <i class="fas fa-bullhorn text-xs"></i> Marketing Message
+                    </button>
+                </div>
             </div>
 
             <!-- Mass Broadcast Form -->
@@ -240,7 +254,7 @@ if (isset($_GET['search_query'])) {
                         <div class="relative">
                             <textarea name="message" rows="4" required 
                                       placeholder="Type your announcement here..."
-                                      class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-[11px] font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
+                                      class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
                         </div>
                     </div>
                     <div class="space-y-4">
@@ -277,7 +291,7 @@ if (isset($_GET['search_query'])) {
                     <div class="relative">
                         <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
                         <input type="text" id="user-search" placeholder="Search by name, ID or mobile..." 
-                               class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-[11px] font-medium focus:border-blue-500 focus:bg-white outline-none transition-all">
+                               class="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition-all">
                         
                         <!-- Search Results Dropdown -->
                         <div id="search-results" class="hidden absolute top-full left-0 w-full mt-2 bg-white border border-slate-100 rounded-3xl shadow-2xl z-50 overflow-hidden">
@@ -306,7 +320,7 @@ if (isset($_GET['search_query'])) {
                         <div class="relative">
                             <textarea name="message" rows="4" required 
                                       placeholder="Type your message..."
-                                      class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-[11px] font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
+                                      class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
                         </div>
                     </div>
                     <div class="space-y-4">
@@ -375,7 +389,7 @@ if (isset($_GET['search_query'])) {
                     <div class="relative">
                         <textarea name="message" rows="4" required 
                                   placeholder="Type your marketing campaign message here..."
-                                  class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-[11px] font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
+                                  class="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-700 text-sm font-medium focus:border-blue-500 focus:bg-white outline-none transition-all resize-none"></textarea>
                     </div>
                 </div>
 

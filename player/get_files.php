@@ -20,7 +20,7 @@ if ($recording_id <= 0) {
 }
 
 // Build query based on user role
-if ($role === 'teacher' || $role === 'admin') {
+if ($role === 'teacher' || in_array($role, ['admin', 'super_admin'])) {
     // Teachers and Admins can see all files
     $query = "SELECT rf.id, rf.file_name, rf.file_path, rf.file_size, rf.file_type, rf.file_extension, 
                      rf.upload_date, rf.uploaded_by,
