@@ -154,6 +154,16 @@ if ($is_logged_in && $role === 'student') {
     $courses_enrolled_res = $conn->query($courses_enrolled_query);
     $enrolled_courses_count = $courses_enrolled_res ? $courses_enrolled_res->fetch_assoc()['count'] : 0;
 }
+
+// Global Stats for Landing Sections
+$total_students_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'student'");
+$db_student_count = $total_students_res ? $total_students_res->fetch_assoc()['count'] : 0;
+
+$total_teachers_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'teacher'");
+$db_teacher_count = $total_teachers_res ? $total_teachers_res->fetch_assoc()['count'] : 0;
+
+$total_courses_res = $conn->query("SELECT COUNT(*) as count FROM courses");
+$db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count'] : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -246,11 +256,59 @@ if ($is_logged_in && $role === 'student') {
             box-shadow: 0 10px 40px rgba(0,0,0,0.06);
         }
 
-        .hero-bg {
-            background-image: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), url('../assests/rdbg.jpg');
+        .hero-bg-container {
+            position: absolute;
+            inset: 0;
+            background-image: url('../education_hero_bg_1778466693992.png');
             background-size: cover;
             background-position: center;
-            background-attachment: fixed;
+            filter: blur(2px);
+            transform: scale(1.1);
+        }
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
+        }
+
+        .stat-value {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1;
+            color: #dc2626;
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-count {
+            animation: countUp 1s ease-out forwards;
+        }
+
+        .section-welcome { background-color: #ffffff; }
+        .section-stats { background-color: #ffffff; }
+        .section-al { background-color: #f1f5f9; } /* Slate 100 */
+        .section-gallery { background-color: #ffffff; }
+        .section-classes { background-color: #e0f2fe; } /* Sky 100 */
+        .section-extra { background-color: #fee2e2; } /* Red 100 */
+        
+        .hero-title {
+            font-size: 5rem;
+            line-height: 1;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            color: white;
+        }
+        
+        .hero-p {
+            font-size: 1.125rem;
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 600px;
+            margin: 2rem 0;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -259,124 +317,177 @@ if ($is_logged_in && $role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
-    <div class="w-full pb-12">
+    <div class="w-full">
 <style>
 * { box-sizing: border-box; }
 </style>
 
         <?php if (!$is_logged_in): ?>
-            <!-- Premium Redesigned Hero Section -->
-            <section class="relative hero-bg min-h-[55vh] flex items-center justify-center overflow-hidden pt-12 pb-8">
-                <!-- Decorative Blobs -->
-                <div class="blob blob-1"></div>
-                <div class="blob blob-2"></div>
-
-                <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-                    <!-- Badge -->
-                    <div class="inline-flex items-center gap-2 px-5 py-2 bg-white rounded-full shadow-sm border border-slate-100 mb-6 animate-fade-in-up">
-                        <div class="w-4 h-4 bg-red-100 rounded flex items-center justify-center text-red-600">
-                            <i class="fas fa-graduation-cap text-[8px]"></i>
+            <!-- Blurred Hero Section with Simplified Content -->
+            <!-- Blurred Hero Section with Simplified Content -->
+            <!-- Blurred Hero Section with Simplified Content -->
+            <section class="relative min-h-screen flex items-center overflow-hidden">
+                <div class="hero-bg-container"></div>
+                <div class="hero-overlay"></div>
+                
+                <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+                    <div class="max-w-3xl animate-fade-in-up">
+                        <div class="inline-block bg-red-600 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+                            Learner.LK
                         </div>
-                        <span class="text-[9px] font-black uppercase tracking-wider text-slate-600">Sri Lanka's #1 Platform for Online Learning</span>
-                    </div>
-
-                    <!-- Hero Texts (Preserved Paragraphs) -->
-                    <div class="max-w-4xl mx-auto mb-8 animate-fade-in-up" style="animation-delay: 0.1s">
-                        <h1 class="text-2xl md:text-4xl font-black text-slate-900 leading-[1.1] mb-6">
+                        <h1 class="text-3xl md:text-5xl font-black text-white leading-[0.95] mb-4 uppercase tracking-tighter">
                             ආයුබෝවන්!! <br>
-                            <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-500">Learner.LK වෙත සාදරයෙන් පිළිගනිමු</span>
+                            <span class="text-red-600">සාදරයෙන් පිළිගනිමු</span>
                         </h1>
                         
-                        <p class="text-sm md:text-base text-slate-500 font-medium leading-relaxed mb-6">
+                        <p class="text-sm md:text-base text-white font-black leading-[2.2] mb-6 max-w-2xl tracking-wide opacity-90">
                             ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
                         </p>
-                        <p class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-600">Register Button</span> එක click කරන්න.
+                        <p class="text-[9px] text-white/50 font-black uppercase tracking-[0.2em] mb-8">
+                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-500">REGISTER BUTTON</span> එක <span class="text-white">CLICK කරන්න.</span>
                         </p>
-                    </div>
 
-                    <!-- Login Form (Redesigned as a modern search bar) -->
-                    <div class="max-w-2xl mx-auto mb-8 animate-fade-in-up" style="animation-delay: 0.2s">
-                        <form action="../auth.php" method="POST" class="search-container p-1 bg-white rounded-xl md:rounded-[25px] flex flex-col md:flex-row gap-1 transition-all hover:ring-4 hover:ring-red-50 group">
-                            <div class="flex-1 flex items-center px-4 py-4 border-b md:border-b-0 md:border-r border-slate-100">
-                                <i class="fas fa-mobile-alt text-red-400 mr-3 text-sm"></i>
-                                <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-bold text-sm placeholder-slate-300">
-                            </div>
-                            <div class="flex-1 flex items-center px-4 py-4">
-                                <i class="fas fa-lock text-red-400 mr-3 text-sm"></i>
-                                <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-bold text-sm placeholder-slate-300">
-                            </div>
-                            <button type="submit" name="login" class="bg-red-600 text-white px-8 py-4 rounded-lg md:rounded-[20px] font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
-                                Login Now
-                            </button>
-                        </form>
+                        <!-- Compact Glassmorphic Login Bar -->
+                        <div class="max-w-2xl">
+                            <form action="../auth.php" method="POST" class="bg-white/10 backdrop-blur-xl p-1 rounded-none flex flex-col md:flex-row gap-1 border border-white/20 shadow-2xl group transition-all hover:bg-white/15">
+                                <div class="flex-1 flex items-center px-4 py-2 border-b md:border-b-0 md:border-r border-white/10">
+                                    <i class="fas fa-mobile-alt text-red-500 mr-3 text-base"></i>
+                                    <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
+                                </div>
+                                <div class="flex-1 flex items-center px-4 py-2">
+                                    <i class="fas fa-lock text-red-500 mr-3 text-base"></i>
+                                    <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
+                                </div>
+                                <button type="submit" name="login" class="bg-red-600 text-white px-8 py-3 rounded-none font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
+                                    Login Now
+                                </button>
+                            </form>
+                            <p class="text-[9px] text-white/40 font-black uppercase tracking-[0.2em] mt-4 ml-4">
+                                අලුතින්ම සම්බන්ධ වීම සඳහා <a href="../register.php" class="text-red-500 hover:underline">REGISTER HERE</a>
+                            </p>
+                        </div>
                     </div>
-                </div> <!-- End of text-center container -->
+                </div>
             </section>
+
+            <!-- Stats Section -->
+            <section class="min-h-[40vh] flex flex-col justify-center bg-slate-100 relative z-20">
+                <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="grid grid-cols-3 gap-4 md:gap-8 text-center">
+                        <div class="stat-item p-4">
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="student-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Total Students</p>
+                        </div>
+                        <div class="stat-item p-4 border-x border-slate-200">
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="teacher-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Expert Teachers</p>
+                        </div>
+                        <div class="stat-item p-4">
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="course-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Active Courses</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <script>
+                function animateValue(id, start, end, duration) {
+                    if (start === end) return;
+                    const range = end - start;
+                    let current = start;
+                    const increment = end > start ? 1 : -1;
+                    const stepTime = Math.abs(Math.floor(duration / range));
+                    const obj = document.getElementById(id);
+                    const timer = setInterval(function() {
+                        current += increment;
+                        obj.innerHTML = current + (id === 'student-count' ? '+' : '');
+                        if (current == end) {
+                            clearInterval(timer);
+                        }
+                    }, stepTime);
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                animateValue("student-count", 0, 1000 + <?php echo $db_student_count; ?>, 2000);
+                                animateValue("teacher-count", 0, 20 + <?php echo $db_teacher_count; ?>, 2000);
+                                animateValue("course-count", 0, <?php echo $db_course_count; ?>, 2000);
+                                observer.unobserve(entry.target);
+                            }
+                        });
+                    }, { threshold: 0.5 });
+
+                    observer.observe(document.querySelector('.stat-item'));
+                });
+            </script>
         <?php else: ?>
             <!-- Enhanced Welcome & Stats Section for Logged In Users -->
-            <div class="max-w-[1400px] mx-auto px-4 mb-8 pt-8 animate-fade-in-up">
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    <!-- Welcome Card -->
-                    <div class="lg:col-span-4 bg-white rounded-[32px] shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
-                        <div class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-full blur-3xl opacity-50 -mr-24 -mt-24"></div>
-                        <div class="relative z-10">
-                            <div class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
-                                <i class="fas fa-user-graduate text-2xl"></i>
-                            </div>
-                            <h1 class="text-2xl font-black text-slate-900 leading-tight">
-                               ආයුබෝවන් <br>
-                               <span class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
-                            </h1>
-                            <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන් පිළිගනිමු.</p>
-                            
-                            <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID: <?php echo $user_id; ?></span>
-                                <a href="profile.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
+            <div class="section-welcome pt-28 pb-12">
+                <div class="max-w-[1400px] mx-auto px-4 animate-fade-in-up">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Welcome Card -->
+                        <div class="lg:col-span-4 bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
+                            <div class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-none blur-3xl opacity-50 -mr-24 -mt-24"></div>
+                            <div class="relative z-10">
+                                <div class="w-16 h-16 bg-red-600 rounded-none flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
+                                    <i class="fas fa-user-graduate text-2xl"></i>
+                                </div>
+                                <h1 class="text-2xl font-black text-slate-900 leading-tight">
+                                   ආයුබෝවන් <br>
+                                   <span class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
+                                </h1>
+                                <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන් පිළිගනිමු.</p>
+                                
+                                <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID: <?php echo $user_id; ?></span>
+                                    <a href="profile.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Stats Grid -->
-                    <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Enrolled Classes -->
-                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                            <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <i class="fas fa-book-reader"></i>
+                        <!-- Stats Grid -->
+                        <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- Enrolled Classes -->
+                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-book-reader"></i>
+                                </div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled Classes</p>
+                                <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
+                                <a href="recordings.php" class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View Lessons</a>
                             </div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled Classes</p>
-                            <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
-                            <a href="recordings.php" class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View Lessons</a>
-                        </div>
 
-                        <!-- Pending Payments -->
-                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                            <div class="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <i class="fas fa-wallet"></i>
+                            <!-- Pending Payments -->
+                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div class="w-10 h-10 bg-red-50 text-red-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-wallet"></i>
+                                </div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments</p>
+                                <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
+                                <a href="payments.php" class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay Now</a>
                             </div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments</p>
-                            <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
-                            <a href="payments.php" class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay Now</a>
-                        </div>
 
-                        <!-- Upcoming Exams -->
-                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                            <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <i class="fas fa-file-signature"></i>
+                            <!-- Upcoming Exams -->
+                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Exams</p>
+                                <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
+                                <a href="exam_center.php" class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go to Center</a>
                             </div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Exams</p>
-                            <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
-                            <a href="exam_center.php" class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go to Center</a>
-                        </div>
 
-                        <!-- Extra Courses -->
-                        <div class="bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                            <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <i class="fas fa-graduation-cap"></i>
+                            <!-- Extra Courses -->
+                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses</p>
+                                <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
+                                <a href="online_courses.php" class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore More</a>
                             </div>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses</p>
-                            <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
-                            <a href="online_courses.php" class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore More</a>
                         </div>
                     </div>
                 </div>
@@ -384,11 +495,12 @@ if ($is_logged_in && $role === 'student') {
         <?php endif; ?>
 
         <!-- Universal AL Results Section -->
-        <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-0 mb-12 animate-fade-in-up" style="animation-delay: 0.3s">
-            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-sm border-l-4 border-red-600">
-                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">A/L Top Achievers</h2>
-                <a href="ALDetails.php" class="text-red-500 text-[10px] font-black uppercase tracking-widest hover:text-red-400 transition-colors">
-                    View All Results <i class="fas fa-arrow-right ml-1"></i>
+        <div class="section-al py-12 md:py-24 flex flex-col bg-sky-200">
+            <div class="w-full mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in-up">
+            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-sky-200 gap-4">
+                <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අපගේ පසුගිය විශිෂ්ට ප්‍රතිඵල</h2>
+                <a href="ALDetails.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-500 transition-colors">
+                    View Results <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </div>
 
@@ -408,34 +520,54 @@ if ($is_logged_in && $role === 'student') {
                     ];
                     ?>
                     
+                    <style>
+                        #achieverSlider {
+                            width: <?php echo count($al_results) * 100; ?>%;
+                        }
+                        @media (min-width: 640px) {
+                            #achieverSlider {
+                                width: <?php echo count($al_results) * 50; ?>%;
+                            }
+                        }
+                        @media (min-width: 1024px) {
+                            #achieverSlider {
+                                width: <?php echo count($al_results) * 25; ?>%;
+                            }
+                        }
+                    </style>
                     <div class="relative overflow-hidden group/slider">
-                        <div id="achieverSlider" class="flex flex-nowrap w-full transition-transform duration-700 ease-in-out">
-                                <?php foreach ($al_results as $res): ?>
-                                <div class="w-full sm:w-1/2 lg:w-1/4 flex-none px-4">
-                                    <div class="card-hover bg-white rounded-[40px] p-8 border border-slate-100 transition-all duration-500 relative group h-full">
+                        <div id="achieverSlider" class="flex transition-transform duration-700 ease-in-out">
+                                <?php 
+                                $tile_colors = ['bg-blue-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-orange-600'];
+                                foreach ($al_results as $res): 
+                                    $random_tile_bg = $tile_colors[array_rand($tile_colors)];
+                                ?>
+                                <div class="p-0 z-10 hover:z-20 transition-all duration-500" style="width: <?php echo 100 / count($al_results); ?>%;">
+                                    <div class="<?php echo $random_tile_bg; ?> rounded-none transform hover:scale-105 hover:brightness-110 transition-all duration-500 relative group overflow-hidden h-[600px] flex flex-col shadow-none hover:shadow-2xl">
                                         <!-- Card Header -->
-                                        <div class="relative mb-8">
-                                            <div class="w-24 h-24 mx-auto rounded-[30px] overflow-hidden bg-slate-50 border-4 border-white shadow-lg">
+                                        <div class="p-4">
+                                            <div class="relative h-60 overflow-hidden rounded-none border border-white/20">
                                                 <?php if (isset($res['photo']) && !empty($res['photo'])): ?>
                                                     <img src="../<?php echo $res['photo']; ?>" class="w-full h-full object-cover">
                                                 <?php else: ?>
                                                     <img src="../assests/student_avatar.png" class="w-full h-full object-cover">
                                                 <?php endif; ?>
-                                            </div>
-                                            <!-- Stream Label -->
-                                            <div class="absolute -bottom-2.5 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest whitespace-nowrap shadow-lg">
-                                                <?php echo $res['stream']; ?>
+                                                <!-- Stream Label -->
+                                                <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-1 rounded-none uppercase tracking-widest whitespace-nowrap">
+                                                    <?php echo $res['stream']; ?>
+                                                </div>
                                             </div>
                                         </div>
 
                                         <!-- Info -->
-                                        <div class="text-center mb-6">
-                                            <h3 class="font-black text-slate-800 text-lg leading-tight mb-1"><?php echo $res['name']; ?></h3>
-                                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest"><?php echo $res['district']; ?> District</p>
-                                        </div>
+                                        <div class="px-8 pb-8 pt-2 flex-1 flex flex-col">
+                                            <div class="text-left mb-4">
+                                                <h3 class="font-black text-white text-xl leading-tight mb-1"><?php echo $res['name']; ?></h3>
+                                                <p class="text-[8px] text-white/70 font-black uppercase tracking-[0.2em]"><?php echo $res['district']; ?> District Specialist</p>
+                                            </div>
 
                                         <!-- Grades -->
-                                        <div class="space-y-3 mb-8">
+                                        <div class="space-y-1 mb-6">
                                             <?php 
                                             $results_to_show = isset($res['results']) ? $res['results'] : [
                                                 'Combined Mathematics' => 'A',
@@ -443,34 +575,34 @@ if ($is_logged_in && $role === 'student') {
                                                 'Chemistry' => 'A'
                                             ];
                                             foreach ($results_to_show as $subject => $grade): ?>
-                                            <div class="flex justify-between items-center px-4 py-2 bg-slate-50 rounded-xl group-hover:bg-red-50 transition-colors">
-                                                <span class="text-[9px] font-bold text-slate-500 truncate mr-2"><?php echo $subject; ?></span>
-                                                <span class="text-lg font-black text-red-600"><?php echo $grade; ?></span>
+                                            <div class="flex justify-between items-center px-0 py-1 border-b border-white/10">
+                                                <span class="text-[10px] font-black text-white/80 uppercase tracking-wider truncate mr-2"><?php echo $subject; ?></span>
+                                                <span class="text-xl font-black text-white"><?php echo $grade; ?></span>
                                             </div>
                                             <?php endforeach; ?>
                                         </div>
 
-                                        <!-- Ranks -->
-                                        <div class="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
-                                            <div class="text-center">
-                                                <p class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">Dist. Rank</p>
-                                                <p class="text-lg font-black text-slate-800"><?php echo $res['drank']; ?></p>
+                                        <div class="grid grid-cols-2 gap-4 pt-4 mt-auto border-t border-white/20">
+                                            <div class="text-left">
+                                                <p class="text-[8px] text-white/50 font-black uppercase tracking-wider mb-1">Dist. Rank</p>
+                                                <p class="text-xl font-black text-white"><?php echo $res['drank']; ?></p>
                                             </div>
-                                            <div class="text-center">
-                                                <p class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">Island Rank</p>
-                                                <p class="text-lg font-black text-red-600"><?php echo $res['irank']; ?></p>
+                                            <div class="text-left">
+                                                <p class="text-[8px] text-white/50 font-black uppercase tracking-wider mb-1">Island Rank</p>
+                                                <p class="text-xl font-black text-white"><?php echo $res['irank']; ?></p>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                        </div> <!-- closes grid -->
+                                    </div> <!-- closes p-4 content wrapper -->
+                                </div> <!-- closes card-hover -->
+                            </div> <!-- closes px-4 column -->
                                 <?php endforeach; ?>
                             </div>
                             
                             <!-- Slider Controls -->
-                            <button onclick="moveSlider('prev')" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-full flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                            <button onclick="moveSlider('prev')" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
                                 <i class="fas fa-chevron-left"></i>
                             </button>
-                            <button onclick="moveSlider('next')" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-full flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                            <button onclick="moveSlider('next')" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
                                 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
@@ -488,7 +620,7 @@ if ($is_logged_in && $role === 'student') {
                                 } else {
                                     currentSlide = currentSlide <= 0 ? maxSlide : currentSlide - 1;
                                 }
-                                const offset = currentSlide * (100 / slidesToShow);
+                                const offset = currentSlide * (100 / totalSlides);
                                 slider.style.transform = `translateX(-${offset}%)`;
                             }
 
@@ -512,109 +644,19 @@ if ($is_logged_in && $role === 'student') {
                     </div>
                 </div>
             </div>
-        <!-- Bento Grid Gallery Section -->
-        <section class="max-w-[1400px] mx-auto px-4 mb-4">
-            <?php 
-            $gallery_images = [];
-            $posts_result = $conn->query("SELECT image_path FROM home_posts ORDER BY created_at DESC");
-            if ($posts_result && $posts_result->num_rows > 0) {
-                while ($row = $posts_result->fetch_assoc()) {
-                    // Prepend ../ because dashboard.php is in the /dashboard/ folder
-                    $gallery_images[] = '../' . $row['image_path'];
-                }
-            }
-            
-            shuffle($gallery_images);
-            $chunks = array_chunk($gallery_images, 5); // Split into groups of 5 for the pattern (1 large + 4 small)
-            ?>
-            
-            <div class="space-y-[2px]">
-                <?php foreach ($chunks as $chunkIndex => $chunk): ?>
-                <!-- Bento Block -->
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-[2px]">
-                    <!-- Left: Large vertical image (spanning 6 columns) -->
-                    <?php if (isset($chunk[0])): ?>
-                    <div class="md:col-span-6 h-[350px] md:h-[700px] overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                         onclick="openImageModal('<?php echo $chunk[0]; ?>')">
-                        <img src="<?php echo $chunk[0]; ?>" 
-                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                             alt="Gallery Image">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <!-- Right: Grid of smaller images (spanning 6 columns) -->
-                    <div class="md:col-span-6 grid grid-rows-2 gap-[2px] h-[400px] md:h-[700px]">
-                        <!-- Top row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-[2px]">
-                            <?php if (isset($chunk[1])): ?>
-                            <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('<?php echo $chunk[1]; ?>')">
-                                <img src="<?php echo $chunk[1]; ?>" 
-                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                                     alt="Gallery Image">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <?php if (isset($chunk[2])): ?>
-                            <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('<?php echo $chunk[2]; ?>')">
-                                <img src="<?php echo $chunk[2]; ?>" 
-                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                                     alt="Gallery Image">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                        <!-- Bottom row: 2 images side by side -->
-                        <div class="grid grid-cols-2 gap-[2px]">
-                            <?php if (isset($chunk[3])): ?>
-                            <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('<?php echo $chunk[3]; ?>')">
-                                <img src="<?php echo $chunk[3]; ?>" 
-                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                                     alt="Gallery Image">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <?php if (isset($chunk[4])): ?>
-                            <div class="overflow-hidden group cursor-pointer relative shadow-lg hover:shadow-2xl transition-all duration-700" 
-                                 onclick="openImageModal('<?php echo $chunk[4]; ?>')">
-                                <img src="<?php echo $chunk[4]; ?>" 
-                                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                                     alt="Gallery Image">
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </section>
         <!-- Available Classes Section -->
-        <div class="max-w-[1400px] mx-auto px-4 mt-8 mb-12" id="classes-section">
-            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-red-600">
-                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">පවතින පන්ති</h2>
-                <span class="text-white/60 text-[10px] font-black uppercase tracking-widest hidden md:block">Academic Sessions</span>
-            </div>
-            
-            <?php if (empty($assignments_by_stream)): ?>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                        <i class="fas fa-book-open text-gray-400 text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-medium text-gray-900">No classes available yet</h3>
-                    <p class="text-gray-500 mt-2">Check back later for new class openings.</p>
+        <div class="section-classes py-12 md:py-24 flex flex-col bg-amber-200/80" id="classes-section">
+            <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 gap-4">
+                <div>
+                    <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අප ආයතනයෙන් උගන්වන විෂයධාරාවන්</h2>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">ලියාපදිංචි වීමට Enroll Now click කරන්න</p>
                 </div>
-            <?php else: ?>
-                <!-- Stream Dropdown -->
-                <div class="mb-8">
-                    <label for="streamFilter" class="block text-sm font-medium text-gray-700 mb-2">Select Stream</label>
-                    <select id="streamFilter" onchange="filterStream(this.value)" class="block w-full md:w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm rounded-md shadow-sm border">
-                        <option value="all">All Streams</option>
+                
+                <div class="flex flex-col items-end">
+                    <label for="streamFilter" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Filter by Stream</label>
+                    <select id="streamFilter" onchange="filterStream(this.value)" class="block w-full md:w-56 pl-3 pr-10 py-2 text-xs border-amber-200 focus:outline-none focus:ring-amber-500 focus:border-amber-500 rounded-xl shadow-sm border bg-white/80 font-bold text-slate-700">
+                        <option value="all">All Academic Streams</option>
                         <?php foreach ($assignments_by_stream as $stream_id => $stream_data): ?>
                             <option value="stream-<?php echo $stream_id; ?>">
                                 <?php echo htmlspecialchars($stream_data['stream_name']); ?>
@@ -622,44 +664,76 @@ if ($is_logged_in && $role === 'student') {
                         <?php endforeach; ?>
                     </select>
                 </div>
-
-                <!-- Classes Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <?php foreach ($assignments_by_stream as $stream_id => $stream_data): ?>
-                        <?php foreach ($stream_data['classes'] as $class): ?>
-                            <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group border border-gray-200 class-card stream-<?php echo $stream_id; ?>">
+            </div>
+            
+            <?php if (empty($assignments_by_stream)): ?>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center w-full">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
+                        <i class="fas fa-book-open text-slate-300 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-900">No classes available yet</h3>
+                    <p class="text-slate-500 mt-2 text-xs">Check back later for new academic subjects.</p>
+                </div>
+            <?php else: ?>
+                    <?php 
+                    $card_count = 0;
+                    $last_color = '';
+                    $tile_colors = [
+                        'bg-blue-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 
+                        'bg-cyan-600', 'bg-indigo-600', 'bg-orange-600', 'bg-red-600', 'bg-teal-600', 
+                        'bg-sky-600', 'bg-fuchsia-600', 'bg-pink-600', 'bg-lime-600', 'bg-yellow-600', 
+                        'bg-purple-600', 'bg-slate-700', 'bg-zinc-700', 'bg-neutral-700', 'bg-gray-700'
+                    ];
+                    ?>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
+                        <?php foreach ($assignments_by_stream as $stream_id => $stream_data): 
+                    ?>
+                        <?php foreach ($stream_data['classes'] as $class): 
+                            $card_count++;
+                            $isHidden = $card_count > 6;
+                            // Ensure same color doesn't appear twice in a row
+                            do {
+                                $random_bg = $tile_colors[array_rand($tile_colors)];
+                            } while ($random_bg === $last_color);
+                            $last_color = $random_bg;
+                        ?>
+                            <div class="<?php echo $random_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-110 transition-all duration-500 overflow-hidden group border-none class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?>" <?php echo $isHidden ? 'style="display:none;"' : ''; ?>>
                                 <!-- Cover Image -->
-                                <div class="relative h-72 overflow-hidden">
-                                    <?php if ($class['cover_image']): ?>
-                                        <img src="../<?php echo htmlspecialchars($class['cover_image']); ?>" 
-                                             alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
-                                             class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
-                                    <?php else: ?>
-                                        <div class="w-full h-full bg-slate-100 flex items-center justify-center">
-                                            <i class="fas fa-book text-slate-300 text-4xl"></i>
+                                <div class="p-4">
+                                    <div class="relative h-60 overflow-hidden rounded-none border border-white/20">
+                                        <?php if ($class['cover_image']): ?>
+                                            <img src="../<?php echo htmlspecialchars($class['cover_image']); ?>" 
+                                                 alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
+                                                 class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
+                                        <?php else: ?>
+                                            <div class="w-full h-full bg-white/10 flex items-center justify-center">
+                                                <i class="fas fa-book text-white/20 text-4xl"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-none text-[9px] font-bold text-white shadow-sm border border-white/10 uppercase tracking-wide">
+                                            <?php echo htmlspecialchars($stream_data['stream_name']); ?>
                                         </div>
-                                    <?php endif; ?>
-                                    <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-md text-[10px] font-bold text-gray-700 shadow-sm border border-gray-100 uppercase tracking-wide">
-                                        <?php echo htmlspecialchars($stream_data['stream_name']); ?>
                                     </div>
                                 </div>
 
-                                <div class="p-4">
+                                <div class="p-8">
                                     <!-- Subject & Teacher -->
-                                    <h3 class="text-sm font-bold text-gray-800 mb-1 leading-snug" title="<?php echo htmlspecialchars($class['subject_name']); ?>">
+                                    <h3 class="text-xl font-black text-white mb-2 leading-tight truncate" title="<?php echo htmlspecialchars($class['subject_name']); ?>">
                                         <?php echo htmlspecialchars($class['subject_name']); ?>
                                     </h3>
                                     
-                                    <div class="flex items-center mb-4">
+                                    <div class="flex items-center mb-8">
                                         <?php if ($class['teacher_image']): ?>
-                                            <img src="../<?php echo htmlspecialchars($class['teacher_image']); ?>" class="w-12 h-12 rounded-full border border-gray-200 object-cover mr-2">
+                                            <img src="../<?php echo htmlspecialchars($class['teacher_image']); ?>" class="w-12 h-12 rounded-none border border-white/20 object-cover mr-3">
                                         <?php else: ?>
-                                            <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 mr-2">
-                                                <i class="fas fa-user text-xs text-gray-400"></i>
+                                            <div class="w-12 h-12 rounded-none bg-white/10 flex items-center justify-center border border-white/20 mr-3">
+                                                <i class="fas fa-user text-xs text-white/50"></i>
                                             </div>
                                         <?php endif; ?>
-                                        <p class="text-xs text-gray-500 mr-1">by</p>
-                                        <p class="text-xs font-semibold text-gray-700"><?php echo htmlspecialchars($class['teacher_name']); ?></p>
+                                        <div class="flex flex-col">
+                                            <p class="text-sm font-black text-white leading-none"><?php echo htmlspecialchars($class['teacher_name']); ?></p>
+                                            <p class="text-[9px] text-white/60 font-black mt-1 uppercase tracking-widest">Lead Instructor</p>
+                                        </div>
                                     </div>
 
                                     <!-- Fees or Payment Status -->
@@ -694,14 +768,14 @@ if ($is_logged_in && $role === 'student') {
                                             </div>
                                         </div>
                                     <?php else: ?>
-                                        <div class="grid grid-cols-2 gap-3 mb-4">
-                                            <div class="bg-gray-50 rounded-lg p-2 text-center border border-gray-100">
-                                                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Enrollment</p>
-                                                <p class="text-sm font-bold text-gray-900"><?php echo $class['enrollment_fee'] > 0 ? number_format($class['enrollment_fee']) : 'Free'; ?></p>
+                                        <div class="grid grid-cols-2 gap-4 mb-8">
+                                            <div class="bg-white/10 rounded-none p-4 text-center border border-white/10">
+                                                <p class="text-[9px] text-white/40 uppercase tracking-widest font-black mb-1">Enrollment</p>
+                                                <p class="text-xl font-black text-white"><?php echo $class['enrollment_fee'] > 0 ? number_format($class['enrollment_fee']) : 'Free'; ?></p>
                                             </div>
-                                            <div class="bg-gray-50 rounded-lg p-2 text-center border border-gray-100">
-                                                <p class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Monthly</p>
-                                                <p class="text-sm font-bold text-gray-900"><?php echo $class['monthly_fee'] > 0 ? number_format($class['monthly_fee']) : 'Free'; ?></p>
+                                            <div class="bg-white/10 rounded-none p-4 text-center border border-white/10">
+                                                <p class="text-[9px] text-white/40 uppercase tracking-widest font-black mb-1">Monthly</p>
+                                                <p class="text-xl font-black text-white"><?php echo $class['monthly_fee'] > 0 ? number_format($class['monthly_fee']) : 'Free'; ?></p>
                                             </div>
                                         </div>
                                     <?php endif; ?>
@@ -714,7 +788,7 @@ if ($is_logged_in && $role === 'student') {
                                             </a>
                                         <?php else: ?>
                                             <button onclick="openEnrollModal(<?php echo $class['stream_subject_id']; ?>, '<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>')" 
-                                                    class="block w-full text-center bg-slate-900 text-white py-1.5 px-3 rounded-lg hover:bg-slate-800 transition-colors duration-200 text-[11px] font-medium shadow-md">
+                                                    class="block w-full text-center bg-white text-black py-4 px-6 rounded-none hover:bg-slate-100 transition-colors duration-200 text-xs font-black uppercase tracking-widest shadow-lg">
                                                 Enroll Now
                                             </button>
                                         <?php endif; ?>
@@ -728,87 +802,157 @@ if ($is_logged_in && $role === 'student') {
                             </div>
                         <?php endforeach; ?>
                     <?php endforeach; ?>
+                    </div>
                 </div>
+
+                <?php if ($card_count > 6): ?>
+                    <div class="mt-20 text-center" id="viewMoreContainer">
+                        <button onclick="showAllClasses()" class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
+                            <span>පවතින සියලුම විෂයන් බලන්න</span>
+                            <i class="fas fa-arrow-down text-[10px] group-hover:translate-y-1 transition-transform"></i>
+                        </button>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
-        </div>
+        </div> <!-- Inner container ends -->
         
         <script>
+            function showAllClasses() {
+                const hiddenCards = document.querySelectorAll('.hidden-card');
+                hiddenCards.forEach(card => {
+                    card.style.display = 'block';
+                    // Fade in effect
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        card.style.transition = 'opacity 0.5s ease-in-out';
+                        card.style.opacity = '1';
+                    }, 10);
+                });
+                document.getElementById('viewMoreContainer').style.display = 'none';
+            }
+
+            function showAllExtraCourses() {
+                const hiddenCards = document.querySelectorAll('.hidden-course');
+                hiddenCards.forEach(card => {
+                    card.style.display = 'block';
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        card.style.transition = 'opacity 0.5s ease-in-out';
+                        card.style.opacity = '1';
+                    }, 10);
+                });
+                document.getElementById('viewMoreExtraContainer').style.display = 'none';
+            }
+
             function filterStream(streamClass) {
                 // Filter cards
                 const cards = document.querySelectorAll('.class-card');
+                const viewMoreBtn = document.getElementById('viewMoreContainer');
+                
                 cards.forEach(card => {
-                    if (streamClass === 'all' || card.classList.contains(streamClass)) {
-                        card.style.display = 'block';
-                        // Add fade in animation
-                        card.style.opacity = '0';
-                        setTimeout(() => card.style.opacity = '1', 50);
+                    if (streamClass === 'all') {
+                        // Reset to "View More" state
+                        if (card.classList.contains('hidden-card')) {
+                            card.style.display = 'none';
+                        } else {
+                            card.style.display = 'block';
+                        }
+                        if (viewMoreBtn) viewMoreBtn.style.display = 'block';
                     } else {
-                        card.style.display = 'none';
+                        // Show all matching cards, hide others
+                        if (card.classList.contains(streamClass)) {
+                            card.style.display = 'block';
+                            card.style.opacity = '1';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                        if (viewMoreBtn) viewMoreBtn.style.display = 'none';
                     }
                 });
             }
         </script>
-
-        <div class="max-w-[1400px] mx-auto px-4 mb-16">
-            <div class="bg-slate-900 px-6 py-3 rounded-xl mb-8 flex items-center justify-between shadow-md border-l-4 border-blue-500">
-                <h2 class="text-lg md:text-xl font-black text-white tracking-tight">අපගේ බාහිර පාඨමාලා</h2>
-                <span class="text-white/60 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra Learning</span>
+        </div> <!-- End of Classes Section -->
+        
+        <div class="section-extra py-12 md:py-24 flex flex-col bg-emerald-200/80">
+            <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-emerald-200 gap-4">
+                <div>
+                    <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අපගේ බාහිර පාඨමාලා</h2>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">නවීන තාක්ෂණය හා බාහිර දැනුම ලබා ගැනීමට එක්වන්න</p>
+                </div>
+                <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra Learning</span>
             </div>
             <?php if (empty($courses)): ?>
                 <div class="bg-white rounded-lg shadow p-8 text-center">
                     <p class="text-gray-500">No courses available at the moment.</p>
                 </div>
             <?php else: ?>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <?php foreach ($courses as $course): ?>
-                        <div class="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
+                    <?php 
+                    $last_course_color = '';
+                    $course_count = 0;
+                    foreach ($courses as $course): 
+                        $course_count++;
+                        $isCourseHidden = $course_count > 6;
+                        // Ensure same color doesn't appear twice in a row
+                        do {
+                            $random_course_bg = $tile_colors[array_rand($tile_colors)];
+                        } while ($random_course_bg === $last_course_color);
+                        $last_course_color = $random_course_bg;
+                    ?>
+                        <div class="<?php echo $random_course_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-110 transition-all duration-500 overflow-hidden border-none extra-course-card <?php echo $isCourseHidden ? 'hidden-course' : ''; ?>" <?php echo $isCourseHidden ? 'style="display:none;"' : ''; ?>>
                             <!-- Course Cover Image -->
-                            <div class="h-72 bg-gray-50 overflow-hidden">
-                                <?php if ($course['cover_image']): ?>
-                                    <img src="../<?php echo htmlspecialchars($course['cover_image']); ?>" 
-                                         alt="<?php echo htmlspecialchars($course['title']); ?>"
-                                         class="w-full h-full object-contain">
-                                <?php else: ?>
-                                    <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-400 to-red-600">
-                                        <i class="fas fa-book text-white text-6xl"></i>
-                                    </div>
-                                <?php endif; ?>
+                            <div class="p-4">
+                                <div class="h-60 overflow-hidden relative border border-white/20">
+                                    <?php if ($course['cover_image']): ?>
+                                        <img src="../<?php echo htmlspecialchars($course['cover_image']); ?>" 
+                                             alt="<?php echo htmlspecialchars($course['title']); ?>"
+                                             class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                                    <?php else: ?>
+                                        <div class="w-full h-full flex items-center justify-center bg-white/10">
+                                            <i class="fas fa-book text-white/20 text-6xl"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
-                            <!-- Course Content -->
-                            <div class="p-6">
-                                <h3 class="font-bold text-lg text-gray-900 mb-2">
+                             <!-- Course Content -->
+                            <div class="p-8">
+                                <h3 class="font-black text-xl text-white mb-2 truncate">
                                     <?php echo htmlspecialchars($course['title']); ?>
                                 </h3>
                                 
-                                <p class="text-xs text-gray-600 mb-3">
-                                    <i class="fas fa-user text-red-600 mr-1"></i>
+                                <p class="text-[10px] text-white/60 mb-8 font-black uppercase tracking-widest">
+                                    <i class="fas fa-user-tie text-white/50 mr-2"></i>
                                     By <?php echo htmlspecialchars($course['teacher_name'] ?: 'Unknown'); ?>
                                 </p>
 
-                                <?php if ($course['description']): ?>
-                                    <p class="text-gray-700 text-sm mb-4 line-clamp-3">
-                                        <?php echo htmlspecialchars(substr($course['description'], 0, 150)); ?>...
-                                    </p>
-                                <?php endif; ?>
-
-                                <div class="flex items-center justify-between mt-4">
-                                    <span class="text-red-600 font-bold text-xl">
+                                <div class="flex items-center justify-between mb-8">
+                                    <span class="text-white font-black text-2xl">
                                         Rs. <?php echo number_format($course['price'], 2); ?>
                                     </span>
                                 </div>
 
                                 <a href="../register.php?course_id=<?php echo $course['id']; ?>"
-                                   class="block w-full text-center bg-slate-900 text-white py-2 px-4 rounded-lg hover:bg-slate-800 transition font-semibold mt-4 text-xs shadow-md">
+                                   class="block w-full text-center bg-white text-black py-4 px-6 rounded-none hover:bg-slate-100 transition text-xs font-black uppercase tracking-widest mt-4 shadow-md">
                                     <i class="fas fa-cart-plus mr-1"></i>Enroll Now
                                 </a>
                             </div>
                         </div>
                     <?php endforeach; ?>
                 </div>
+
+                <?php if ($course_count > 6): ?>
+                    <div class="mt-20 text-center" id="viewMoreExtraContainer">
+                        <button onclick="showAllExtraCourses()" class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
+                            <span>සියලුම බාහිර පාඨමාලා බලන්න</span>
+                            <i class="fas fa-arrow-down text-[10px] group-hover:translate-y-1 transition-transform"></i>
+                        </button>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
+            </div>
         </div>
-    </div>
 
     <!-- Footer Section -->
     <footer class="bg-red-600 py-10 mt-auto">
@@ -961,45 +1105,7 @@ if ($is_logged_in && $role === 'student') {
         }
     </script>
 
-    <!-- Full Image Popup Modal -->
-    <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center p-4">
-        <button onclick="closeImageModal()" class="absolute top-6 right-6 text-white text-4xl hover:text-red-500 transition-colors">
-            <i class="fas fa-times"></i>
-        </button>
-        <div class="max-w-5xl w-full h-full flex items-center justify-center">
-            <img id="modalImg" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-all duration-300">
-        </div>
-    </div>
 
-    <script>
-        function openImageModal(src) {
-            const modal = document.getElementById('imageModal');
-            const img = document.getElementById('modalImg');
-            img.src = src;
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; // Prevent scrolling
-        }
-
-        function closeImageModal() {
-            const modal = document.getElementById('imageModal');
-            modal.classList.add('hidden');
-            document.body.style.overflow = 'auto'; // Re-enable scrolling
-        }
-
-        // Close on escape key
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeImageModal();
-            }
-        });
-
-        // Close on clicking outside the image
-        document.getElementById('imageModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeImageModal();
-            }
-        });
-    </script>
 
 </body>
 </html>

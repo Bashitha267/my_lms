@@ -33,10 +33,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
     body {
         margin: 0;
         padding: 0;
-        padding-top: 35px;
-        /* Offset for fixed navbar */
-        width: 100%;
-        overflow-x: hidden;
+        padding-top: 0;
     }
 
     /* Smooth navbar transitions */
@@ -68,62 +65,71 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
     }
 </style>
 
-<nav id="main-navbar" class="fixed top-0 w-full z-50 transition-all duration-500 bg-red-600 shadow-md">
-    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+<nav id="main-navbar" class="fixed top-0 w-full z-50 transition-all duration-500 bg-white shadow-md">
+    <div class="w-full">
         <div class="flex justify-between items-center h-14 sm:h-16 transition-all duration-500" id="navbar-container">
             <!-- Logo/Brand - Left Side -->
-            <div class="flex items-center flex-shrink-0">
+            <div class="flex items-center flex-shrink-0 mr-auto pl-4 sm:pl-6 lg:pl-8">
                 <a href="<?php echo $base_url; ?>dashboard.php" class="flex items-center gap-2 group">
                     <span id="nav-logo"
-                        class="text-xl sm:text-2xl font-bold tracking-tighter transition-colors duration-500 text-white">
-                        LERNERR<span id="logo-dot" class="text-white">.LK</span>
+                        class="text-lg sm:text-xl font-black tracking-tighter transition-colors duration-500 text-red-600">
+                        LEARNER<span id="logo-dot" class="text-slate-900">.LK</span>
                     </span>
                 </a>
             </div>
 
-            <!-- Desktop Navigation - Center -->
-            <div class="hidden lg:flex items-center justify-center flex-1 px-4 xl:px-6">
-                <div class="flex space-x-1">
-                    <?php
-                    $nav_items = [
-                        ['HOME', 'dashboard.php', 'මුල් පිටුව'],
-                        ['PROFILE', 'profile.php', 'ගිණුම'],
-                        ['RECORDINGS', 'recordings.php', 'පටිගත කිරීම්'],
-                        ['LIVE CLASSES', 'live_classes.php', 'සජීවී පන්ති'],
-                        ['INSTRUCTORS', 'instructors.php', 'ගුරුවරුන්'],
-                        ['PAYMENTS', 'payments.php', 'ගෙවීම්'],
-                        ['EXAM CENTER', 'exam_center.php', 'විභාග'],
-                        ['ONLINE COURSES', 'online_courses.php', 'පාඨමාලා'],
-                        ['PUBLICATIONS', 'publications.php', 'ප්‍රකාශන'],
-                        ['A/L RESULTS', 'ALDetails.php', 'ප්‍රතිඵල'],
-                        ['ABOUT US', 'about_us.php', 'අප ගැන']
-                    ];
-                    foreach ($nav_items as $item):
-                        $is_active = ($current_page == $item[1]);
-                        $active_class = $is_active ? 'active font-bold' : 'font-semibold';
-                        $color_class = 'text-white hover:text-red-100';
-                        ?>
-                        <a href="<?php echo $base_url . $item[1]; ?>"
-                            class="nav-link-item group relative px-2.5 py-2 text-[10px] xl:text-[11px] tracking-tight transition-all duration-300 <?php echo $color_class . ' ' . $active_class; ?>">
-                            <span><?php echo $item[0]; ?></span>
-                        </a>
-                    <?php endforeach; ?>
+            <!-- Navigation Links - Moved to Right -->
+            <div class="hidden lg:flex items-stretch h-14 sm:h-16">
+                <a href="dashboard.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">Home</a>
+                <a href="live_classes.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
+                <a href="publications.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
+                <!-- Desktop Dropdown Menu -->
+                <div class="relative group/dropdown h-full">
+                    <button class="flex items-center h-full px-5 text-[11px] font-black tracking-widest text-white bg-black group-hover/dropdown:bg-zinc-900 transition-all gap-3 uppercase">
+                        <span>Menu</span>
+                        <div class="space-y-1">
+                            <div class="w-4 h-0.5 bg-white"></div>
+                            <div class="w-4 h-0.5 bg-white"></div>
+                        </div>
+                    </button>
+                    
+                    <div class="absolute top-full right-0 w-64 bg-black border-t border-white/10 shadow-2xl invisible group-hover/dropdown:visible opacity-0 group-hover/dropdown:opacity-100 transition-all duration-300 translate-y-2 group-hover/dropdown:translate-y-0 z-[100]">
+                        <!-- Dropdown Links -->
+                        <?php 
+                        $dropdown_items = [
+                            ['PROFILE', 'profile.php', 'fa-user-circle', 'ගිණුම'],
+                            ['RECORDINGS', 'recordings.php', 'fa-video', 'පටිගත කිරීම්'],
+                            ['INSTRUCTORS', 'instructors.php', 'fa-chalkboard-teacher', 'ගුරුවරුන්'],
+                            ['PAYMENTS', 'payments.php', 'fa-credit-card', 'ගෙවීම්'],
+                            ['EXAM CENTER', 'exam_center.php', 'fa-file-alt', 'විභාග'],
+                            ['ONLINE COURSES', 'online_courses.php', 'fa-graduation-cap', 'පාඨමාලා'],
+                            ['A/L RESULTS', 'ALDetails.php', 'fa-trophy', 'ප්‍රතිඵල'],
+                            ['ABOUT US', 'about_us.php', 'fa-info-circle', 'අප ගැන']
+                        ];
+                        foreach ($dropdown_items as $item): ?>
+                            <a href="<?php echo $item[1]; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-black tracking-widest text-white/90 group-hover/item:text-white uppercase"><?php echo $item[0]; ?></span>
+                                    <span class="text-[9px] text-white/40 font-medium group-hover/item:text-white/60"><?php echo $item[3]; ?></span>
+                                </div>
+                                <i class="fas <?php echo $item[2]; ?> text-[12px] text-white/30 group-hover/item:text-red-600 transition-colors"></i>
+                            </a>
+                        <?php endforeach; ?>
+                        
+                        <div class="p-4 bg-white/5">
+                             <a href="../auth.php?logout=1" class="flex items-center justify-center w-full py-3 bg-red-600 text-white text-[9px] font-black tracking-[0.2em] uppercase hover:bg-red-700 transition-all">Logout Account</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Right Side Actions -->
-            <div class="flex items-center gap-2">
+            <div class="flex items-center h-14 sm:h-16">
                 <?php if (!isset($_SESSION['role'])): ?>
-                    <a href="<?php echo $root_url; ?>register.php" id="nav-register-btn"
-                        class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-[9px] font-bold tracking-widest transition-all hover:scale-105 active:scale-95 bg-white text-red-600">
-                        <span>REGISTER NOW</span>
-                        <div class="rounded-full p-0.5 leading-none bg-red-600 text-white">
-                            <i class="fas fa-arrow-up rotate-45 text-[7px]"></i>
-                        </div>
-                    </a>
+                    <!-- Register button removed -->
                 <?php else: ?>
                     <button onclick="openProfileModal()" id="nav-profile-btn"
-                        class="flex items-center gap-2 group p-0.5 pr-2 rounded-full transition-all <?php echo ($current_page == 'dashboard.php') ? 'bg-white/10 hover:bg-white/20' : 'bg-slate-100 hover:bg-slate-200'; ?>">
+                        class="flex items-center gap-2 group px-3 h-full hover:bg-slate-50 transition-all border-l border-slate-100">
                         <div
                             class="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center text-white font-bold border border-white shadow-sm overflow-hidden">
                             <?php if (!empty($profile_picture)): ?>
@@ -133,7 +139,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                                     class="text-[10px]"><?php echo strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1)); ?></span>
                             <?php endif; ?>
                         </div>
-                        <span id="nav-profile-name" class="text-[10px] font-bold hidden md:block text-white">
+                        <span id="nav-profile-name" class="text-[9px] font-black hidden xl:block text-slate-700 uppercase tracking-widest">
                             <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>
                         </span>
                     </button>
@@ -141,7 +147,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
 
                 <!-- Mobile menu button -->
                 <button type="button" onclick="toggleMobileMenu()" id="mobile-menu-btn"
-                    class="lg:hidden p-1.5 rounded-lg transition-colors text-white hover:bg-white/10">
+                    class="lg:hidden p-1.5 rounded-lg transition-colors text-slate-800 hover:bg-slate-100">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16M4 18h16" />
@@ -174,7 +180,21 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             </div>
 
             <div class="space-y-1">
-                <?php foreach ($nav_items as $item):
+                <?php 
+                $all_nav_items = [
+                    ['HOME', 'dashboard.php', 'මුල් පිටුව'],
+                    ['PROFILE', 'profile.php', 'ගිණුම'],
+                    ['RECORDINGS', 'recordings.php', 'පටිගත කිරීම්'],
+                    ['LIVE CLASSES', 'live_classes.php', 'සජීවී පන්ති'],
+                    ['INSTRUCTORS', 'instructors.php', 'ගුරුවරුන්'],
+                    ['PAYMENTS', 'payments.php', 'ගෙවීම්'],
+                    ['EXAM CENTER', 'exam_center.php', 'විභාග'],
+                    ['ONLINE COURSES', 'online_courses.php', 'පාඨමාලා'],
+                    ['PUBLICATIONS', 'publications.php', 'ප්‍රකාශන'],
+                    ['A/L RESULTS', 'ALDetails.php', 'ප්‍රතිඵල'],
+                    ['ABOUT US', 'about_us.php', 'අප ගැන']
+                ];
+                foreach ($all_nav_items as $item):
                     $is_active = ($current_page == $item[1]);
                     ?>
                     <a href="<?php echo $base_url . $item[1]; ?>"
