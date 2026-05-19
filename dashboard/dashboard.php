@@ -76,7 +76,7 @@ if ($is_logged_in && $role === 'student') {
     $enr_res = $conn->query($enr_query);
     if ($enr_res) {
         $enrollment_ids = [];
-        while($row = $enr_res->fetch_assoc()) {
+        while ($row = $enr_res->fetch_assoc()) {
             $user_enrollment_data[$row['stream_subject_id']] = [
                 'id' => $row['id'],
                 'enrollment_paid' => false,
@@ -87,12 +87,12 @@ if ($is_logged_in && $role === 'student') {
 
         if (!empty($enrollment_ids)) {
             $ids_str = implode(',', $enrollment_ids);
-            
+
             // 2. Check Enrollment Payments
             $ep_query = "SELECT student_enrollment_id, payment_status FROM enrollment_payments WHERE student_enrollment_id IN ($ids_str) ORDER BY id DESC";
             $ep_res = $conn->query($ep_query);
-            while($row = $ep_res->fetch_assoc()) {
-                foreach($user_enrollment_data as $ssid => $data) {
+            while ($row = $ep_res->fetch_assoc()) {
+                foreach ($user_enrollment_data as $ssid => $data) {
                     if ($data['id'] == $row['student_enrollment_id']) {
                         // Only set if not already set by a newer record
                         if (!isset($user_enrollment_data[$ssid]['enrollment_status_raw'])) {
@@ -117,26 +117,28 @@ if ($is_logged_in && $role === 'student') {
             $current_year = date('Y');
             $mp_query = "SELECT student_enrollment_id, payment_status FROM monthly_payments WHERE student_enrollment_id IN ($ids_str) AND month = $current_month AND year = $current_year ORDER BY id DESC";
             $mp_res = $conn->query($mp_query);
-             while($row = $mp_res->fetch_assoc()) {
-                  foreach($user_enrollment_data as $ssid => $data) {
-                         if ($data['id'] == $row['student_enrollment_id']) {
-                             // Only set if not already set by a newer record
-                             if (!isset($user_enrollment_data[$ssid]['monthly_status_raw'])) {
-                                 $user_enrollment_data[$ssid]['monthly_status_raw'] = $row['payment_status'];
-                                 $st = $row['payment_status'];
-                                 if ($st == 'paid' || $st == 'approved') $st = 'Paid';
-                                 elseif ($st == 'pending') $st = 'Pending';
-                                 $user_enrollment_data[$ssid]['monthly_status'] = ucfirst($st);
-                             }
-                         }
-                     }
-             }
+            while ($row = $mp_res->fetch_assoc()) {
+                foreach ($user_enrollment_data as $ssid => $data) {
+                    if ($data['id'] == $row['student_enrollment_id']) {
+                        // Only set if not already set by a newer record
+                        if (!isset($user_enrollment_data[$ssid]['monthly_status_raw'])) {
+                            $user_enrollment_data[$ssid]['monthly_status_raw'] = $row['payment_status'];
+                            $st = $row['payment_status'];
+                            if ($st == 'paid' || $st == 'approved')
+                                $st = 'Paid';
+                            elseif ($st == 'pending')
+                                $st = 'Pending';
+                            $user_enrollment_data[$ssid]['monthly_status'] = ucfirst($st);
+                        }
+                    }
+                }
+            }
         }
     }
 }
 if ($is_logged_in && $role === 'student') {
     require_once __DIR__ . '/../check_al_redirection.php';
-    
+
     // Fetch Student Stats
     $enrolled_count = count($user_enrollment_data);
     $pending_payments_count = 0;
@@ -145,7 +147,7 @@ if ($is_logged_in && $role === 'student') {
             $pending_payments_count++;
         }
     }
-    
+
     $exams_query = "SELECT COUNT(*) as count FROM exams WHERE status = 'active'";
     $exams_res = $conn->query($exams_query);
     $upcoming_exams_count = $exams_res ? $exams_res->fetch_assoc()['count'] : 0;
@@ -167,6 +169,7 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -188,12 +191,13 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 opacity: 0;
                 transform: translateY(30px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-        
+
         .animate-fade-in-up {
             animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -205,25 +209,35 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             width: max-content;
             animation: scrollGallery 60s linear infinite;
         }
+
         .scrolling-gallery:hover {
             animation-play-state: paused;
         }
+
         @keyframes scrollGallery {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
+            0% {
+                transform: translateX(0);
+            }
+
+            100% {
+                transform: translateX(-50%);
+            }
         }
 
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
         }
+
         ::-webkit-scrollbar-track {
             background: #f1f1f1;
         }
+
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
         }
+
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
@@ -238,22 +252,32 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             z-index: -1;
             opacity: 0.3;
         }
-        .blob-1 { background: rgba(239, 68, 68, 0.2); top: -300px; left: -200px; }
-        .blob-2 { background: rgba(248, 113, 113, 0.2); top: -200px; right: -200px; }
-        
+
+        .blob-1 {
+            background: rgba(239, 68, 68, 0.2);
+            top: -300px;
+            left: -200px;
+        }
+
+        .blob-2 {
+            background: rgba(248, 113, 113, 0.2);
+            top: -200px;
+            right: -200px;
+        }
+
         .glass-card {
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        
+
         .card-hover:hover {
             transform: translateY(-10px);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
         }
 
         .search-container {
-            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
         }
 
         .hero-bg-container {
@@ -262,13 +286,15 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             background-image: url('../education_hero_bg_1778466693992.png');
             background-size: cover;
             background-position: center;
-            filter: blur(2px);
+            filter: blur(2px) brightness(55%);
+            /* premium */
             transform: scale(1.1);
         }
+
         .hero-overlay {
             position: absolute;
             inset: 0;
-            background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0.4));
+            background: linear-gradient(to right, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4));
         }
 
         .stat-value {
@@ -279,21 +305,49 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
         }
 
         @keyframes countUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .animate-count {
             animation: countUp 1s ease-out forwards;
         }
 
-        .section-welcome { background-color: #ffffff; }
-        .section-stats { background-color: #ffffff; }
-        .section-al { background-color: #f1f5f9; } /* Slate 100 */
-        .section-gallery { background-color: #ffffff; }
-        .section-classes { background-color: #e0f2fe; } /* Sky 100 */
-        .section-extra { background-color: #fee2e2; } /* Red 100 */
-        
+        .section-welcome {
+            background-color: #ffffff;
+        }
+
+        .section-stats {
+            background-color: #ffffff;
+        }
+
+        .section-al {
+            background-color: #f1f5f9;
+        }
+
+        /* Slate 100 */
+        .section-gallery {
+            background-color: #ffffff;
+        }
+
+        .section-classes {
+            background-color: #e0f2fe;
+        }
+
+        /* Sky 100 */
+        .section-extra {
+            background-color: #fee2e2;
+        }
+
+        /* Red 100 */
+
         .hero-title {
             font-size: 5rem;
             line-height: 1;
@@ -302,25 +356,28 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             letter-spacing: -2px;
             color: white;
         }
-        
+
         .hero-p {
             font-size: 1.125rem;
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.95);
             max-width: 600px;
             margin: 2rem 0;
             line-height: 1.6;
         }
     </style>
 </head>
+
 <body class="bg-gray-50">
     <!-- Include Navbar for all users -->
     <?php include 'navbar.php'; ?>
 
     <!-- Main Content -->
     <div class="w-full">
-<style>
-* { box-sizing: border-box; }
-</style>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+        </style>
 
         <?php if (!$is_logged_in): ?>
             <!-- Blurred Hero Section with Simplified Content -->
@@ -329,41 +386,52 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             <section class="relative min-h-screen flex items-center overflow-hidden">
                 <div class="hero-bg-container"></div>
                 <div class="hero-overlay"></div>
-                
+
                 <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
                     <div class="max-w-3xl animate-fade-in-up">
-                        <div class="inline-block bg-red-600 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+                        <div
+                            class="inline-block bg-red-600 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
                             Learner.LK
                         </div>
-                        <h1 class="text-3xl md:text-5xl font-black text-white leading-[0.95] mb-4 uppercase tracking-tighter">
+                        <h1
+                            class="text-3xl md:text-5xl font-black text-white leading-[0.95] mb-4 uppercase tracking-tighter">
                             ආයුබෝවන්!! <br>
                             <span class="text-red-600">සාදරයෙන් පිළිගනිමු</span>
                         </h1>
-                        
-                        <p class="text-sm md:text-base text-white font-black leading-[2.2] mb-6 max-w-2xl tracking-wide opacity-90">
-                            ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
+
+                        <p
+                            class="text-sm md:text-base text-white font-black leading-[2.2] mb-6 max-w-2xl tracking-wide opacity-90">
+                            ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා
+                            ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
                         </p>
-                        <p class="text-[9px] text-white/50 font-black uppercase tracking-[0.2em] mb-8">
-                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-500">REGISTER BUTTON</span> එක <span class="text-white">CLICK කරන්න.</span>
+                        <p class="text-[9px] text-white/80 font-black uppercase tracking-[0.2em] mb-8">
+                            අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-500">REGISTER BUTTON</span> එක <span
+                                class="text-white">CLICK කරන්න.</span>
                         </p>
 
                         <!-- Compact Glassmorphic Login Bar -->
                         <div class="max-w-2xl">
-                            <form action="../auth.php" method="POST" class="bg-white/10 backdrop-blur-xl p-1 rounded-none flex flex-col md:flex-row gap-1 border border-white/20 shadow-2xl group transition-all hover:bg-white/15">
-                                <div class="flex-1 flex items-center px-4 py-2 border-b md:border-b-0 md:border-r border-white/10">
+                            <form action="../auth.php" method="POST"
+                                class="bg-white/10 backdrop-blur-xl p-1 rounded-none flex flex-col md:flex-row gap-1 border border-white/20 shadow-2xl group transition-all hover:bg-white/15">
+                                <div
+                                    class="flex-1 flex items-center px-4 py-2 border-b md:border-b-0 md:border-r border-white/10">
                                     <i class="fas fa-mobile-alt text-red-500 mr-3 text-base"></i>
-                                    <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
+                                    <input type="text" name="identifier" required placeholder="Mobile Number"
+                                        class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
                                 </div>
                                 <div class="flex-1 flex items-center px-4 py-2">
                                     <i class="fas fa-lock text-red-500 mr-3 text-base"></i>
-                                    <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
+                                    <input type="password" name="password" required placeholder="Password"
+                                        class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
                                 </div>
-                                <button type="submit" name="login" class="bg-red-600 text-white px-8 py-3 rounded-none font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
+                                <button type="submit" name="login"
+                                    class="bg-red-600 text-white px-8 py-3 rounded-none font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
                                     Login Now
                                 </button>
                             </form>
-                            <p class="text-[9px] text-white/40 font-black uppercase tracking-[0.2em] mt-4 ml-4">
-                                අලුතින්ම සම්බන්ධ වීම සඳහා <a href="../register.php" class="text-red-500 hover:underline">REGISTER HERE</a>
+                            <p class="text-[9px] text-white/80 font-black uppercase tracking-[0.2em] mt-4 ml-4">
+                                අලුතින්ම සම්බන්ධ වීම සඳහා <a href="../register.php"
+                                    class="text-red-500 hover:underline">REGISTER HERE</a>
                             </p>
                         </div>
                     </div>
@@ -375,16 +443,22 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="grid grid-cols-3 gap-4 md:gap-8 text-center">
                         <div class="stat-item p-4">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="student-count">0</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Total Students</p>
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
+                                id="student-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Total
+                                Students</p>
                         </div>
                         <div class="stat-item p-4 border-x border-slate-200">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="teacher-count">0</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Expert Teachers</p>
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
+                                id="teacher-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Expert
+                                Teachers</p>
                         </div>
                         <div class="stat-item p-4">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2" id="course-count">0</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Active Courses</p>
+                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
+                                id="course-count">0</h2>
+                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Active
+                                Courses</p>
                         </div>
                     </div>
                 </div>
@@ -398,7 +472,7 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     const increment = end > start ? 1 : -1;
                     const stepTime = Math.abs(Math.floor(duration / range));
                     const obj = document.getElementById(id);
-                    const timer = setInterval(function() {
+                    const timer = setInterval(function () {
                         current += increment;
                         obj.innerHTML = current + (id === 'student-count' ? '+' : '');
                         if (current == end) {
@@ -428,21 +502,30 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <div class="max-w-[1400px] mx-auto px-4 animate-fade-in-up">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <!-- Welcome Card -->
-                        <div class="lg:col-span-4 bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
-                            <div class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-none blur-3xl opacity-50 -mr-24 -mt-24"></div>
+                        <div
+                            class="lg:col-span-4 bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
+                            <div
+                                class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-none blur-3xl opacity-50 -mr-24 -mt-24">
+                            </div>
                             <div class="relative z-10">
-                                <div class="w-16 h-16 bg-red-600 rounded-none flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
+                                <div
+                                    class="w-16 h-16 bg-red-600 rounded-none flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
                                     <i class="fas fa-user-graduate text-2xl"></i>
                                 </div>
                                 <h1 class="text-2xl font-black text-slate-900 leading-tight">
-                                   ආයුබෝවන් <br>
-                                   <span class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
+                                    ආයුබෝවන් <br>
+                                    <span
+                                        class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
                                 </h1>
-                                <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන් පිළිගනිමු.</p>
-                                
+                                <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන්
+                                    පිළිගනිමු.</p>
+
                                 <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student ID: <?php echo $user_id; ?></span>
-                                    <a href="profile.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student
+                                        ID: <?php echo $user_id; ?></span>
+                                    <a href="profile.php"
+                                        class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit
+                                        Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
                                 </div>
                             </div>
                         </div>
@@ -450,43 +533,63 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                         <!-- Stats Grid -->
                         <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Enrolled Classes -->
-                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <div
+                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div
+                                    class="w-10 h-10 bg-blue-50 text-blue-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-book-reader"></i>
                                 </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled Classes</p>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled
+                                    Classes</p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
-                                <a href="recordings.php" class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View Lessons</a>
+                                <a href="recordings.php"
+                                    class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View
+                                    Lessons</a>
                             </div>
 
                             <!-- Pending Payments -->
-                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div class="w-10 h-10 bg-red-50 text-red-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <div
+                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div
+                                    class="w-10 h-10 bg-red-50 text-red-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-wallet"></i>
                                 </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments</p>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments
+                                </p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
-                                <a href="payments.php" class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay Now</a>
+                                <a href="payments.php"
+                                    class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay
+                                    Now</a>
                             </div>
 
                             <!-- Upcoming Exams -->
-                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <div
+                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div
+                                    class="w-10 h-10 bg-amber-50 text-amber-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-file-signature"></i>
                                 </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Exams</p>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available
+                                    Exams</p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
-                                <a href="exam_center.php" class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go to Center</a>
+                                <a href="exam_center.php"
+                                    class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go
+                                    to Center</a>
                             </div>
 
                             <!-- Extra Courses -->
-                            <div class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div class="w-10 h-10 bg-purple-50 text-purple-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <div
+                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                <div
+                                    class="w-10 h-10 bg-purple-50 text-purple-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                     <i class="fas fa-graduation-cap"></i>
                                 </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses</p>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses
+                                </p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
-                                <a href="online_courses.php" class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore More</a>
+                                <a href="online_courses.php"
+                                    class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore
+                                    More</a>
                             </div>
                         </div>
                     </div>
@@ -497,165 +600,282 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
         <!-- Universal AL Results Section -->
         <div class="section-al py-12 md:py-24 flex flex-col bg-sky-200">
             <div class="w-full mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in-up">
-            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-sky-200 gap-4">
-                <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අපගේ පසුගිය විශිෂ්ට ප්‍රතිඵල</h2>
-                <a href="ALDetails.php" class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-500 transition-colors">
-                    View Results <i class="fas fa-arrow-right ml-1"></i>
-                </a>
-            </div>
+                <div
+                    class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-sky-200 gap-4">
+                    <h2
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        අපගේ පසුගිය විශිෂ්ට ප්‍රතිඵල</h2>
+                    <a href="ALDetails.php"
+                        class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-500 transition-colors">
+                        View Results <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
 
-                    <?php 
-                    // Curated Demo Data for A/L Achievers (Directly using array as requested)
-                    $al_results = [
-                        ['name' => 'Sugath Perera', 'stream' => 'Combined Mathematics', 'district' => 'Gampaha', 'drank' => '02', 'irank' => '14', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Nipuna Diyalagoda', 'stream' => 'Physical Science', 'district' => 'Gampaha', 'drank' => '24', 'irank' => '325', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Kasun Perera', 'stream' => 'Biological Science', 'district' => 'Colombo', 'drank' => '12', 'irank' => '105', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Sanduni Silva', 'stream' => 'Commerce', 'district' => 'Kandy', 'drank' => '05', 'irank' => '42', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
-                        ['name' => 'Malith Ranasinghe', 'stream' => 'Physical Science', 'district' => 'Matara', 'drank' => '18', 'irank' => '210', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Dilshani Silva', 'stream' => 'Biological Science', 'district' => 'Kalutara', 'drank' => '08', 'irank' => '88', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Pathum Perera', 'stream' => 'Physical Science', 'district' => 'Galle', 'drank' => '15', 'irank' => '156', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Kavindi Perera', 'stream' => 'Commerce', 'district' => 'Ratnapura', 'drank' => '03', 'irank' => '22', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
-                        ['name' => 'Tharindu Silva', 'stream' => 'Physical Science', 'district' => 'Kurunegala', 'drank' => '21', 'irank' => '288', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
-                        ['name' => 'Ruwan Perera', 'stream' => 'Biological Science', 'district' => 'Badulla', 'drank' => '10', 'irank' => '95', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']]
-                    ];
-                    ?>
-                    
-                    <style>
-                        #achieverSlider {
-                            width: <?php echo count($al_results) * 100; ?>%;
+                <?php
+                // Curated Demo Data for A/L Achievers (Directly using array as requested)
+                $al_results = [
+                    ['name' => 'Sugath Perera', 'stream' => 'Combined Mathematics', 'district' => 'Gampaha', 'drank' => '02', 'irank' => '14', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Nipuna Diyalagoda', 'stream' => 'Physical Science', 'district' => 'Gampaha', 'drank' => '24', 'irank' => '325', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Kasun Perera', 'stream' => 'Biological Science', 'district' => 'Colombo', 'drank' => '12', 'irank' => '105', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Sanduni Silva', 'stream' => 'Commerce', 'district' => 'Kandy', 'drank' => '05', 'irank' => '42', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
+                    ['name' => 'Malith Ranasinghe', 'stream' => 'Physical Science', 'district' => 'Matara', 'drank' => '18', 'irank' => '210', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Dilshani Silva', 'stream' => 'Biological Science', 'district' => 'Kalutara', 'drank' => '08', 'irank' => '88', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Pathum Perera', 'stream' => 'Physical Science', 'district' => 'Galle', 'drank' => '15', 'irank' => '156', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Kavindi Perera', 'stream' => 'Commerce', 'district' => 'Ratnapura', 'drank' => '03', 'irank' => '22', 'results' => ['Accounting' => 'A', 'Economics' => 'A', 'Business Studies' => 'A']],
+                    ['name' => 'Tharindu Silva', 'stream' => 'Physical Science', 'district' => 'Kurunegala', 'drank' => '21', 'irank' => '288', 'results' => ['Combined Mathematics' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']],
+                    ['name' => 'Ruwan Perera', 'stream' => 'Biological Science', 'district' => 'Badulla', 'drank' => '10', 'irank' => '95', 'results' => ['Biology' => 'A', 'Physics' => 'A', 'Chemistry' => 'A']]
+                ];
+                ?>
+
+                <style>
+                    /* Each card takes 100% on mobile (1 visible), 25% on desktop (4 visible) */
+                    .al-card-wrap {
+                        flex: 0 0 100%;
+                        max-width: 100%;
+                    }
+                    @media (min-width: 1024px) {
+                        .al-card-wrap {
+                            flex: 0 0 25%;
+                            max-width: 25%;
                         }
-                        @media (min-width: 640px) {
-                            #achieverSlider {
-                                width: <?php echo count($al_results) * 50; ?>%;
-                            }
-                        }
-                        @media (min-width: 1024px) {
-                            #achieverSlider {
-                                width: <?php echo count($al_results) * 25; ?>%;
-                            }
-                        }
-                    </style>
-                    <div class="relative overflow-hidden group/slider">
-                        <div id="achieverSlider" class="flex transition-transform duration-700 ease-in-out">
-                                <?php 
-                                $tile_colors = ['bg-blue-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-orange-600'];
-                                foreach ($al_results as $res): 
-                                    $random_tile_bg = $tile_colors[array_rand($tile_colors)];
-                                ?>
-                                <div class="p-0 z-10 hover:z-20 transition-all duration-500" style="width: <?php echo 100 / count($al_results); ?>%;">
-                                    <div class="<?php echo $random_tile_bg; ?> rounded-none transform hover:scale-105 hover:brightness-110 transition-all duration-500 relative group overflow-hidden h-[600px] flex flex-col shadow-none hover:shadow-2xl">
-                                        <!-- Card Header -->
-                                        <div class="p-4">
-                                            <div class="relative h-60 overflow-hidden rounded-none border border-white/20">
-                                                <?php if (isset($res['photo']) && !empty($res['photo'])): ?>
-                                                    <img src="../<?php echo $res['photo']; ?>" class="w-full h-full object-cover">
-                                                <?php else: ?>
-                                                    <img src="../assests/student_avatar.png" class="w-full h-full object-cover">
-                                                <?php endif; ?>
-                                                <!-- Stream Label -->
-                                                <div class="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-1 rounded-none uppercase tracking-widest whitespace-nowrap">
-                                                    <?php echo $res['stream']; ?>
-                                                </div>
+                    }
+                    #achieverSlider {
+                        display: flex;
+                        width: 100%;
+                    }
+                    /* Dots */
+                    .al-dot {
+                        width: 8px; height: 8px;
+                        border-radius: 50%;
+                        background: rgba(15,23,42,0.25);
+                        transition: background 0.3s, transform 0.3s;
+                        cursor: pointer;
+                    }
+                    .al-dot.active {
+                        background: #dc2626;
+                        transform: scale(1.3);
+                    }
+                </style>
+                <div class="relative overflow-hidden group/slider" id="achieverSliderWrapper">
+                    <div id="achieverSlider" class="flex transition-transform duration-700 ease-in-out">
+                        <?php
+                        $last_tile_color = '';
+                        $tile_colors = ['bg-blue-100', 'bg-emerald-100', 'bg-violet-100', 'bg-amber-100', 'bg-rose-100', 'bg-cyan-100', 'bg-indigo-100', 'bg-orange-100', 'bg-teal-100', 'bg-sky-100', 'bg-pink-100', 'bg-purple-100'];
+                        foreach ($al_results as $res):
+                            do {
+                                $random_tile_bg = $tile_colors[array_rand($tile_colors)];
+                            } while ($random_tile_bg === $last_tile_color);
+                            $last_tile_color = $random_tile_bg;
+                            ?>
+                            <div class="al-card-wrap p-0 z-10 hover:z-20 transition-all duration-500">
+                                <div
+                                    class="<?php echo $random_tile_bg; ?> rounded-none transform hover:scale-105 hover:brightness-95 transition-all duration-500 relative group overflow-hidden h-[600px] flex flex-col shadow-none hover:shadow-2xl">
+                                    <!-- Card Header -->
+                                    <div class="p-4">
+                                        <div class="relative h-60 overflow-hidden rounded-none border border-slate-900/10">
+                                            <?php if (isset($res['photo']) && !empty($res['photo'])): ?>
+                                                <img src="../<?php echo $res['photo']; ?>" class="w-full h-full object-cover">
+                                            <?php else: ?>
+                                                <img src="../assests/student_avatar.png" class="w-full h-full object-cover">
+                                            <?php endif; ?>
+                                            <!-- Stream Label -->
+                                            <div
+                                                class="absolute bottom-2 left-2 bg-black/60 backdrop-blur-md text-white text-[8px] font-black px-2 py-1 rounded-none uppercase tracking-widest whitespace-nowrap">
+                                                <?php echo $res['stream']; ?>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <!-- Info -->
-                                        <div class="px-8 pb-8 pt-2 flex-1 flex flex-col">
-                                            <div class="text-left mb-4">
-                                                <h3 class="font-black text-white text-xl leading-tight mb-1"><?php echo $res['name']; ?></h3>
-                                                <p class="text-[8px] text-white/70 font-black uppercase tracking-[0.2em]"><?php echo $res['district']; ?> District Specialist</p>
-                                            </div>
+                                    <!-- Info -->
+                                    <div class="px-8 pb-8 pt-2 flex-1 flex flex-col">
+                                        <div class="text-left mb-4">
+                                            <h3 class="font-black text-slate-900 text-xl leading-tight mb-1">
+                                                <?php echo $res['name']; ?>
+                                            </h3>
+                                            <p class="text-[8px] text-slate-500 font-black uppercase tracking-[0.2em]">
+                                                <?php echo $res['district']; ?> District Specialist
+                                            </p>
+                                        </div>
 
                                         <!-- Grades -->
                                         <div class="space-y-1 mb-6">
-                                            <?php 
+                                            <?php
                                             $results_to_show = isset($res['results']) ? $res['results'] : [
                                                 'Combined Mathematics' => 'A',
                                                 'Physics' => 'A',
                                                 'Chemistry' => 'A'
                                             ];
                                             foreach ($results_to_show as $subject => $grade): ?>
-                                            <div class="flex justify-between items-center px-0 py-1 border-b border-white/10">
-                                                <span class="text-[10px] font-black text-white/80 uppercase tracking-wider truncate mr-2"><?php echo $subject; ?></span>
-                                                <span class="text-xl font-black text-white"><?php echo $grade; ?></span>
-                                            </div>
+                                                <div
+                                                    class="flex justify-between items-center px-0 py-1 border-b border-slate-900/10">
+                                                    <span
+                                                        class="text-[10px] font-black text-slate-700 uppercase tracking-wider truncate mr-2"><?php echo $subject; ?></span>
+                                                    <span class="text-xl font-black text-slate-900"><?php echo $grade; ?></span>
+                                                </div>
                                             <?php endforeach; ?>
                                         </div>
 
-                                        <div class="grid grid-cols-2 gap-4 pt-4 mt-auto border-t border-white/20">
+                                        <div class="grid grid-cols-2 gap-4 pt-4 mt-auto border-t border-slate-900/10">
                                             <div class="text-left">
-                                                <p class="text-[8px] text-white/50 font-black uppercase tracking-wider mb-1">Dist. Rank</p>
-                                                <p class="text-xl font-black text-white"><?php echo $res['drank']; ?></p>
+                                                <p
+                                                    class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                                                    Dist. Rank</p>
+                                                <p class="text-xl font-black text-slate-900"><?php echo $res['drank']; ?>
+                                                </p>
                                             </div>
                                             <div class="text-left">
-                                                <p class="text-[8px] text-white/50 font-black uppercase tracking-wider mb-1">Island Rank</p>
-                                                <p class="text-xl font-black text-white"><?php echo $res['irank']; ?></p>
+                                                <p
+                                                    class="text-[8px] text-slate-400 font-black uppercase tracking-wider mb-1">
+                                                    Island Rank</p>
+                                                <p class="text-xl font-black text-slate-900"><?php echo $res['irank']; ?>
+                                                </p>
                                             </div>
                                         </div> <!-- closes grid -->
                                     </div> <!-- closes p-4 content wrapper -->
                                 </div> <!-- closes card-hover -->
                             </div> <!-- closes px-4 column -->
-                                <?php endforeach; ?>
-                            </div>
-                            
-                            <!-- Slider Controls -->
-                            <button onclick="moveSlider('prev')" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
-                                <i class="fas fa-chevron-left"></i>
-                            </button>
-                            <button onclick="moveSlider('next')" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
-                                <i class="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
-
-                        <script>
-                            let currentSlide = 0;
-                            const slider = document.getElementById('achieverSlider');
-                            const totalSlides = <?php echo count($al_results); ?>;
-                            let slidesToShow = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 640 ? 2 : 1);
-                            
-                            function moveSlider(direction) {
-                                const maxSlide = totalSlides - slidesToShow;
-                                if (direction === 'next') {
-                                    currentSlide = currentSlide >= maxSlide ? 0 : currentSlide + 1;
-                                } else {
-                                    currentSlide = currentSlide <= 0 ? maxSlide : currentSlide - 1;
-                                }
-                                const offset = currentSlide * (100 / totalSlides);
-                                slider.style.transform = `translateX(-${offset}%)`;
-                            }
-
-                            // Auto slide
-                            let autoSlide = setInterval(() => moveSlider('next'), 3000);
-                            
-                            // Pause on hover
-                            slider.parentElement.addEventListener('mouseenter', () => clearInterval(autoSlide));
-                            slider.parentElement.addEventListener('mouseleave', () => {
-                                clearInterval(autoSlide);
-                                autoSlide = setInterval(() => moveSlider('next'), 3000);
-                            });
-                            
-                            // Re-calculate on resize
-                            window.addEventListener('resize', () => {
-                                slidesToShow = window.innerWidth >= 1024 ? 4 : (window.innerWidth >= 640 ? 2 : 1);
-                                currentSlide = 0;
-                                slider.style.transform = `translateX(0)`;
-                            });
-                        </script>
+                        <?php endforeach; ?>
                     </div>
+
+                    <!-- Slider Controls -->
+                    <button id="alPrevBtn"
+                        class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button id="alNextBtn"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur shadow-lg rounded-none flex items-center justify-center text-slate-800 opacity-0 group-hover/slider:opacity-100 transition-opacity z-20 hover:bg-red-600 hover:text-white">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
+
+                <!-- Dots -->
+                <div class="flex justify-center gap-2 mt-6" id="alDots"></div>
+
+                <script>
+                    (function () {
+                        const slider = document.getElementById('achieverSlider');
+                        const wrapper = document.getElementById('achieverSliderWrapper');
+                        const dotsContainer = document.getElementById('alDots');
+                        const totalCards = <?php echo count($al_results); ?>;
+
+                        let currentSlide = 0;
+                        let autoSlideTimer = null;
+
+                        function getSlidesToShow() {
+                            return window.innerWidth >= 1024 ? 4 : 1;
+                        }
+
+                        function getMaxSlide() {
+                            return totalCards - getSlidesToShow();
+                        }
+
+                        function goToSlide(index) {
+                            const max = getMaxSlide();
+                            currentSlide = Math.max(0, Math.min(index, max));
+                            // Each card is (100 / totalCards)% wide of the slider track,
+                            // but since the track is 100% of the container we shift by
+                            // (cardWidth in container %) = (1/visibleCount)*100
+                            const cardWidthPct = 100 / getSlidesToShow();
+                            // Actual shift: currentSlide cards * cardWidthPct / totalCards * totalCards... simplified:
+                            // Since each card CSS = (100/slidesToShow)% of wrapper,
+                            // one card shift = (100/slidesToShow)% of wrapper
+                            // But the slider element itself is 100% of wrapper,
+                            // so translateX percentage is relative to the slider (= wrapper width).
+                            const offset = currentSlide * (100 / getSlidesToShow());
+                            slider.style.transform = `translateX(-${offset}%)`;
+                            updateDots();
+                        }
+
+                        function moveSlider(direction) {
+                            const max = getMaxSlide();
+                            if (direction === 'next') {
+                                goToSlide(currentSlide >= max ? 0 : currentSlide + 1);
+                            } else {
+                                goToSlide(currentSlide <= 0 ? max : currentSlide - 1);
+                            }
+                        }
+
+                        // Build dots
+                        function buildDots() {
+                            dotsContainer.innerHTML = '';
+                            const dotCount = getMaxSlide() + 1;
+                            for (let i = 0; i < dotCount; i++) {
+                                const dot = document.createElement('button');
+                                dot.className = 'al-dot' + (i === 0 ? ' active' : '');
+                                dot.addEventListener('click', () => { goToSlide(i); restartAuto(); });
+                                dotsContainer.appendChild(dot);
+                            }
+                        }
+
+                        function updateDots() {
+                            dotsContainer.querySelectorAll('.al-dot').forEach((d, i) => {
+                                d.classList.toggle('active', i === currentSlide);
+                            });
+                        }
+
+                        function startAuto() {
+                            autoSlideTimer = setInterval(() => moveSlider('next'), 3000);
+                        }
+
+                        function stopAuto() {
+                            clearInterval(autoSlideTimer);
+                        }
+
+                        function restartAuto() {
+                            stopAuto();
+                            startAuto();
+                        }
+
+                        document.getElementById('alPrevBtn').addEventListener('click', () => { moveSlider('prev'); restartAuto(); });
+                        document.getElementById('alNextBtn').addEventListener('click', () => { moveSlider('next'); restartAuto(); });
+
+                        // Pause on hover
+                        wrapper.addEventListener('mouseenter', stopAuto);
+                        wrapper.addEventListener('mouseleave', startAuto);
+
+                        // Touch / swipe support
+                        let touchStartX = 0;
+                        wrapper.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+                        wrapper.addEventListener('touchend', e => {
+                            const diff = touchStartX - e.changedTouches[0].clientX;
+                            if (Math.abs(diff) > 40) { moveSlider(diff > 0 ? 'next' : 'prev'); restartAuto(); }
+                        }, { passive: true });
+
+                        // Resize: recalculate
+                        window.addEventListener('resize', () => {
+                            currentSlide = 0;
+                            slider.style.transform = 'translateX(0)';
+                            buildDots();
+                            updateDots();
+                        });
+
+                        // Init
+                        buildDots();
+                        startAuto();
+                    })();
+                </script>
             </div>
-        <!-- Available Classes Section -->
-        <div class="section-classes py-12 md:py-24 flex flex-col bg-amber-200/80" id="classes-section">
-            <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 gap-4">
+        </div>
+    </div>
+    <!-- Available Classes Section -->
+    <div class="section-classes py-12 md:py-24 flex flex-col bg-amber-200/80" id="classes-section">
+        <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div
+                class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 gap-4">
                 <div>
-                    <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අප ආයතනයෙන් උගන්වන විෂයධාරාවන්</h2>
-                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">ලියාපදිංචි වීමට Enroll Now click කරන්න</p>
+                    <h2
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        අප ආයතනයෙන් උගන්වන විෂයධාරාවන්</h2>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">ලියාපදිංචි වීමට Enroll Now click
+                        කරන්න</p>
                 </div>
-                
+
                 <div class="flex flex-col items-end">
-                    <label for="streamFilter" class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Filter by Stream</label>
-                    <select id="streamFilter" onchange="filterStream(this.value)" class="block w-full md:w-56 pl-3 pr-10 py-2 text-xs border-amber-200 focus:outline-none focus:ring-amber-500 focus:border-amber-500 rounded-xl shadow-sm border bg-white/80 font-bold text-slate-700">
+                    <label for="streamFilter"
+                        class="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Filter by
+                        Stream</label>
+                    <select id="streamFilter" onchange="filterStream(this.value)"
+                        class="block w-full md:w-56 pl-3 pr-10 py-2 text-xs border-amber-200 focus:outline-none focus:ring-amber-500 focus:border-amber-500 rounded-xl shadow-sm border bg-white/80 font-bold text-slate-700">
                         <option value="all">All Academic Streams</option>
                         <?php foreach ($assignments_by_stream as $stream_id => $stream_data): ?>
                             <option value="stream-<?php echo $stream_id; ?>">
@@ -665,7 +885,7 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     </select>
                 </div>
             </div>
-            
+
             <?php if (empty($assignments_by_stream)): ?>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center w-full">
                     <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
@@ -675,20 +895,32 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     <p class="text-slate-500 mt-2 text-xs">Check back later for new academic subjects.</p>
                 </div>
             <?php else: ?>
-                    <?php 
-                    $card_count = 0;
-                    $last_color = '';
-                    $tile_colors = [
-                        'bg-blue-600', 'bg-emerald-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600', 
-                        'bg-cyan-600', 'bg-indigo-600', 'bg-orange-600', 'bg-red-600', 'bg-teal-600', 
-                        'bg-sky-600', 'bg-fuchsia-600', 'bg-pink-600', 'bg-lime-600', 'bg-yellow-600', 
-                        'bg-purple-600', 'bg-slate-700', 'bg-zinc-700', 'bg-neutral-700', 'bg-gray-700'
-                    ];
-                    ?>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
-                        <?php foreach ($assignments_by_stream as $stream_id => $stream_data): 
-                    ?>
-                        <?php foreach ($stream_data['classes'] as $class): 
+                <?php
+                $card_count = 0;
+                $last_color = '';
+                $tile_colors = [
+                    'bg-blue-100',
+                    'bg-emerald-100',
+                    'bg-violet-100',
+                    'bg-amber-100',
+                    'bg-rose-100',
+                    'bg-cyan-100',
+                    'bg-indigo-100',
+                    'bg-orange-100',
+                    'bg-red-100',
+                    'bg-teal-100',
+                    'bg-sky-100',
+                    'bg-fuchsia-100',
+                    'bg-pink-100',
+                    'bg-lime-100',
+                    'bg-yellow-100',
+                    'bg-purple-100'
+                ];
+                ?>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
+                    <?php foreach ($assignments_by_stream as $stream_id => $stream_data):
+                        ?>
+                        <?php foreach ($stream_data['classes'] as $class):
                             $card_count++;
                             $isHidden = $card_count > 6;
                             // Ensure same color doesn't appear twice in a row
@@ -696,21 +928,23 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                                 $random_bg = $tile_colors[array_rand($tile_colors)];
                             } while ($random_bg === $last_color);
                             $last_color = $random_bg;
-                        ?>
-                            <div class="<?php echo $random_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-110 transition-all duration-500 overflow-hidden group border-none class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?>" <?php echo $isHidden ? 'style="display:none;"' : ''; ?>>
+                            ?>
+                            <div class="<?php echo $random_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden group border-none class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?>"
+                                <?php echo $isHidden ? 'style="display:none;"' : ''; ?>>
                                 <!-- Cover Image -->
                                 <div class="p-4">
-                                    <div class="relative h-60 overflow-hidden rounded-none border border-white/20">
+                                    <div class="relative h-60 overflow-hidden rounded-none border border-slate-900/10">
                                         <?php if ($class['cover_image']): ?>
-                                            <img src="../<?php echo htmlspecialchars($class['cover_image']); ?>" 
-                                                 alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
-                                                 class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
+                                            <img src="../<?php echo htmlspecialchars($class['cover_image']); ?>"
+                                                alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
+                                                class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500">
                                         <?php else: ?>
-                                            <div class="w-full h-full bg-white/10 flex items-center justify-center">
-                                                <i class="fas fa-book text-white/20 text-4xl"></i>
+                                            <div class="w-full h-full bg-slate-900/5 flex items-center justify-center">
+                                                <i class="fas fa-book text-slate-400/20 text-4xl"></i>
                                             </div>
                                         <?php endif; ?>
-                                        <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-none text-[9px] font-bold text-white shadow-sm border border-white/10 uppercase tracking-wide">
+                                        <div
+                                            class="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-none text-[9px] font-bold text-white shadow-sm border border-slate-900/10 uppercase tracking-wide">
                                             <?php echo htmlspecialchars($stream_data['stream_name']); ?>
                                         </div>
                                     </div>
@@ -718,83 +952,107 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
 
                                 <div class="p-8">
                                     <!-- Subject & Teacher -->
-                                    <h3 class="text-xl font-black text-white mb-2 leading-tight truncate" title="<?php echo htmlspecialchars($class['subject_name']); ?>">
+                                    <h3 class="text-xl font-black text-slate-900 mb-2 leading-tight truncate"
+                                        title="<?php echo htmlspecialchars($class['subject_name']); ?>">
                                         <?php echo htmlspecialchars($class['subject_name']); ?>
                                     </h3>
-                                    
+
                                     <div class="flex items-center mb-8">
                                         <?php if ($class['teacher_image']): ?>
-                                            <img src="../<?php echo htmlspecialchars($class['teacher_image']); ?>" class="w-12 h-12 rounded-none border border-white/20 object-cover mr-3">
+                                            <img src="../<?php echo htmlspecialchars($class['teacher_image']); ?>"
+                                                class="w-12 h-12 rounded-none border border-slate-900/10 object-cover mr-3">
                                         <?php else: ?>
-                                            <div class="w-12 h-12 rounded-none bg-white/10 flex items-center justify-center border border-white/20 mr-3">
-                                                <i class="fas fa-user text-xs text-white/50"></i>
+                                            <div
+                                                class="w-12 h-12 rounded-none bg-slate-900/5 flex items-center justify-center border border-slate-900/10 mr-3">
+                                                <i class="fas fa-user text-xs text-slate-400"></i>
                                             </div>
                                         <?php endif; ?>
                                         <div class="flex flex-col">
-                                            <p class="text-sm font-black text-white leading-none"><?php echo htmlspecialchars($class['teacher_name']); ?></p>
-                                            <p class="text-[9px] text-white/60 font-black mt-1 uppercase tracking-widest">Lead Instructor</p>
+                                            <p class="text-sm font-black text-slate-900 leading-none">
+                                                <?php echo htmlspecialchars($class['teacher_name']); ?>
+                                            </p>
+                                            <p class="text-[9px] text-slate-500 font-black mt-1 uppercase tracking-widest">Lead
+                                                Instructor</p>
                                         </div>
                                     </div>
 
                                     <!-- Fees or Payment Status -->
-                                    <?php 
+                                    <?php
                                     $enrolled_data = $user_enrollment_data[$class['stream_subject_id']] ?? null;
-                                    if ($enrolled_data): 
-                                    ?>
+                                    if ($enrolled_data):
+                                        ?>
                                         <div class="grid grid-cols-2 gap-3 mb-4">
                                             <!-- Enrollment Status -->
-                                            <div class="<?php echo $enrolled_data['enrollment_paid'] ? 'bg-green-50 border-green-100' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
-                                                <p class="text-[10px] <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-500' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1">Enrollment</p>
-                                                <p class="text-xs font-bold <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-700' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
-                                                    <?php 
-                                                        if (isset($enrolled_data['enrollment_status'])) {
-                                                            echo $enrolled_data['enrollment_status'] == 'not_paid' ? 'Unpaid' : $enrolled_data['enrollment_status'];
-                                                        } else {
-                                                            echo 'Unpaid';
-                                                        }
+                                            <div
+                                                class="<?php echo $enrolled_data['enrollment_paid'] ? 'bg-green-50 border-green-100' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
+                                                <p
+                                                    class="text-[10px] <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-500' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1">
+                                                    Enrollment</p>
+                                                <p
+                                                    class="text-xs font-bold <?php echo $enrolled_data['enrollment_paid'] ? 'text-green-700' : (isset($enrolled_data['enrollment_status']) && $enrolled_data['enrollment_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
+                                                    <?php
+                                                    if (isset($enrolled_data['enrollment_status'])) {
+                                                        echo $enrolled_data['enrollment_status'] == 'not_paid' ? 'Unpaid' : $enrolled_data['enrollment_status'];
+                                                    } else {
+                                                        echo 'Unpaid';
+                                                    }
                                                     ?>
                                                 </p>
                                             </div>
 
                                             <!-- Monthly Status -->
-                                            <div class="<?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'bg-green-50 border-green-100' : ($enrolled_data['monthly_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
-                                                <p class="text-[10px] <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-500' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1"><?php echo date('F'); ?></p>
-                                                <p class="text-xs font-bold <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-700' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
-                                                    <?php 
-                                                        if ($enrolled_data['monthly_status'] == 'not_paid') echo 'Unpaid';
-                                                        else echo $enrolled_data['monthly_status'];
+                                            <div
+                                                class="<?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'bg-green-50 border-green-100' : ($enrolled_data['monthly_status'] == 'Pending' ? 'bg-yellow-50 border-yellow-100' : 'bg-blue-50 border-blue-100'); ?> rounded-lg p-2 text-center border">
+                                                <p
+                                                    class="text-[10px] <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-500' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-600' : 'text-blue-500'); ?> uppercase tracking-wider font-semibold mb-1">
+                                                    <?php echo date('F'); ?>
+                                                </p>
+                                                <p
+                                                    class="text-xs font-bold <?php echo $enrolled_data['monthly_status'] == 'Paid' ? 'text-green-700' : ($enrolled_data['monthly_status'] == 'Pending' ? 'text-yellow-700' : 'text-blue-700'); ?>">
+                                                    <?php
+                                                    if ($enrolled_data['monthly_status'] == 'not_paid')
+                                                        echo 'Unpaid';
+                                                    else
+                                                        echo $enrolled_data['monthly_status'];
                                                     ?>
                                                 </p>
                                             </div>
                                         </div>
                                     <?php else: ?>
                                         <div class="grid grid-cols-2 gap-4 mb-8">
-                                            <div class="bg-white/10 rounded-none p-4 text-center border border-white/10">
-                                                <p class="text-[9px] text-white/40 uppercase tracking-widest font-black mb-1">Enrollment</p>
-                                                <p class="text-xl font-black text-white"><?php echo $class['enrollment_fee'] > 0 ? number_format($class['enrollment_fee']) : 'Free'; ?></p>
+                                            <div class="bg-white/50 rounded-none p-4 text-center border border-slate-900/10">
+                                                <p class="text-[9px] text-slate-500 uppercase tracking-widest font-black mb-1">
+                                                    Enrollment</p>
+                                                <p class="text-xl font-black text-slate-900">
+                                                    <?php echo $class['enrollment_fee'] > 0 ? number_format($class['enrollment_fee']) : 'Free'; ?>
+                                                </p>
                                             </div>
-                                            <div class="bg-white/10 rounded-none p-4 text-center border border-white/10">
-                                                <p class="text-[9px] text-white/40 uppercase tracking-widest font-black mb-1">Monthly</p>
-                                                <p class="text-xl font-black text-white"><?php echo $class['monthly_fee'] > 0 ? number_format($class['monthly_fee']) : 'Free'; ?></p>
+                                            <div class="bg-white/50 rounded-none p-4 text-center border border-slate-900/10">
+                                                <p class="text-[9px] text-slate-500 uppercase tracking-widest font-black mb-1">Monthly
+                                                </p>
+                                                <p class="text-xl font-black text-slate-900">
+                                                    <?php echo $class['monthly_fee'] > 0 ? number_format($class['monthly_fee']) : 'Free'; ?>
+                                                </p>
                                             </div>
                                         </div>
                                     <?php endif; ?>
 
                                     <?php if ($is_logged_in): ?>
                                         <?php if ($enrolled_data): ?>
-                                            <a href="recordings.php" 
-                                               class="block w-full text-center bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-[11px] font-medium">
+                                            <a href="recordings.php"
+                                                class="block w-full text-center bg-gray-100 text-gray-700 py-1.5 px-3 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-[11px] font-medium">
                                                 View Details
                                             </a>
                                         <?php else: ?>
-                                            <button onclick="openEnrollModal(<?php echo $class['stream_subject_id']; ?>, '<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>')" 
-                                                    class="block w-full text-center bg-white text-black py-4 px-6 rounded-none hover:bg-slate-100 transition-colors duration-200 text-xs font-black uppercase tracking-widest shadow-lg">
+                                            <button
+                                                onclick="openEnrollModal(<?php echo $class['stream_subject_id']; ?>, '<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>')"
+                                                class="block w-full text-center bg-slate-900 text-white py-4 px-6 rounded-none hover:bg-slate-800 transition-colors duration-200 text-xs font-black uppercase tracking-widest shadow-lg">
                                                 Enroll Now
                                             </button>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <a href="../register.php?stream_id=<?php echo $stream_id; ?>&subject_id=<?php echo $class['subject_id']; ?>"
-                                           class="block w-full text-center bg-gray-900 text-white py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors duration-200 text-[11px] font-medium">
+                                            class="block w-full text-center bg-gray-900 text-white py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors duration-200 text-[11px] font-medium">
                                             Enroll Now
                                         </a>
                                     <?php endif; ?>
@@ -802,85 +1060,91 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                             </div>
                         <?php endforeach; ?>
                     <?php endforeach; ?>
-                    </div>
                 </div>
+            </div>
 
-                <?php if ($card_count > 6): ?>
-                    <div class="mt-20 text-center" id="viewMoreContainer">
-                        <button onclick="showAllClasses()" class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
-                            <span>පවතින සියලුම විෂයන් බලන්න</span>
-                            <i class="fas fa-arrow-down text-[10px] group-hover:translate-y-1 transition-transform"></i>
-                        </button>
-                    </div>
-                <?php endif; ?>
+            <?php if ($card_count > 6): ?>
+                <div class="mt-20 text-center" id="viewMoreContainer">
+                    <button onclick="showAllClasses()"
+                        class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
+                        <span>පවතින සියලුම විෂයන් බලන්න</span>
+                        <i class="fas fa-arrow-down text-[10px] group-hover:translate-y-1 transition-transform"></i>
+                    </button>
+                </div>
             <?php endif; ?>
-        </div> <!-- Inner container ends -->
-        
-        <script>
-            function showAllClasses() {
-                const hiddenCards = document.querySelectorAll('.hidden-card');
-                hiddenCards.forEach(card => {
-                    card.style.display = 'block';
-                    // Fade in effect
-                    card.style.opacity = '0';
-                    setTimeout(() => {
-                        card.style.transition = 'opacity 0.5s ease-in-out';
-                        card.style.opacity = '1';
-                    }, 10);
-                });
-                document.getElementById('viewMoreContainer').style.display = 'none';
-            }
+        <?php endif; ?>
+    </div> <!-- Inner container ends -->
 
-            function showAllExtraCourses() {
-                const hiddenCards = document.querySelectorAll('.hidden-course');
-                hiddenCards.forEach(card => {
-                    card.style.display = 'block';
-                    card.style.opacity = '0';
-                    setTimeout(() => {
-                        card.style.transition = 'opacity 0.5s ease-in-out';
-                        card.style.opacity = '1';
-                    }, 10);
-                });
-                document.getElementById('viewMoreExtraContainer').style.display = 'none';
-            }
+    <script>
+        function showAllClasses() {
+            const hiddenCards = document.querySelectorAll('.hidden-card');
+            hiddenCards.forEach(card => {
+                card.style.display = 'block';
+                // Fade in effect
+                card.style.opacity = '0';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease-in-out';
+                    card.style.opacity = '1';
+                }, 10);
+            });
+            document.getElementById('viewMoreContainer').style.display = 'none';
+        }
 
-            function filterStream(streamClass) {
-                // Filter cards
-                const cards = document.querySelectorAll('.class-card');
-                const viewMoreBtn = document.getElementById('viewMoreContainer');
-                
-                cards.forEach(card => {
-                    if (streamClass === 'all') {
-                        // Reset to "View More" state
-                        if (card.classList.contains('hidden-card')) {
-                            card.style.display = 'none';
-                        } else {
-                            card.style.display = 'block';
-                        }
-                        if (viewMoreBtn) viewMoreBtn.style.display = 'block';
+        function showAllExtraCourses() {
+            const hiddenCards = document.querySelectorAll('.hidden-course');
+            hiddenCards.forEach(card => {
+                card.style.display = 'block';
+                card.style.opacity = '0';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease-in-out';
+                    card.style.opacity = '1';
+                }, 10);
+            });
+            document.getElementById('viewMoreExtraContainer').style.display = 'none';
+        }
+
+        function filterStream(streamClass) {
+            // Filter cards
+            const cards = document.querySelectorAll('.class-card');
+            const viewMoreBtn = document.getElementById('viewMoreContainer');
+
+            cards.forEach(card => {
+                if (streamClass === 'all') {
+                    // Reset to "View More" state
+                    if (card.classList.contains('hidden-card')) {
+                        card.style.display = 'none';
                     } else {
-                        // Show all matching cards, hide others
-                        if (card.classList.contains(streamClass)) {
-                            card.style.display = 'block';
-                            card.style.opacity = '1';
-                        } else {
-                            card.style.display = 'none';
-                        }
-                        if (viewMoreBtn) viewMoreBtn.style.display = 'none';
+                        card.style.display = 'block';
                     }
-                });
-            }
-        </script>
-        </div> <!-- End of Classes Section -->
-        
-        <div class="section-extra py-12 md:py-24 flex flex-col bg-emerald-200/80">
-            <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-emerald-200 gap-4">
+                    if (viewMoreBtn) viewMoreBtn.style.display = 'block';
+                } else {
+                    // Show all matching cards, hide others
+                    if (card.classList.contains(streamClass)) {
+                        card.style.display = 'block';
+                        card.style.opacity = '1';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                    if (viewMoreBtn) viewMoreBtn.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    </div> <!-- End of Classes Section -->
+
+    <div class="section-extra py-12 md:py-24 flex flex-col bg-emerald-200/80">
+        <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div
+                class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-emerald-200 gap-4">
                 <div>
-                    <h2 class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">අපගේ බාහිර පාඨමාලා</h2>
-                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">නවීන තාක්ෂණය හා බාහිර දැනුම ලබා ගැනීමට එක්වන්න</p>
+                    <h2
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        අපගේ බාහිර පාඨමාලා</h2>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">නවීන තාක්ෂණය හා බාහිර දැනුම ලබා
+                        ගැනීමට එක්වන්න</p>
                 </div>
-                <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra Learning</span>
+                <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra
+                    Learning</span>
             </div>
             <?php if (empty($courses)): ?>
                 <div class="bg-white rounded-lg shadow p-8 text-center">
@@ -888,10 +1152,10 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 </div>
             <?php else: ?>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
-                    <?php 
+                    <?php
                     $last_course_color = '';
                     $course_count = 0;
-                    foreach ($courses as $course): 
+                    foreach ($courses as $course):
                         $course_count++;
                         $isCourseHidden = $course_count > 6;
                         // Ensure same color doesn't appear twice in a row
@@ -899,42 +1163,43 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                             $random_course_bg = $tile_colors[array_rand($tile_colors)];
                         } while ($random_course_bg === $last_course_color);
                         $last_course_color = $random_course_bg;
-                    ?>
-                        <div class="<?php echo $random_course_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-110 transition-all duration-500 overflow-hidden border-none extra-course-card <?php echo $isCourseHidden ? 'hidden-course' : ''; ?>" <?php echo $isCourseHidden ? 'style="display:none;"' : ''; ?>>
+                        ?>
+                        <div class="<?php echo $random_course_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden border-none extra-course-card <?php echo $isCourseHidden ? 'hidden-course' : ''; ?>"
+                            <?php echo $isCourseHidden ? 'style="display:none;"' : ''; ?>>
                             <!-- Course Cover Image -->
                             <div class="p-4">
-                                <div class="h-60 overflow-hidden relative border border-white/20">
+                                <div class="h-60 overflow-hidden relative border border-slate-900/10">
                                     <?php if ($course['cover_image']): ?>
-                                        <img src="../<?php echo htmlspecialchars($course['cover_image']); ?>" 
-                                             alt="<?php echo htmlspecialchars($course['title']); ?>"
-                                             class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
+                                        <img src="../<?php echo htmlspecialchars($course['cover_image']); ?>"
+                                            alt="<?php echo htmlspecialchars($course['title']); ?>"
+                                            class="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700">
                                     <?php else: ?>
-                                        <div class="w-full h-full flex items-center justify-center bg-white/10">
-                                            <i class="fas fa-book text-white/20 text-6xl"></i>
+                                        <div class="w-full h-full flex items-center justify-center bg-slate-900/5">
+                                            <i class="fas fa-book text-slate-400/20 text-6xl"></i>
                                         </div>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                             <!-- Course Content -->
+                            <!-- Course Content -->
                             <div class="p-8">
-                                <h3 class="font-black text-xl text-white mb-2 truncate">
+                                <h3 class="font-black text-xl text-slate-900 mb-2 truncate">
                                     <?php echo htmlspecialchars($course['title']); ?>
                                 </h3>
-                                
-                                <p class="text-[10px] text-white/60 mb-8 font-black uppercase tracking-widest">
-                                    <i class="fas fa-user-tie text-white/50 mr-2"></i>
+
+                                <p class="text-[10px] text-slate-500 mb-8 font-black uppercase tracking-widest">
+                                    <i class="fas fa-user-tie text-slate-400 mr-2"></i>
                                     By <?php echo htmlspecialchars($course['teacher_name'] ?: 'Unknown'); ?>
                                 </p>
 
                                 <div class="flex items-center justify-between mb-8">
-                                    <span class="text-white font-black text-2xl">
+                                    <span class="text-slate-900 font-black text-2xl">
                                         Rs. <?php echo number_format($course['price'], 2); ?>
                                     </span>
                                 </div>
 
                                 <a href="../register.php?course_id=<?php echo $course['id']; ?>"
-                                   class="block w-full text-center bg-white text-black py-4 px-6 rounded-none hover:bg-slate-100 transition text-xs font-black uppercase tracking-widest mt-4 shadow-md">
+                                    class="block w-full text-center bg-slate-900 text-white py-4 px-6 rounded-none hover:bg-slate-800 transition text-xs font-black uppercase tracking-widest mt-4 shadow-md">
                                     <i class="fas fa-cart-plus mr-1"></i>Enroll Now
                                 </a>
                             </div>
@@ -944,15 +1209,16 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
 
                 <?php if ($course_count > 6): ?>
                     <div class="mt-20 text-center" id="viewMoreExtraContainer">
-                        <button onclick="showAllExtraCourses()" class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
+                        <button onclick="showAllExtraCourses()"
+                            class="inline-flex items-center gap-4 bg-slate-900 text-white py-5 px-16 rounded-full hover:bg-slate-800 hover:scale-105 transition-all duration-500 font-black text-xs uppercase tracking-[0.3em] shadow-[0_30px_60px_rgba(0,0,0,0.4)] group">
                             <span>සියලුම බාහිර පාඨමාලා බලන්න</span>
                             <i class="fas fa-arrow-down text-[10px] group-hover:translate-y-1 transition-transform"></i>
                         </button>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
-            </div>
         </div>
+    </div>
 
     <!-- Footer Section -->
     <footer class="bg-red-600 py-10 mt-auto">
@@ -961,18 +1227,25 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <h2 class="text-lg md:text-xl font-black text-white mb-2">Learner.LK</h2>
                 <div class="h-0.5 w-16 bg-white/30 mx-auto rounded-full"></div>
             </div>
-            
+
             <div class="space-y-2">
-                <p class="text-base md:text-lg font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන ආයතනයයි.</p>
-                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Learner.LK is the best online academy in Sri Lanka.</p>
+                <p class="text-base md:text-lg font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන
+                    ආයතනයයි.</p>
+                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Learner.LK is the best online
+                    academy in Sri Lanka.</p>
             </div>
 
-            <div class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?> Learner.LK. All rights reserved.</p>
+            <div
+                class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?>
+                    Learner.LK. All rights reserved.</p>
                 <div class="flex space-x-6">
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-facebook-f"></i></a>
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-youtube"></i></a>
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i class="fab fa-whatsapp"></i></a>
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
+                            class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
+                            class="fab fa-youtube"></i></a>
+                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
+                            class="fab fa-whatsapp"></i></a>
                 </div>
             </div>
         </div>
@@ -985,20 +1258,21 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <i class="fas fa-lock text-red-600 text-2xl"></i>
             </div>
             <h3 class="text-xl font-black text-gray-900 mb-2">Please Login or Register First</h3>
-            <p class="text-gray-600 mb-8 text-sm font-medium">කරුණාකර පළමුව ඇතුළු වන්න (Login) හෝ ලියාපදිංචි වන්න (Register)</p>
-            
+            <p class="text-gray-600 mb-8 text-sm font-medium">කරුණාකර පළමුව ඇතුළු වන්න (Login) හෝ ලියාපදිංචි වන්න
+                (Register)</p>
+
             <div class="space-y-4">
                 <a href="#login-section" onclick="closeAuthModal(); scrollToLogin();"
-                   class="block w-full bg-slate-900 text-white py-4 px-6 rounded-xl hover:bg-slate-800 font-bold transition-all transform active:scale-95 shadow-lg">
+                    class="block w-full bg-slate-900 text-white py-4 px-6 rounded-xl hover:bg-slate-800 font-bold transition-all transform active:scale-95 shadow-lg">
                     ඇතුළු වන්න (Login)
                 </a>
                 <a href="../register.php"
-                   class="block w-full bg-gray-100 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-200 font-bold transition-all transform active:scale-95">
+                    class="block w-full bg-gray-100 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-200 font-bold transition-all transform active:scale-95">
                     ලියාපදිංචි වන්න (Register)
                 </a>
             </div>
-            <button onclick="closeAuthModal()" 
-                    class="mt-8 text-sm font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-widest">
+            <button onclick="closeAuthModal()"
+                class="mt-8 text-sm font-bold text-gray-400 hover:text-red-600 transition-colors uppercase tracking-widest">
                 Cancel
             </button>
         </div>
@@ -1011,15 +1285,16 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     <i class="fas fa-question text-red-600 text-2xl"></i>
                 </div>
                 <h3 class="text-2xl font-bold text-gray-900 mb-2">Confirm Enrollment</h3>
-                <p class="text-gray-500 mb-8">Are you sure you want to enroll in user <span id="enrollSubjectName" class="font-bold text-gray-800"></span>?</p>
-                
+                <p class="text-gray-500 mb-8">Are you sure you want to enroll in user <span id="enrollSubjectName"
+                        class="font-bold text-gray-800"></span>?</p>
+
                 <div class="flex space-x-4">
-                    <button onclick="closeEnrollModal()" 
-                            class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-semibold transition-colors">
+                    <button onclick="closeEnrollModal()"
+                        class="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-semibold transition-colors">
                         Cancel
                     </button>
-                    <button onclick="processEnrollment()" 
-                            class="flex-1 px-4 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-semibold shadow-lg transition-colors">
+                    <button onclick="processEnrollment()"
+                        class="flex-1 px-4 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-semibold shadow-lg transition-colors">
                         Yes, Enroll
                     </button>
                 </div>
@@ -1027,7 +1302,8 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
         </div>
     </div>
 
-    <div id="enrollToast" class="hidden fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0">
+    <div id="enrollToast"
+        class="hidden fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0">
         <div class="bg-gray-800 text-white px-6 py-4 rounded-lg shadow-xl flex items-center">
             <div id="toastIcon" class="mr-3"></div>
             <div id="toastMessage"></div>
@@ -1052,12 +1328,12 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             const toast = document.getElementById('enrollToast');
             const icon = document.getElementById('toastIcon');
             const msg = document.getElementById('toastMessage');
-            
+
             icon.innerHTML = isSuccess ? '<i class="fas fa-check-circle text-green-400 text-xl"></i>' : '<i class="fas fa-exclamation-circle text-red-400 text-xl"></i>';
             msg.textContent = message;
-            
+
             toast.classList.remove('hidden', 'translate-y-20', 'opacity-0');
-            
+
             setTimeout(() => {
                 toast.classList.add('translate-y-20', 'opacity-0');
                 setTimeout(() => toast.classList.add('hidden'), 300);
@@ -1082,30 +1358,31 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                closeEnrollModal();
-                if (data.success) {
-                    showToast('Enrollment successful!', true);
-                    // Reload after short delay
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    showToast(data.message || 'Enrollment failed', false);
-                }
-            })
-            .catch(error => {
-                closeEnrollModal();
-                showToast('An error occurred. Please try again.', false);
-                console.error('Error:', error);
-            })
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            });
+                .then(response => response.json())
+                .then(data => {
+                    closeEnrollModal();
+                    if (data.success) {
+                        showToast('Enrollment successful!', true);
+                        // Reload after short delay
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(data.message || 'Enrollment failed', false);
+                    }
+                })
+                .catch(error => {
+                    closeEnrollModal();
+                    showToast('An error occurred. Please try again.', false);
+                    console.error('Error:', error);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                });
         }
     </script>
 
 
 
 </body>
+
 </html>
