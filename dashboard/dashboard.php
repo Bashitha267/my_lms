@@ -175,6 +175,9 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Learner.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Modern Design System Tokens */
@@ -183,6 +186,23 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
             --primary-light: #f87171;
             --primary-dark: #991b1b;
             --slate-900: #0f172a;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans Sinhala', sans-serif;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            line-height: 1.6;
+        }
+
+        h1, h2, h3, h4, h5, h6, .font-black {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', sans-serif;
+        }
+
+        .font-black {
+            font-weight: 800;
+            letter-spacing: -0.01em;
         }
 
         /* Hero Animations */
@@ -390,21 +410,21 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
                     <div class="max-w-3xl animate-fade-in-up">
                         <div
-                            class="inline-block bg-red-600 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] mb-6">
+                            class="inline-block bg-red-600 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.3em] mb-6">
                             Learner.LK
                         </div>
                         <h1
-                            class="text-3xl md:text-5xl font-black text-white leading-[0.95] mb-4 uppercase tracking-tighter">
+                            class="text-3xl md:text-5xl font-black text-white leading-snug mb-4 uppercase tracking-normal">
                             ආයුබෝවන්!! <br>
                             <span class="text-red-600">සාදරයෙන් පිළිගනිමු</span>
                         </h1>
 
                         <p
-                            class="text-sm md:text-base text-white font-black leading-[2.2] mb-6 max-w-2xl tracking-wide opacity-90">
+                            class="text-sm md:text-base text-white/90 font-medium leading-relaxed mb-6 max-w-2xl tracking-wide">
                             ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා
                             ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
                         </p>
-                        <p class="text-[9px] text-white/80 font-black uppercase tracking-[0.2em] mb-8">
+                        <p class="text-[10px] text-white/80 font-semibold uppercase tracking-[0.15em] mb-8">
                             අලුතින්ම සම්බන්ධ වීම සඳහා ඉහත ඇති <span class="text-red-500">REGISTER BUTTON</span> එක <span
                                 class="text-white">CLICK කරන්න.</span>
                         </p>
@@ -422,14 +442,14 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                                 <div class="flex-1 flex items-center px-4 py-2">
                                     <i class="fas fa-lock text-red-500 mr-3 text-base"></i>
                                     <input type="password" name="password" required placeholder="Password"
-                                        class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
+                                        class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-semibold text-sm placeholder-white/30">
                                 </div>
                                 <button type="submit" name="login"
                                     class="bg-red-600 text-white px-8 py-3 rounded-none font-black text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap">
                                     Login Now
                                 </button>
                             </form>
-                            <p class="text-[9px] text-white/80 font-black uppercase tracking-[0.2em] mt-4 ml-4">
+                            <p class="text-[10px] text-white/80 font-semibold uppercase tracking-[0.15em] mt-4 ml-4">
                                 අලුතින්ම සම්බන්ධ වීම සඳහා <a href="../register.php"
                                     class="text-red-500 hover:underline">REGISTER HERE</a>
                             </p>
@@ -603,10 +623,10 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <div
                     class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-sky-200 gap-4">
                     <h2
-                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-normal uppercase border-b-4 border-slate-900 pb-2 inline-block">
                         අපගේ පසුගිය විශිෂ්ට ප්‍රතිඵල</h2>
                     <a href="ALDetails.php"
-                        class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:text-red-500 transition-colors">
+                        class="text-red-600 text-[10px] font-bold uppercase tracking-widest hover:text-red-500 transition-colors">
                         View Results <i class="fas fa-arrow-right ml-1"></i>
                     </a>
                 </div>
@@ -864,10 +884,9 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 gap-4">
                 <div>
                     <h2
-                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-normal uppercase border-b-4 border-slate-900 pb-2 inline-block">
                         අප ආයතනයෙන් උගන්වන විෂයධාරාවන්</h2>
-                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">ලියාපදිංචි වීමට Enroll Now click
-                        කරන්න</p>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-semibold mt-4">ලියාපදිංචි වීමට Enroll Now click කරන්න</p>
                 </div>
 
                 <div class="flex flex-col items-end">
@@ -1138,10 +1157,9 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-emerald-200 gap-4">
                 <div>
                     <h2
-                        class="text-xl md:text-3xl font-black text-slate-900 tracking-tight uppercase border-b-4 border-slate-900 pb-2 inline-block">
+                        class="text-xl md:text-3xl font-black text-slate-900 tracking-normal uppercase border-b-4 border-slate-900 pb-2 inline-block">
                         අපගේ බාහිර පාඨමාලා</h2>
-                    <p class="text-slate-500 text-[10px] md:text-xs font-bold mt-4">නවීන තාක්ෂණය හා බාහිර දැනුම ලබා
-                        ගැනීමට එක්වන්න</p>
+                    <p class="text-slate-500 text-[10px] md:text-xs font-semibold mt-4">නවීන තාක්ෂණය හා බාහිර දැනුම ලබා ගැනීමට එක්වන්න</p>
                 </div>
                 <span class="text-slate-400 text-[10px] font-black uppercase tracking-widest hidden md:block">Extra
                     Learning</span>

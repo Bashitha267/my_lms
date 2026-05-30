@@ -6,9 +6,8 @@ require_once 'whatsapp_config.php';
 $success_message = '';
 $error_message = '';
 
-// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) {
-    $email = trim($_POST['email'] ?? '');
+    $email = null;
     $password = $_POST['password'] ?? '';
     $role = 'teacher';
     $first_name = trim($_POST['first_name'] ?? '');
@@ -18,8 +17,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) 
     $approved = 0;
     
     // Validation
-    if (empty($email) || empty($password)) {
-        $error_message = 'Email and password are required.';
+    if (empty($password)) {
+        $error_message = 'Password is required.';
     } else {
         $prefix = 'tea';
         $stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY user_id DESC LIMIT 1");
@@ -64,7 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) 
             $dob = $_POST['dob'] ?? null;
             $gender = $_POST['gender'] ?? null;
             $requested_rate = isset($_POST['requested_rate']) ? floatval($_POST['requested_rate']) : 75.00;
-
 
             $is_mentor = 0;
             $hourly_rate = 0.00;
@@ -214,190 +212,527 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teacher Registration | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f0f2f5; font-family: 'Inter', sans-serif; }
-        .form-card { background: white; border: 1px solid #dadce0; border-radius: 8px; padding: 24px; margin-bottom: 12px; }
-        .form-card:first-of-type { border-top: 10px solid #dc2626; }
-        .input-group { border-bottom: 2px solid #e0e0e0; transition: border-color 0.2s; }
-        .input-group:focus-within { border-bottom-color: #dc2626; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], select {
-            width: 100%; border: none; padding: 12px 0; background: transparent; font-size: 1rem; outline: none;
+        body {
+            background: #fff;
+            min-height: 100vh;
+            font-family: 'Inter', 'Noto Sans Sinhala', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 0;
+            overflow-x: hidden;
+            position: relative;
         }
-        label { display: block; font-size: 0.875rem; font-weight: 500; color: #202124; margin-bottom: 4px; }
-        .btn-primary { background-color: #dc2626; color: white; padding: 10px 24px; border-radius: 4px; font-weight: 500; }
-        .btn-primary:hover { background-color: #b91c1c; }
+
+        /* Premium Colorful Background Design */
+        .bg-design {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(135deg, #fdf2f2 0%, #fff 100%);
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            z-index: -1;
+            animation: move 20s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: #fecaca; /* red-200 */
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            background: #fed7aa; /* orange-200 */
+            bottom: -50px;
+            right: -50px;
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: #fbcfe8; /* pink-200 */
+            top: 40%;
+            right: 10%;
+            animation-delay: -10s;
+        }
+
+        @keyframes move {
+            from { transform: translate(0, 0) scale(1); }
+            to { transform: translate(100px, 100px) scale(1.1); }
+        }
+
+        .registration-container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 20px 16px;
+                display: block;
+            }
+            .registration-container {
+                padding: 24px 20px;
+                border-radius: 20px;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .google-input-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        .google-input {
+            width: 100%;
+            padding: 13px 15px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+
+        .google-input:focus {
+            border-color: #1a73e8;
+            outline: none;
+            box-shadow: 0 0 0 1px #1a73e8;
+        }
+
+        .google-label {
+            position: absolute;
+            left: 12px;
+            top: 13px;
+            padding: 0 4px;
+            background: white;
+            color: #5f6368;
+            font-size: 16px;
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+
+        .google-input:focus+.google-label,
+        .google-input:not(:placeholder-shown)+.google-label {
+            top: -10px;
+            left: 10px;
+            font-size: 12px;
+            color: #1a73e8;
+            font-weight: 500;
+        }
+
+        .google-input:not(:focus)+.google-label {
+            color: #5f6368;
+        }
+
+        .btn-google {
+            background-color: #dc2626;
+            color: white;
+            padding: 12px 28px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-google:hover {
+            background-color: #b91c1c;
+            box-shadow: 0 1px 3px 1px rgba(220, 38, 38, .15), 0 1px 2px 0 rgba(220, 38, 38, .3);
+        }
+
+        .btn-google-outline {
+            background-color: transparent;
+            color: #dc2626;
+            padding: 12px 28px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-google-outline:hover {
+            background-color: #fef2f2;
+        }
+
+        .progress-stepper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 8px;
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #e8eaed;
+            transition: background-color 0.3s;
+        }
+
+        .step-dot.active {
+            background-color: #dc2626;
+        }
+
+        .google-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .section-header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            color: #dc2626;
+            margin-bottom: 6px;
+        }
+
+        .section-header p {
+            font-size: 14px;
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+
+        select.google-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+
+        .sinhala-subtitle {
+            display: block;
+            font-size: 13px;
+            color: #202124;
+            font-weight: 400;
+            margin-top: 2px;
+        }
+
+        .sinhala-inline {
+            font-size: 11px;
+            color: #5f6368;
+            font-weight: 400;
+            margin-left: 2px;
+        }
+
+        @media (max-width: 480px) {
+            .registration-container {
+                padding: 24px 16px;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+            }
+
+            .google-logo h2 {
+                font-size: 20px !important;
+            }
+
+            .section-header h1 {
+                font-size: 18px;
+            }
+
+            .section-header p {
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .sinhala-subtitle {
+                font-size: 12px;
+            }
+
+            .sinhala-inline {
+                font-size: 10px;
+            }
+
+            .google-input {
+                font-size: 14px;
+                padding: 11px 13px;
+            }
+
+            .google-label {
+                font-size: 14px;
+                top: 11px;
+            }
+
+            .google-input:focus+.google-label,
+            .google-input:not(:placeholder-shown)+.google-label {
+                font-size: 11px;
+                top: -9px;
+            }
+
+            .btn-google,
+            .btn-google-outline {
+                padding: 9px 20px;
+                font-size: 13px;
+            }
+
+            .progress-stepper {
+                margin-bottom: 20px;
+            }
+        }
     </style>
 </head>
-<body class="py-8 px-4">
-    <div class="max-w-3xl mx-auto">
-        <!-- Header Card -->
-        <div class="form-card">
-            <div class="flex justify-between items-start mb-4">
-                <h1 class="text-3xl font-normal text-[#202124]">Teacher Registration</h1>
-                <div class="bg-red-50 text-red-700 px-3 py-1 rounded text-xs font-bold border border-red-100 uppercase">
-                    ID: <?php echo $display_user_id; ?>
-                </div>
-            </div>
-            <p class="text-[#202124] text-sm">Join Lernerr.LK. Please fill in all required information accurately.</p>
-            <div class="mt-4 pt-4 border-t border-gray-100">
-                <span class="text-red-600 text-sm font-medium">* Required</span>
-            </div>
+<body>
+
+    <!-- Background Design Elements -->
+    <div class="bg-design">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="registration-container">
+        <!-- Logo -->
+        <div class="google-logo">
+            <h2 class="text-2xl font-black tracking-tighter text-[#dc2626]">
+                LERNERR.LK
+            </h2>
         </div>
 
-        <?php if ($success_message): ?>
-            <div class="bg-green-50 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded" role="alert">
-                <p class="text-sm font-medium"><?php echo htmlspecialchars($success_message); ?></p>
+        <div class="section-header">
+            <h1 id="stepTitle" class="text-xl font-bold text-[#dc2626]">Create your Teacher Account</h1>
+            <p id="stepSubtitle" class="text-base font-semibold text-gray-700 mt-1">නව ගුරුවරයෙකු ලෙස ලියාපදිංචි වීම</p>
+        </div>
+
+        <div class="progress-stepper" id="progressStepper">
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <?php if (!empty($success_message)): ?>
+            <div class="bg-green-50 border border-green-200 text-green-700 p-4 rounded mb-6 text-sm">
+                <?php echo htmlspecialchars($success_message); ?>
+                <div class="mt-2">
+                    <a href="login.php" class="font-bold underline text-green-800">Login now</a>
+                </div>
             </div>
         <?php endif; ?>
 
-        <?php if ($error_message): ?>
-            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
-                <p class="text-sm font-medium"><?php echo htmlspecialchars($error_message); ?></p>
+        <?php if (!empty($error_message)): ?>
+            <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-6 text-sm">
+                <?php echo htmlspecialchars($error_message); ?>
             </div>
         <?php endif; ?>
 
-        <form method="POST" enctype="multipart/form-data" class="space-y-4">
-            <!-- Basic Info -->
-            <div class="form-card">
-                <h2 class="text-lg font-medium text-[#202124] mb-6">Personal Information</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="input-group">
-                        <label>First Name *</label>
-                        <input type="text" name="first_name" required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+        <form method="POST" action="" id="teacherRegisterForm" enctype="multipart/form-data">
+            <input type="hidden" name="register_teacher" value="1">
+            <input type="hidden" id="dob" name="dob" value="">
+            <input type="hidden" id="gender" name="gender" value="">
+            <input type="hidden" id="mobile_verified" name="mobile_verified" value="0">
+
+            <!-- STEP 1: Personal Info -->
+            <div class="step-content active" id="step1">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                    <div class="google-input-group">
+                        <input type="text" id="first_name" name="first_name" class="google-input" placeholder="First Name (මුල් නම)"
+                            required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
+                        <label for="first_name" class="google-label">First name (මුල් නම)</label>
                     </div>
-                    <div class="input-group">
-                        <label>Last Name *</label>
-                        <input type="text" name="second_name" required value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
+                    <div class="google-input-group">
+                        <input type="text" id="second_name" name="second_name" class="google-input" placeholder="Last Name (වාසගම)"
+                            required value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
+                        <label for="second_name" class="google-label">Last name (වාසගම)</label>
                     </div>
-                    <div class="input-group">
-                        <label>Email Address *</label>
-                        <input type="email" name="email" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                    </div>
-                    <div class="input-group">
-                        <label>Password *</label>
-                        <input type="password" name="password" required>
-                    </div>
+                </div>
+
+                <div class="google-input-group">
+                    <input type="password" id="password" name="password" class="google-input" placeholder="Password (මුරපදය)" required>
+                    <label for="password" class="google-label">Password (මුරපදය)</label>
+                </div>
+
+                <div class="flex justify-between items-center mt-10">
+                    <a href="login.php" class="text-red-600 font-medium text-sm hover:underline">Sign in instead</a>
+                    <button type="button" onclick="nextStep(1)" class="btn-google px-8">Next</button>
                 </div>
             </div>
 
-            <!-- Verification -->
-            <div class="form-card">
-                <h2 class="text-lg font-medium text-[#202124] mb-6">Contact & Verification</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="input-group">
-                        <label>Mobile Number *</label>
-                        <div class="flex">
-                            <input type="text" name="mobile_number" id="mobile_number" required value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>" placeholder="947xxxxxxxx">
-                            <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="bg-gray-100 text-gray-700 px-3 text-xs font-bold uppercase transition hover:bg-gray-200">Send OTP</button>
+            <!-- STEP 2: Contact & Verification -->
+            <div class="step-content" id="step2">
+                <div class="google-input-group">
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="mobile_number" name="mobile_number" class="google-input" placeholder="947xxxxxxxx (ජංගම දුරකථන අංකය)"
+                                required value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
+                            <label for="mobile_number" class="google-label">Mobile Number (ජංගම දුරකථන අංකය)</label>
                         </div>
+                        <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition">Send OTP</button>
                     </div>
-                    <div class="input-group">
-                        <label>NIC Number *</label>
-                        <div class="flex">
-                            <input type="text" name="nic_number" id="nic_number" required value="<?php echo htmlspecialchars($_POST['nic_number'] ?? ''); ?>" placeholder="123456789V" class="uppercase">
-                            <button type="button" onclick="verifyNIC()" class="bg-gray-100 text-gray-700 px-3 text-xs font-bold uppercase transition hover:bg-gray-200">Check</button>
-                        </div>
-                    </div>
+                </div>
 
-                    <div id="otpSection" class="hidden col-span-full pt-4">
-                        <div class="bg-gray-50 p-4 rounded border border-gray-200">
-                            <label class="mb-2">Enter 6-digit OTP</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="otp_code" maxlength="6" class="flex-1 bg-white border border-gray-300 rounded px-4 py-2 text-center text-lg tracking-widest outline-none focus:border-red-600">
-                                <button type="button" onclick="verifyOTP()" class="bg-emerald-600 text-white px-6 rounded font-bold">Verify</button>
-                            </div>
-                            <p id="otpMessage" class="mt-2 text-xs font-bold"></p>
-                        </div>
+                <div id="otpSection" class="hidden google-input-group p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                    <label class="block text-xs font-semibold text-gray-500 mb-2">Enter 6-digit OTP (ලැබුණු OTP අංකය ඇතුළත් කරන්න)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="otp_code" maxlength="6" class="flex-1 google-input text-center text-lg tracking-widest" placeholder="xxxxxx">
+                        <button type="button" onclick="verifyOTP()" class="bg-emerald-600 text-white px-6 rounded font-semibold text-sm hover:bg-emerald-700 transition">Verify</button>
                     </div>
+                    <p id="otpMessage" class="mt-2 text-xs font-semibold"></p>
+                </div>
 
-                    <div class="input-group">
-                        <label>WhatsApp Number</label>
-                        <input type="text" name="whatsapp_number" value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
+                <div class="google-input-group">
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <input type="text" id="nic_number" name="nic_number" class="google-input uppercase" placeholder="NIC Number (ජාතික හැඳුනුම්පත් අංකය)"
+                                required value="<?php echo htmlspecialchars($_POST['nic_number'] ?? ''); ?>">
+                            <label for="nic_number" class="google-label">NIC Number (ජාතික හැඳුනුම්පත් අංකය)</label>
+                        </div>
+                        <button type="button" onclick="verifyNIC()" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition">Check</button>
                     </div>
-                    
-                    <div class="input-group pt-4">
-                        <label>Profile Picture</label>
-                        <input type="file" name="profile_picture" class="text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                    </div>
-                    <input type="hidden" id="dob" name="dob">
-                    <input type="hidden" id="gender" name="gender">
-                    <input type="hidden" id="mobile_verified" name="mobile_verified" value="0">
+                </div>
+
+                <div class="google-input-group">
+                    <input type="text" id="whatsapp_number" name="whatsapp_number" class="google-input" placeholder="WhatsApp Number (වට්ස්ඇප් අංකය)"
+                        value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
+                    <label for="whatsapp_number" class="google-label">WhatsApp number (වට්ස්ඇප් අංකය)</label>
+                </div>
+
+                <div class="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Profile Picture</label>
+                    <input type="file" name="profile_picture" accept="image/*" class="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
+                    <p class="text-[10px] text-gray-400 mt-2">Max 5MB. JPG, PNG or WebP</p>
+                </div>
+
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(2)" class="btn-google-outline">Back</button>
+                    <button type="button" onclick="nextStep(2)" class="btn-google px-8">Next</button>
                 </div>
             </div>
 
-            <!-- Education -->
-            <div class="form-card">
+            <!-- STEP 3: Academic Background -->
+            <div class="step-content" id="step3">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-medium text-[#202124]">Academic Background</h2>
-                    <button type="button" onclick="addEducationField()" class="text-xs bg-red-50 text-red-700 px-3 py-1 rounded font-bold border border-red-100">+ AD EDUC</button>
+                    <h3 class="text-lg font-semibold text-gray-800">Academic Background (අධ්‍යාපන සුදුසුකම්)</h3>
+                    <button type="button" onclick="addEducationField()" class="text-xs bg-red-50 text-red-700 px-3 py-1.5 rounded font-bold border border-red-100 hover:bg-red-100 transition">+ ADD QUALIFICATION</button>
                 </div>
+
                 <div id="educationContainer" class="space-y-4">
-                    <!-- Loaded via JS -->
+                    <!-- Dynamic fields added via Javascript -->
+                </div>
+
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(3)" class="btn-google-outline">Back</button>
+                    <button type="button" onclick="nextStep(3)" class="btn-google px-8">Next</button>
                 </div>
             </div>
 
-            <!-- Teaching -->
-            <div class="form-card">
-                <h2 class="text-lg font-medium text-[#202124] mb-6">Teaching Preferences</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="input-group">
-                        <label>Academic Year *</label>
-                        <input type="number" name="academic_year" value="<?php echo date('Y'); ?>">
+            <!-- STEP 4: Teaching Preferences & Register -->
+            <div class="step-content" id="step4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                    <div class="google-input-group">
+                        <input type="number" id="academic_year" name="academic_year" class="google-input font-semibold" placeholder="Academic Year (අධ්‍යයන වර්ෂය)"
+                            value="<?php echo date('Y'); ?>" required>
+                        <label for="academic_year" class="google-label">Academic Year (අධ්‍යයන වර්ෂය)</label>
                     </div>
-                    <div class="input-group">
-                        <label>Requested Commission (%)</label>
-                        <input type="number" name="requested_rate" value="75" min="1" max="100" class="font-bold">
+                    <div class="google-input-group">
+                        <input type="number" id="requested_rate" name="requested_rate" class="google-input font-semibold" placeholder="Requested Commission % (කොමිස් %)"
+                            value="75" min="1" max="100" required>
+                        <label for="requested_rate" class="google-label">Requested Commission % (කොමිස් %)</label>
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="mb-4">Select Streams (Grades) *</label>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">Select Academic Streams (විෂයධාරාවන් තෝරන්න) *</label>
                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         <?php foreach ($streams as $stream): ?>
-                            <label class="flex items-center space-x-2 border rounded p-3 hover:bg-gray-50 cursor-pointer transition">
-                                <input type="checkbox" name="teacher_streams[]" value="<?php echo $stream['id']; ?>" class="teacher-stream-checkbox" onchange="loadTeacherSubjects()">
-                                <span class="text-sm"><?php echo htmlspecialchars($stream['name']); ?></span>
+                            <label class="flex items-center space-x-2 border border-gray-200 rounded-lg p-3 bg-white hover:bg-red-50/30 cursor-pointer transition select-none">
+                                <input type="checkbox" name="teacher_streams[]" value="<?php echo $stream['id']; ?>" class="teacher-stream-checkbox focus:ring-red-500 text-red-600 rounded" onchange="loadTeacherSubjects()">
+                                <span class="text-sm font-semibold text-gray-700"><?php echo htmlspecialchars($stream['name']); ?></span>
                             </label>
                         <?php endforeach; ?>
                     </div>
                 </div>
 
-                <div id="teacherSubjectContainer" class="hidden mb-4 p-4 bg-gray-50 rounded border border-gray-100">
-                    <label class="mb-4 block">Select Subjects *</label>
+                <div id="teacherSubjectContainer" class="hidden mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">Select Subjects (විෂයන් තෝරන්න) *</label>
                     <div id="teacherSubjectsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <!-- AJAX -->
+                        <!-- AJAX generated contents -->
                     </div>
                 </div>
 
-                <div class="mt-6 pt-6 border-t border-gray-200">
+                <div class="mt-8 pt-6 border-t border-gray-200">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="h-px flex-1 bg-gray-200"></div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Can't find yours?</span>
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Can't find your subject or stream?</span>
                         <div class="h-px flex-1 bg-gray-200"></div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label class="text-xs text-gray-500">New Stream Name</label>
-                            <input type="text" name="new_stream_name" placeholder="e.g. Grade 13 - Commerce">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                        <div class="google-input-group">
+                            <input type="text" id="new_stream_name" name="new_stream_name" class="google-input" placeholder="New Stream (නව අධ්‍යයන අංශය)">
+                            <label for="new_stream_name" class="google-label">New Stream Name (Arts,Commerce...) (නව විෂයධාරාවක් එකතූ කරන්න )</label>
                         </div>
-                        <div class="input-group">
-                            <label class="text-xs text-gray-500">New Subject Name</label>
-                            <input type="text" name="new_subject_name" placeholder="e.g. Business Studies (Advanced)">
+                        <div class="google-input-group">
+                            <input type="text" id="new_subject_name" name="new_subject_name" class="google-input" placeholder="New Subject (නව විෂය)">
+                            <label for="new_subject_name" class="google-label">New Subject Name (නව විෂය එකතූ කරන්න)</label>
                         </div>
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-2 italic">Note: New subjects will be linked to the new stream above or your first selected stream.</p>
+                    <p class="text-[10px] text-gray-400 italic">Note: New subjects will be linked to the new stream above or your first selected stream.</p>
+                </div>
+
+                <div class="flex justify-between items-center mt-10">
+                    <button type="button" onclick="prevStep(4)" class="btn-google-outline">Back</button>
+                    <button type="submit" class="btn-google px-8 shadow-lg shadow-red-500/20">Register as Teacher</button>
                 </div>
             </div>
 
-
-
-            <button type="submit" name="register_teacher" class="w-full btn-primary py-4 text-lg font-bold shadow-lg transition transform active:scale-95">
-                Register as Teacher
-            </button>
-            <p class="text-center text-sm text-gray-500 mt-4">
-                Already have an account? <a href="login.php" class="text-red-600 font-bold hover:underline">Log in here</a>
-            </p>
         </form>
     </div>
 
@@ -405,24 +740,109 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
         window.preSelectedSubjects = <?php echo json_encode($_POST['teacher_subjects'] ?? []); ?>;
         window.preSelectedSubjects = window.preSelectedSubjects.map(String);
 
+        let currentStep = 1;
+
         document.addEventListener('DOMContentLoaded', () => {
+            showStep(currentStep);
             if (document.querySelectorAll('.education-field').length === 0) addEducationField();
         });
+
+        function showStep(n) {
+            const steps = document.getElementsByClassName("step-content");
+            const dots = document.getElementsByClassName("step-dot");
+            
+            const titles = [
+                "Create your Teacher Account <span class='sinhala-subtitle'>(නව ගුරුවරයෙකු ලෙස ලියාපදිංචි වීම)</span>",
+                "Contact & Verification <span class='sinhala-subtitle'>(සන්නිවේදන තොරතුරු සහ තහවුරු කිරීම)</span>",
+                "Academic Background <span class='sinhala-subtitle'>(අධ්‍යයන පසුබිම)</span>",
+                "Teaching Preferences <span class='sinhala-subtitle'>(ඉගැන්වීම් මනාපයන්)</span>"
+            ];
+            
+            const subtitles = [
+                "Step 1 of 4: Personal Details",
+                "Step 2 of 4: Identity & Contact",
+                "Step 3 of 4: Qualification Details",
+                "Step 4 of 4: Select Streams and Subjects"
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                steps[i].classList.remove("active");
+                if (dots[i]) dots[i].classList.remove("active");
+            }
+            if (steps[n - 1]) steps[n - 1].classList.add("active");
+            if (dots[n - 1]) dots[n - 1].classList.add("active");
+
+            const titleElem = document.getElementById("stepTitle");
+            const subtitleElem = document.getElementById("stepSubtitle");
+            if (titleElem) titleElem.innerHTML = titles[n - 1];
+            if (subtitleElem) subtitleElem.innerHTML = subtitles[n - 1];
+
+            window.scrollTo(0, 0);
+        }
+
+        function nextStep(n) {
+            if (!validateStep(n)) return;
+            currentStep = n + 1;
+            showStep(currentStep);
+        }
+
+        function prevStep(n) {
+            currentStep = n - 1;
+            showStep(currentStep);
+        }
+
+        function validateStep(n) {
+            const currentStepDiv = document.getElementById("step" + n);
+            if (!currentStepDiv) return true;
+
+            const inputs = currentStepDiv.querySelectorAll("input[required], select[required], textarea[required]");
+            let valid = true;
+
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    input.classList.add('border-red-500');
+                    valid = false;
+                } else {
+                    input.classList.remove('border-red-500');
+                }
+            });
+
+            if (!valid) {
+                alert("Please fill in all required fields (කරුණාකර සියලුම අනිවාර්ය ක්ෂේත්‍ර පුරවන්න).");
+            }
+            return valid;
+        }
 
         let eduCount = 0;
         function addEducationField() {
             eduCount++;
             const container = document.getElementById('educationContainer');
             const div = document.createElement('div');
-            div.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 education-field relative mb-4';
+            div.className = 'p-4 border border-gray-200 rounded-xl bg-gray-50 education-field relative mb-4';
             div.innerHTML = `
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="input-group"><label>Qualification</label><input type="text" name="education[${eduCount}][qualification]" required placeholder="B.Sc Science"></div>
-                    <div class="input-group"><label>Institution</label><input type="text" name="education[${eduCount}][institution]" placeholder="University"></div>
-                    <div class="input-group"><label>Year</label><input type="number" name="education[${eduCount}][year_obtained]" placeholder="2022"></div>
-                    <div class="input-group"><label>Grade / Class</label><input type="text" name="education[${eduCount}][grade_or_class]" placeholder="First Class"></div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                    <div class="google-input-group">
+                        <input type="text" name="education[${eduCount}][qualification]" class="google-input" placeholder="Qualification (සුදුසුකම)" required>
+                        <label class="google-label">Qualification (සුදුසුකම)</label>
+                    </div>
+                    <div class="google-input-group">
+                        <input type="text" name="education[${eduCount}][institution]" class="google-input" placeholder="Institution (ආයතනය)" required>
+                        <label class="google-label">Institution (ආයතනය)</label>
+                    </div>
+                    <div class="google-input-group">
+                        <input type="number" name="education[${eduCount}][year_obtained]" class="google-input" placeholder="Year Obtain (ලබාගත් වසර)" required>
+                        <label class="google-label">Year Obtain (ලබාගත් වසර)</label>
+                    </div>
+                    <div class="google-input-group">
+                        <input type="text" name="education[${eduCount}][grade_or_class]" class="google-input" placeholder="Grade/Class (සාමාර්ථය)" required>
+                        <label class="google-label">Grade/Class (සාමාර්ථය)</label>
+                    </div>
                 </div>
-                ${eduCount > 1 ? '<button type="button" onclick="this.closest(\'div\').remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>' : ''}
+                ${eduCount > 1 ? `<button type="button" onclick="this.closest('.education-field').remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-600 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>` : ''}
             `;
             container.appendChild(div);
         }
@@ -448,22 +868,20 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                         res.subjects.forEach(sub => {
                             const isChecked = window.preSelectedSubjects.includes(String(sub.stream_subject_id)) ? 'checked' : '';
                             const label = document.createElement('label');
-                            label.className = 'flex items-center space-x-2 border rounded p-3 bg-white hover:bg-gray-50 cursor-pointer';
-                            label.innerHTML = `<input type="checkbox" name="teacher_subjects[]" value="${sub.stream_subject_id}" ${isChecked}>
-                                               <span class="text-sm font-medium">${sub.name}</span>`;
+                            label.className = 'flex items-center space-x-2 border rounded-lg p-3 bg-white hover:bg-gray-50 cursor-pointer select-none';
+                            label.innerHTML = `<input type="checkbox" name="teacher_subjects[]" value="${sub.stream_subject_id}" class="focus:ring-red-500 text-red-600 rounded" ${isChecked}>
+                                               <span class="text-sm font-semibold text-gray-700">${sub.name}</span>`;
                             grid.appendChild(label);
                         });
                     }
                 });
-            } catch (e) { grid.innerHTML = 'Error.'; }
+            } catch (e) { grid.innerHTML = '<div class="text-red-500 text-xs font-bold col-span-full py-2">Error loading subjects.</div>'; }
         }
 
-
-
         function sendOTP() {
-            const mob = document.getElementById('mobile_number').value;
-            if(!mob) return alert('Enter mobile!');
-            document.getElementById('sendOtpBtn').innerText = '...';
+            const mob = document.getElementById('mobile_number').value.trim();
+            if(!mob) return alert('Enter mobile number! (ජංගම දුරකථන අංකය ඇතුළත් කරන්න)');
+            document.getElementById('sendOtpBtn').innerText = 'Sending...';
             setTimeout(() => {
                 document.getElementById('otpSection').classList.remove('hidden');
                 document.getElementById('sendOtpBtn').innerText = 'Resend';
@@ -471,18 +889,20 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
         }
 
         function verifyOTP() {
-            const code = document.getElementById('otp_code').value;
+            const code = document.getElementById('otp_code').value.trim();
             if(code.length === 6) {
-                document.getElementById('otpMessage').innerText = 'Verified';
+                document.getElementById('otpMessage').innerText = 'Mobile Number Verified (ජංගම දුරකථන අංකය සාර්ථකව තහවුරු කරන ලදී)';
                 document.getElementById('otpMessage').className = 'mt-2 text-xs font-bold text-emerald-600';
                 document.getElementById('mobile_verified').value = '1';
+            } else {
+                alert('Please enter a valid 6-digit OTP.');
             }
         }
 
         function verifyNIC() {
-            const nic = document.getElementById('nic_number').value;
-            if(!nic) return alert('Enter NIC!');
-            alert('NIC data extraction mock.');
+            const nic = document.getElementById('nic_number').value.trim();
+            if(!nic) return alert('Enter NIC number! (ජාතික හැඳුනුම්පත් අංකය ඇතුළත් කරන්න)');
+            alert('NIC extraction and verification successful (mock validation).');
         }
     </script>
 </body>

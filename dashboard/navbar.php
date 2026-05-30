@@ -69,10 +69,10 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
     <div class="w-full">
         <div class="flex justify-between items-center h-14 sm:h-16 transition-all duration-500" id="navbar-container">
             <!-- Logo/Brand - Left Side -->
-            <div class="flex items-center flex-shrink-0 mr-auto pl-4 sm:pl-6 lg:pl-8">
+            <div class="flex items-center flex-shrink-0 mr-auto pl-2 sm:pl-6 lg:pl-8">
                 <a href="<?php echo $base_url; ?>dashboard.php" class="flex items-center gap-2 group">
                     <span id="nav-logo"
-                        class="text-lg sm:text-xl font-black tracking-tighter transition-colors duration-500 text-red-600">
+                        class="text-[11px] sm:text-lg md:text-xl font-black tracking-tighter transition-colors duration-500 text-red-600">
                         LEARNER<span id="logo-dot" class="text-slate-900">.LK</span>
                     </span>
                 </a>
@@ -123,13 +123,11 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 </div>
             </div>
 
-            <!-- Right Side Actions -->
-            <div class="flex items-center h-14 sm:h-16">
-                <?php if (!isset($_SESSION['role'])): ?>
-                    <!-- Register button removed -->
-                <?php else: ?>
+            <!-- Desktop Right Side Profile Action (shown only on lg and above) -->
+            <div class="hidden lg:flex items-center h-14 sm:h-16">
+                <?php if (isset($_SESSION['role'])): ?>
                     <button onclick="openProfileModal()" id="nav-profile-btn"
-                        class="flex items-center gap-2 group px-3 h-full hover:bg-slate-50 transition-all border-l border-slate-100">
+                        class="flex items-center gap-2 group px-5 h-full hover:bg-slate-50 transition-all border-l border-slate-100">
                         <div
                             class="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center text-white font-bold border border-white shadow-sm overflow-hidden">
                             <?php if (!empty($profile_picture)): ?>
@@ -139,19 +137,24 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                                     class="text-[10px]"><?php echo strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1)); ?></span>
                             <?php endif; ?>
                         </div>
-                        <span id="nav-profile-name" class="text-[9px] font-black hidden xl:block text-slate-700 uppercase tracking-widest">
+                        <span id="nav-profile-name" class="text-[9px] font-black text-slate-700 uppercase tracking-widest">
                             <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>
                         </span>
                     </button>
                 <?php endif; ?>
+            </div>
 
-                <!-- Mobile menu button -->
-                <button type="button" onclick="toggleMobileMenu()" id="mobile-menu-btn"
-                    class="lg:hidden p-1.5 rounded-lg transition-colors text-slate-800 hover:bg-slate-100">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
+            <!-- Mobile/Tablet block buttons (shown on screens smaller than lg) -->
+            <div class="flex lg:hidden items-stretch h-14 sm:h-16">
+                <a href="dashboard.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">HOME</a>
+                <a href="live_classes.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
+                <a href="publications.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
+                <button onclick="toggleMobileMenu()" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-black hover:bg-zinc-900 transition-all gap-1 uppercase">
+                    <span>MENU</span>
+                    <div class="space-y-0.5">
+                        <div class="w-3 h-0.5 bg-white"></div>
+                        <div class="w-3 h-0.5 bg-white"></div>
+                    </div>
                 </button>
             </div>
         </div>
