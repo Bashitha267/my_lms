@@ -166,6 +166,27 @@ $db_teacher_count = $total_teachers_res ? $total_teachers_res->fetch_assoc()['co
 
 $total_courses_res = $conn->query("SELECT COUNT(*) as count FROM courses");
 $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count'] : 0;
+
+// Fetch section and card theme colors
+$dashboard_colors = [];
+$colors_res = $conn->query("SELECT * FROM dashboard_colors");
+if ($colors_res) {
+    while ($row = $colors_res->fetch_assoc()) {
+        $dashboard_colors[$row['section_key']] = $row;
+    }
+}
+
+// Helper function to format color values (with or without #)
+if (!function_exists('format_html_color')) {
+    function format_html_color($color) {
+        $color = trim($color);
+        if (empty($color)) return '#ffffff';
+        if (preg_match('/^[a-fA-F0-9]{3,8}$/', $color)) {
+            return '#' . $color;
+        }
+        return $color;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -618,7 +639,18 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
         <?php endif; ?>
 
         <!-- Universal AL Results Section -->
-        <div class="section-al py-12 md:py-24 flex flex-col bg-sky-200">
+        <?php 
+        $al_bg_color = format_html_color($dashboard_colors['al_results']['bg_color'] ?? 'bg-sky-200');
+        $al_bg_style = '';
+        $al_bg_class = 'bg-sky-200';
+        if (strpos($al_bg_color, '#') === 0) {
+            $al_bg_style = 'style="background-color: ' . $al_bg_color . ';"';
+            $al_bg_class = '';
+        } else {
+            $al_bg_class = $al_bg_color;
+        }
+        ?>
+        <div class="section-al py-12 md:py-24 flex flex-col <?php echo $al_bg_class; ?>" <?php echo $al_bg_style; ?>>
             <div class="w-full mx-auto px-4 sm:px-6 lg:px-8 animate-fade-in-up">
                 <div
                     class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-sky-200 gap-4">
@@ -680,16 +712,29 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     <div id="achieverSlider" class="flex transition-transform duration-700 ease-in-out">
                         <?php
                         $last_tile_color = '';
-                        $tile_colors = ['bg-blue-100', 'bg-emerald-100', 'bg-violet-100', 'bg-amber-100', 'bg-rose-100', 'bg-cyan-100', 'bg-indigo-100', 'bg-orange-100', 'bg-teal-100', 'bg-sky-100', 'bg-pink-100', 'bg-purple-100'];
+                        $tile_colors_str = $dashboard_colors['al_results']['card_colors'] ?? 'bg-blue-100,bg-emerald-100,bg-violet-100,bg-amber-100,bg-rose-100,bg-cyan-100,bg-indigo-100,bg-orange-100,bg-teal-100,bg-sky-100,bg-pink-100,bg-purple-100';
+                        $tile_colors = array_filter(array_map('trim', explode(',', $tile_colors_str)));
+                        if (empty($tile_colors)) {
+                            $tile_colors = ['#ffffff'];
+                        }
                         foreach ($al_results as $res):
                             do {
                                 $random_tile_bg = $tile_colors[array_rand($tile_colors)];
-                            } while ($random_tile_bg === $last_tile_color);
+                            } while ($random_tile_bg === $last_tile_color && count($tile_colors) > 1);
                             $last_tile_color = $random_tile_bg;
+                            
+                            $card_bg_color = format_html_color($random_tile_bg);
+                            $card_bg_style = '';
+                            $card_bg_class = '';
+                            if (strpos($card_bg_color, '#') === 0) {
+                                $card_bg_style = 'style="background-color: ' . $card_bg_color . ';"';
+                            } else {
+                                $card_bg_class = $card_bg_color;
+                            }
                             ?>
                             <div class="al-card-wrap p-0 z-10 hover:z-20 transition-all duration-500">
-                                <div
-                                    class="<?php echo $random_tile_bg; ?> rounded-none transform hover:scale-105 hover:brightness-95 transition-all duration-500 relative group overflow-hidden h-[600px] flex flex-col shadow-none hover:shadow-2xl">
+                                <div <?php echo $card_bg_style; ?>
+                                    class="<?php echo $card_bg_class; ?> rounded-none transform hover:scale-105 hover:brightness-95 transition-all duration-500 relative group overflow-hidden h-[600px] flex flex-col shadow-none hover:shadow-2xl">
                                     <!-- Card Header -->
                                     <div class="p-4">
                                         <div class="relative h-60 overflow-hidden rounded-none border border-slate-900/10">
@@ -878,7 +923,18 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
         </div>
     </div>
     <!-- Available Classes Section -->
-    <div class="section-classes py-12 md:py-24 flex flex-col bg-amber-200/80" id="classes-section">
+    <?php 
+    $classes_bg_color = format_html_color($dashboard_colors['classes']['bg_color'] ?? 'bg-amber-200/80');
+    $classes_bg_style = '';
+    $classes_bg_class = 'bg-amber-200/80';
+    if (strpos($classes_bg_color, '#') === 0) {
+        $classes_bg_style = 'style="background-color: ' . $classes_bg_color . ';"';
+        $classes_bg_class = '';
+    } else {
+        $classes_bg_class = $classes_bg_color;
+    }
+    ?>
+    <div class="section-classes py-12 md:py-24 flex flex-col <?php echo $classes_bg_class; ?>" id="classes-section" <?php echo $classes_bg_style; ?>>
         <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div
                 class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-amber-200 gap-4">
@@ -917,24 +973,11 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                 <?php
                 $card_count = 0;
                 $last_color = '';
-                $tile_colors = [
-                    'bg-blue-100',
-                    'bg-emerald-100',
-                    'bg-violet-100',
-                    'bg-amber-100',
-                    'bg-rose-100',
-                    'bg-cyan-100',
-                    'bg-indigo-100',
-                    'bg-orange-100',
-                    'bg-red-100',
-                    'bg-teal-100',
-                    'bg-sky-100',
-                    'bg-fuchsia-100',
-                    'bg-pink-100',
-                    'bg-lime-100',
-                    'bg-yellow-100',
-                    'bg-purple-100'
-                ];
+                $tile_colors_str = $dashboard_colors['classes']['card_colors'] ?? 'bg-blue-100,bg-emerald-100,bg-violet-100,bg-amber-100,bg-rose-100,bg-cyan-100,bg-indigo-100,bg-orange-100,bg-red-100,bg-teal-100,bg-sky-100,bg-fuchsia-100,bg-pink-100,bg-lime-100,bg-yellow-100,bg-purple-100';
+                $tile_colors = array_filter(array_map('trim', explode(',', $tile_colors_str)));
+                if (empty($tile_colors)) {
+                    $tile_colors = ['#ffffff'];
+                }
                 ?>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-0">
                     <?php foreach ($assignments_by_stream as $stream_id => $stream_data):
@@ -945,11 +988,28 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                             // Ensure same color doesn't appear twice in a row
                             do {
                                 $random_bg = $tile_colors[array_rand($tile_colors)];
-                            } while ($random_bg === $last_color);
+                            } while ($random_bg === $last_color && count($tile_colors) > 1);
                             $last_color = $random_bg;
+                            
+                            $card_bg_color = format_html_color($random_bg);
+                            $card_bg_style = '';
+                            $card_bg_class = '';
+                            if (strpos($card_bg_color, '#') === 0) {
+                                $card_bg_style = 'background-color: ' . $card_bg_color . ';';
+                            } else {
+                                $card_bg_class = $card_bg_color;
+                            }
+
+                            $style_tags = [];
+                            if (!empty($card_bg_style)) {
+                                $style_tags[] = $card_bg_style;
+                            }
+                            if ($isHidden) {
+                                $style_tags[] = 'display: none;';
+                            }
+                            $style_attr = !empty($style_tags) ? 'style="' . implode(' ', $style_tags) . '"' : '';
                             ?>
-                            <div class="<?php echo $random_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden group border-none class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?>"
-                                <?php echo $isHidden ? 'style="display:none;"' : ''; ?>>
+                            <div <?php echo $style_attr; ?> class="<?php echo $card_bg_class; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden group border-none class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?>">
                                 <!-- Cover Image -->
                                 <div class="p-4">
                                     <div class="relative h-60 overflow-hidden rounded-none border border-slate-900/10">
@@ -1151,7 +1211,19 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
     </script>
     </div> <!-- End of Classes Section -->
 
-    <div class="section-extra py-12 md:py-24 flex flex-col bg-emerald-200/80">
+    <!-- Extra Courses Section -->
+    <?php 
+    $extra_bg_color = format_html_color($dashboard_colors['extra_courses']['bg_color'] ?? 'bg-emerald-200/80');
+    $extra_bg_style = '';
+    $extra_bg_class = 'bg-emerald-200/80';
+    if (strpos($extra_bg_color, '#') === 0) {
+        $extra_bg_style = 'style="background-color: ' . $extra_bg_color . ';"';
+        $extra_bg_class = '';
+    } else {
+        $extra_bg_class = $extra_bg_color;
+    }
+    ?>
+    <div class="section-extra py-12 md:py-24 flex flex-col <?php echo $extra_bg_class; ?>" <?php echo $extra_bg_style; ?>>
         <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
             <div
                 class="px-6 py-4 md:py-6 mb-4 md:mb-8 flex flex-col md:flex-row md:items-center justify-between border-b border-emerald-200 gap-4">
@@ -1173,17 +1245,40 @@ $db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count
                     <?php
                     $last_course_color = '';
                     $course_count = 0;
+                    $extra_tile_colors_str = $dashboard_colors['extra_courses']['card_colors'] ?? 'bg-blue-100,bg-emerald-100,bg-violet-100,bg-amber-100,bg-rose-100,bg-cyan-100,bg-indigo-100,bg-orange-100,bg-teal-100,bg-sky-100,bg-pink-100,bg-purple-100';
+                    $extra_tile_colors = array_filter(array_map('trim', explode(',', $extra_tile_colors_str)));
+                    if (empty($extra_tile_colors)) {
+                        $extra_tile_colors = ['#ffffff'];
+                    }
+
                     foreach ($courses as $course):
                         $course_count++;
                         $isCourseHidden = $course_count > 6;
                         // Ensure same color doesn't appear twice in a row
                         do {
-                            $random_course_bg = $tile_colors[array_rand($tile_colors)];
-                        } while ($random_course_bg === $last_course_color);
+                            $random_course_bg = $extra_tile_colors[array_rand($extra_tile_colors)];
+                        } while ($random_course_bg === $last_course_color && count($extra_tile_colors) > 1);
                         $last_course_color = $random_course_bg;
+                        
+                        $card_bg_color = format_html_color($random_course_bg);
+                        $card_bg_style = '';
+                        $card_bg_class = '';
+                        if (strpos($card_bg_color, '#') === 0) {
+                            $card_bg_style = 'background-color: ' . $card_bg_color . ';';
+                        } else {
+                            $card_bg_class = $card_bg_color;
+                        }
+
+                        $style_tags = [];
+                        if (!empty($card_bg_style)) {
+                            $style_tags[] = $card_bg_style;
+                        }
+                        if ($isCourseHidden) {
+                            $style_tags[] = 'display: none;';
+                        }
+                        $style_attr = !empty($style_tags) ? 'style="' . implode(' ', $style_tags) . '"' : '';
                         ?>
-                        <div class="<?php echo $random_course_bg; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden border-none extra-course-card <?php echo $isCourseHidden ? 'hidden-course' : ''; ?>"
-                            <?php echo $isCourseHidden ? 'style="display:none;"' : ''; ?>>
+                        <div <?php echo $style_attr; ?> class="<?php echo $card_bg_class; ?> rounded-none shadow-none hover:shadow-2xl hover:z-20 transform hover:scale-105 hover:brightness-95 transition-all duration-500 overflow-hidden border-none extra-course-card <?php echo $isCourseHidden ? 'hidden-course' : ''; ?>">
                             <!-- Course Cover Image -->
                             <div class="p-4">
                                 <div class="h-60 overflow-hidden relative border border-slate-900/10">

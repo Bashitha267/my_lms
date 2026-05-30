@@ -8,13 +8,71 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'supe
     exit();
 }
 
+// Handle AJAX updates for theme settings
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_section_color_ajax') {
+    header('Content-Type: application/json');
+    $section_key = $_POST['section_key'] ?? '';
+    $field = $_POST['field'] ?? ''; // 'bg_color' or 'card_colors'
+    $value = trim($_POST['value'] ?? '');
+
+    if (!in_array($section_key, ['al_results', 'classes', 'extra_courses'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid section key']);
+        exit();
+    }
+
+    if (!in_array($field, ['bg_color', 'card_colors'])) {
+        echo json_encode(['success' => false, 'message' => 'Invalid field']);
+        exit();
+    }
+
+    if ($field === 'card_colors') {
+        // Clean card colors list
+        $value = implode(',', array_filter(array_map('trim', explode(',', $value))));
+    }
+
+    $stmt = $conn->prepare("UPDATE dashboard_colors SET $field = ? WHERE section_key = ?");
+    $stmt->bind_param("ss", $value, $section_key);
+    $success = $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(['success' => $success, 'message' => $success ? 'Updated successfully' : 'Database error']);
+    exit();
+}
+
 $success_message = '';
 $error_message = '';
 $user_id = $_SESSION['user_id'];
+$active_tab = 'dashboard';
 
 // Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_colors'])) {
+    $active_tab = 'dashboard_colors';
+    $colors_updated = true;
+    foreach (['al_results', 'classes', 'extra_courses'] as $section_key) {
+        $bg_color = trim($_POST[$section_key . '_bg_color'] ?? '');
+        $card_colors = trim($_POST[$section_key . '_card_colors'] ?? '');
+        
+        // Clean card colors list
+        $card_colors = implode(',', array_filter(array_map('trim', explode(',', $card_colors))));
+        
+        $stmt = $conn->prepare("UPDATE dashboard_colors SET bg_color = ?, card_colors = ? WHERE section_key = ?");
+        $stmt->bind_param("sss", $bg_color, $card_colors, $section_key);
+        if (!$stmt->execute()) {
+            $colors_updated = false;
+        }
+        $stmt->close();
+    }
+    
+    if ($colors_updated) {
+        $success_message = 'Dashboard theme colors updated successfully!';
+    } else {
+        $error_message = 'Failed to update some dashboard theme colors.';
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
     $page_type = $_POST['page_type'] ?? 'dashboard';
+    $active_tab = $page_type;
     $upload_background = isset($_POST['upload_background']) && $_POST['upload_background'] === '1';
     $remove_background = isset($_POST['remove_background']) && $_POST['remove_background'] === '1';
     
@@ -133,6 +191,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
 
 // Handle Home Posts (Gallery)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['upload_home_post']) || isset($_POST['delete_home_post'])) {
+        $active_tab = 'home_posts';
+    }
     if (isset($_POST['upload_home_post'])) {
         if (isset($_FILES['post_image']) && $_FILES['post_image']['error'] === UPLOAD_ERR_OK) {
             $upload_dir = '../uploads/posts/';
@@ -205,6 +266,15 @@ $result = $conn->query("SELECT * FROM home_posts ORDER BY created_at DESC");
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $home_posts[] = $row;
+    }
+}
+
+// Get dashboard theme colors
+$dashboard_colors = [];
+$result_colors = $conn->query("SELECT * FROM dashboard_colors");
+if ($result_colors) {
+    while ($row = $result_colors->fetch_assoc()) {
+        $dashboard_colors[$row['section_key']] = $row;
     }
 }
 
@@ -380,6 +450,11 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                                     data-tab="home_posts">
                                 Marketing Posts
                             </button>
+                            <button type="button" onclick="switchTab('dashboard_colors')" 
+                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                                    data-tab="dashboard_colors">
+                                Dashboard Colors
+                            </button>
                         </nav>
                     </div>
 
@@ -453,6 +528,115 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                             <?php endif; ?>
                         </div>
                     </div>
+
+                    <!-- Dashboard Colors Tab -->
+                    <div id="tab-dashboard_colors" class="tab-content hidden">
+                        <div class="bg-gray-50 p-6 rounded-lg border mb-8">
+                            <h4 class="text-lg font-bold mb-2">Dashboard Section & Card Colors</h4>
+                            <p class="text-xs text-gray-500 mb-6">Specify HTML color values (e.g. <code>#e0f2fe</code> or <code>e0f2fe</code> or <code>rgb(224, 242, 254)</code>. Card colors should be separated by commas. We will randomly select a color from the card colors list for each item card.</p>
+                            
+                            <form method="POST" action="" class="space-y-8">
+                                <input type="hidden" name="update_colors" value="1">
+                                
+                                <?php foreach (['al_results' => 'A/L Results Section', 'classes' => 'Available Classes Section', 'extra_courses' => 'Extra Courses Section'] as $key => $title): 
+                                    $info = $dashboard_colors[$key] ?? ['bg_color' => '', 'card_colors' => ''];
+                                ?>
+                                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                        <h5 class="text-md font-bold text-gray-800 border-b pb-2 mb-4 flex justify-between items-center">
+                                            <span><?php echo htmlspecialchars($title); ?></span>
+                                            <span id="save_status_<?php echo $key; ?>" class="text-xs font-normal text-gray-500 hidden flex items-center gap-1"></span>
+                                        </h5>
+                                        
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Section Background Color</label>
+                                                <div class="flex gap-2 items-center">
+                                                    <?php 
+                                                    $bg_color_disp = trim($info['bg_color']);
+                                                    if (preg_match('/^[a-fA-F0-9]{3,8}$/', $bg_color_disp)) $bg_color_disp = '#' . $bg_color_disp;
+                                                    // Default hex color value for picker
+                                                    $picker_val = (preg_match('/^#[a-fA-F0-9]{3,6}$/', $bg_color_disp)) ? $bg_color_disp : '#ffffff';
+                                                    ?>
+                                                    <div class="relative flex-1">
+                                                        <input type="text" id="<?php echo $key; ?>_bg_color" name="<?php echo $key; ?>_bg_color" 
+                                                               value="<?php echo htmlspecialchars($info['bg_color']); ?>" 
+                                                               class="w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10 text-sm focus:ring-red-500 focus:border-red-500" 
+                                                               placeholder="#ffffff"
+                                                               onchange="saveBgColor('<?php echo $key; ?>', this.value)">
+                                                        <!-- Color picker for background color -->
+                                                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+                                                            <input type="color" id="<?php echo $key; ?>_bg_color_picker" 
+                                                                   value="<?php echo htmlspecialchars($picker_val); ?>"
+                                                                   class="w-6 h-6 border border-gray-300 rounded cursor-pointer p-0 bg-transparent"
+                                                                   onchange="document.getElementById('<?php echo $key; ?>_bg_color').value = this.value; saveBgColor('<?php echo $key; ?>', this.value);">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Card Colors (Add/Remove interactively)</label>
+                                                
+                                                <!-- Hidden input to hold the comma-separated string for form submit -->
+                                                <input type="hidden" name="<?php echo $key; ?>_card_colors" id="<?php echo $key; ?>_card_colors" value="<?php echo htmlspecialchars($info['card_colors']); ?>">
+                                                
+                                                <!-- Container for dynamic color chips -->
+                                                <div id="<?php echo $key; ?>_chips_container" class="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[50px] mb-3">
+                                                    <?php 
+                                                    $cards = explode(',', $info['card_colors']);
+                                                    $has_chips = false;
+                                                    foreach ($cards as $color):
+                                                        $color = trim($color);
+                                                        if (empty($color)) continue;
+                                                        $has_chips = true;
+                                                        $preview_color = (preg_match('/^[a-fA-F0-9]{3,8}$/', $color)) ? '#' . $color : $color;
+                                                    ?>
+                                                        <span data-color="<?php echo htmlspecialchars($color); ?>" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold border rounded-full gap-2 shadow-sm bg-white hover:bg-gray-50 transition-colors" style="border-color: rgba(0,0,0,0.08);">
+                                                            <span class="w-3.5 h-3.5 rounded-full border shadow-inner flex-shrink-0" style="background-color: <?php echo htmlspecialchars($preview_color); ?>;"></span>
+                                                            <span class="text-gray-700 font-mono text-[11px]"><?php echo htmlspecialchars($color); ?></span>
+                                                            <button type="button" onclick="removeColor('<?php echo $key; ?>', '<?php echo htmlspecialchars(addslashes($color)); ?>')" class="text-gray-400 hover:text-red-500 font-bold ml-1 transition-colors text-sm focus:outline-none" title="Remove Color">
+                                                                &times;
+                                                            </button>
+                                                        </span>
+                                                    <?php endforeach; ?>
+                                                    <?php if (!$has_chips): ?>
+                                                        <span class="no-chips-placeholder text-xs text-gray-400 italic">No colors added yet.</span>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <!-- Controls to add a new color -->
+                                                <div class="flex items-center gap-2">
+                                                    <div class="relative flex-1">
+                                                        <input type="text" id="<?php echo $key; ?>_new_color_input" 
+                                                               class="w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10 text-sm focus:ring-red-500 focus:border-red-500" 
+                                                               placeholder="Enter hex (e.g. #f3e8ff) or Tailwind bg class"
+                                                               onkeypress="if(event.key === 'Enter') { event.preventDefault(); addColor('<?php echo $key; ?>'); }">
+                                                        <!-- Direct quick color picker -->
+                                                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
+                                                            <input type="color" id="<?php echo $key; ?>_new_color_picker" 
+                                                                   value="#e0f2fe"
+                                                                   class="w-6 h-6 border border-gray-300 rounded cursor-pointer p-0 bg-transparent"
+                                                                   onchange="document.getElementById('<?php echo $key; ?>_new_color_input').value = this.value;">
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" onclick="addColor('<?php echo $key; ?>')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-semibold transition shadow-sm">
+                                                        Add
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                                
+                                <div class="flex justify-end items-center gap-4 pt-4">
+                                     <span class="text-xs text-gray-500 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Settings auto-save in real-time</span>
+                                    <button type="submit" class="px-6 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold text-sm transition shadow-md shadow-red-100">
+                                        Save Theme Colors
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
 
                 
@@ -461,6 +645,14 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
     </div>
 
     <script>
+        // Auto-switch to active tab from PHP on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const activeTab = <?php echo json_encode($active_tab); ?>;
+            if (activeTab && document.getElementById('tab-' + activeTab)) {
+                switchTab(activeTab);
+            }
+        });
+
         // Tab switching functionality
         function switchTab(tabName) {
             // Hide all tab contents
@@ -514,6 +706,162 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
             } else {
                 preview.classList.add('hidden');
             }
+        }
+
+        // Color Chips Management JavaScript
+        function updateHiddenInput(sectionKey) {
+            const container = document.getElementById(sectionKey + '_chips_container');
+            const hiddenInput = document.getElementById(sectionKey + '_card_colors');
+            
+            const chips = container.querySelectorAll('span[data-color]');
+            const colors = Array.from(chips).map(chip => chip.getAttribute('data-color'));
+            
+            hiddenInput.value = colors.join(',');
+            
+            // Show placeholder if empty
+            const placeholder = container.querySelector('.no-chips-placeholder');
+            if (colors.length === 0) {
+                if (!placeholder) {
+                    const span = document.createElement('span');
+                    span.className = 'no-chips-placeholder text-xs text-gray-400 italic';
+                    span.textContent = 'No colors added yet.';
+                    container.appendChild(span);
+                }
+            } else if (placeholder) {
+                placeholder.remove();
+            }
+        }
+        
+        function removeColor(sectionKey, colorValue) {
+            const container = document.getElementById(sectionKey + '_chips_container');
+            // Escape any special characters for the querySelector
+            const selector = `span[data-color="${CSS.escape(colorValue)}"]`;
+            const chip = container.querySelector(selector);
+            if (chip) {
+                chip.remove();
+                updateHiddenInput(sectionKey);
+                
+                // Auto-save cards color update
+                const hiddenInput = document.getElementById(sectionKey + '_card_colors');
+                saveColorSetting(sectionKey, 'card_colors', hiddenInput.value);
+            }
+        }
+        
+        function addColor(sectionKey) {
+            const input = document.getElementById(sectionKey + '_new_color_input');
+            let color = input.value.trim();
+            if (!color) return;
+            
+            const container = document.getElementById(sectionKey + '_chips_container');
+            
+            // Check if color already exists
+            const existing = container.querySelector(`span[data-color="${CSS.escape(color)}"]`);
+            if (existing) {
+                alert('This color is already in the list.');
+                input.value = '';
+                return;
+            }
+            
+            // Format preview color
+            let previewColor = color;
+            if (/^[a-fA-F0-9]{3,8}$/.test(color)) {
+                previewColor = '#' + color;
+            }
+            
+            // Create chip element
+            const chip = document.createElement('span');
+            chip.setAttribute('data-color', color);
+            chip.className = 'inline-flex items-center px-2.5 py-1 text-xs font-semibold border rounded-full gap-2 shadow-sm bg-white hover:bg-gray-50 transition-colors';
+            chip.style.borderColor = 'rgba(0,0,0,0.08)';
+            
+            // Inner color circle
+            const colorCircle = document.createElement('span');
+            colorCircle.className = 'w-3.5 h-3.5 rounded-full border shadow-inner flex-shrink-0';
+            colorCircle.style.backgroundColor = previewColor;
+            
+            // Text value
+            const textSpan = document.createElement('span');
+            textSpan.className = 'text-gray-700 font-mono text-[11px]';
+            textSpan.textContent = color;
+            
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'text-gray-400 hover:text-red-500 font-bold ml-1 transition-colors text-sm focus:outline-none';
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.onclick = function() {
+                removeColor(sectionKey, color);
+            };
+            
+            chip.appendChild(colorCircle);
+            chip.appendChild(textSpan);
+            chip.appendChild(deleteBtn);
+            
+            // Remove placeholder if present
+            const placeholder = container.querySelector('.no-chips-placeholder');
+            if (placeholder) {
+                placeholder.remove();
+            }
+            
+            container.appendChild(chip);
+            updateHiddenInput(sectionKey);
+            
+            // Auto-save cards color update
+            const hiddenInput = document.getElementById(sectionKey + '_card_colors');
+            saveColorSetting(sectionKey, 'card_colors', hiddenInput.value);
+            
+            // Clear input
+            input.value = '';
+        }
+
+        // Auto-save settings via AJAX
+        function saveColorSetting(sectionKey, field, value) {
+            const formData = new FormData();
+            formData.append('action', 'update_section_color_ajax');
+            formData.append('section_key', sectionKey);
+            formData.append('field', field);
+            formData.append('value', value);
+
+            // Visual feedback - show saving indicator
+            const statusIndicator = document.getElementById('save_status_' + sectionKey);
+            if (statusIndicator) {
+                statusIndicator.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Saving...';
+                statusIndicator.classList.remove('hidden');
+            }
+
+            fetch('settings.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (statusIndicator) {
+                    if (data.success) {
+                        statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-1"></i> Saved';
+                        setTimeout(() => {
+                            statusIndicator.classList.add('hidden');
+                        }, 2000);
+                    } else {
+                        statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i> Save failed';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error saving setting:', error);
+                if (statusIndicator) {
+                    statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i> Error';
+                }
+            });
+        }
+
+        function saveBgColor(sectionKey, colorValue) {
+            colorValue = colorValue.trim();
+            // Update visual color picker input value if valid hex
+            const picker = document.getElementById(sectionKey + '_bg_color_picker');
+            if (picker && /^#[a-fA-F0-9]{3,6}$/.test(colorValue)) {
+                picker.value = colorValue;
+            }
+            saveColorSetting(sectionKey, 'bg_color', colorValue);
         }
     </script>
 </body>
