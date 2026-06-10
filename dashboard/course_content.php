@@ -143,7 +143,7 @@ $stmt->close();
 <body class="bg-gray-50">
     <?php include 'navbar.php'; ?>
     
-    <div class="max-w-7xl mx-auto py-10 px-4">
+    <div class="max-w-7xl mx-auto pt-24 pb-10 px-4">
         <!-- Breadcrumb -->
         <nav class="text-sm font-medium text-gray-500 mb-4">
             <a href="online_courses.php" class="hover:text-red-600">Courses</a>

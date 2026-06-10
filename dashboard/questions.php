@@ -355,6 +355,12 @@ $questions_stmt->close();
             -webkit-backdrop-filter: blur(8px);
             <?php endif; ?>
             min-height: 100vh;
+            padding-top: 5rem;
+        }
+        @media (min-width: 640px) {
+            .content-overlay {
+                padding-top: 6rem;
+            }
         }
         
         .glass-card {

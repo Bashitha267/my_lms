@@ -9,7 +9,7 @@ $role = $_SESSION['role'] ?? '';
 
 // If not logged in and not a guest who submitted details, redirect to login
 if (empty($user_id) && empty($_SESSION['guest_name'])) {
-    header("Location: /lms/login.php");
+    header("Location: " . BASE_PATH . "login.php");
     exit();
 }
 $current_year = date('Y');

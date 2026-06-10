@@ -10,6 +10,22 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Define base path for the application relative to domain root
+// This handles both local subdirectory (e.g. /lms/) and production root (e.g. /)
+if (!defined('BASE_PATH')) {
+    $doc_root = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+    $dir = rtrim(str_replace('\\', '/', __DIR__), '/');
+    $base_path = '/';
+    if (!empty($doc_root) && stripos($dir, $doc_root) === 0) {
+        $base_path = substr($dir, strlen($doc_root));
+    }
+    $base_path = '/' . ltrim($base_path, '/');
+    if ($base_path !== '/') {
+        $base_path = rtrim($base_path, '/') . '/';
+    }
+    define('BASE_PATH', $base_path);
+}
+
 // Database connection parameters
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');

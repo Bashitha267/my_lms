@@ -460,7 +460,7 @@ if ($role === 'student') {
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
     
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto pt-24 pb-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Header -->
             <div class="premium-card rounded-3xl p-8 mb-8 relative overflow-hidden">

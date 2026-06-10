@@ -32,7 +32,7 @@ if (isset($_POST['login'])) {
     $password = $_POST['password'] ?? '';
 
     // Use absolute path for redirects
-    $login_path = '/lms/login.php';
+    $login_path = BASE_PATH . 'login.php';
 
     if (empty($identifier) || empty($password)) {
         header("Location: " . $login_path . "?error=" . urlencode("Fields cannot be empty"));
@@ -153,7 +153,7 @@ if (isset($_POST['login'])) {
                         header("Location: dashboard/profile.php");
                         break;
                     case 'instructor':
-                        header("Location: /lms/instructor/dashboard.php");
+                        header("Location: " . BASE_PATH . "instructor/dashboard.php");
                         break;
                     default:
                         header("Location: " . $login_path);
@@ -206,7 +206,7 @@ if (isset($_GET['logout'])) {
     session_destroy();
 
     // Redirect to login
-    header("Location: /lms/login.php?success=" . urlencode("Logged out successfully"));
+    header("Location: " . BASE_PATH . "login.php?success=" . urlencode("Logged out successfully"));
     exit();
 }
 ?>

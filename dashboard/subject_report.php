@@ -192,7 +192,7 @@ $months = [
 <body class="bg-gray-50">
     <?php include 'navbar.php'; ?>
 
-    <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto pt-24 pb-8 px-4 sm:px-6 lg:px-8">
         <!-- Breadcrumbs -->
         <nav class="flex mb-8" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 md:space-x-3 text-sm text-gray-500">

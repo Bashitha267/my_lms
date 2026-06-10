@@ -272,7 +272,7 @@ if ($user_logged_in && $view == 'orders') {
     <div id="toast">Order Request Sent! 🚀</div>
 
     <!-- Main Content -->
-    <main class="relative hero-gradient pt-16 pb-20">
+    <main class="relative hero-gradient pt-24 pb-20">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <!-- Tabs Header -->
             <div class="flex items-center gap-8 mb-12 border-b border-slate-200">

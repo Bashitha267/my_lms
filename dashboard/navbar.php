@@ -10,8 +10,20 @@ $email = $_SESSION['email'] ?? '';
 $district = $_SESSION['district'] ?? '';
 
 // URLs
-$base_url = "http://localhost/lms/dashboard/";
-$root_url = "http://localhost/lms/";
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'];
+$doc_root = rtrim(str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+$dir = rtrim(str_replace('\\', '/', dirname(__DIR__)), '/');
+$base_path = '/';
+if (!empty($doc_root) && stripos($dir, $doc_root) === 0) {
+    $base_path = substr($dir, strlen($doc_root));
+}
+$base_path = '/' . ltrim($base_path, '/');
+if ($base_path !== '/') {
+    $base_path = rtrim($base_path, '/') . '/';
+}
+$root_url = $protocol . $host . $base_path;
+$base_url = $root_url . 'dashboard/';
 
 // Whatsapp debug display
 if (isset($_SESSION['whatsapp_debug'])): ?>
@@ -123,26 +135,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 </div>
             </div>
 
-            <!-- Desktop Right Side Profile Action (shown only on lg and above) -->
-            <div class="hidden lg:flex items-center h-14 sm:h-16">
-                <?php if (isset($_SESSION['role'])): ?>
-                    <button onclick="openProfileModal()" id="nav-profile-btn"
-                        class="flex items-center gap-2 group px-5 h-full hover:bg-slate-50 transition-all border-l border-slate-100">
-                        <div
-                            class="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center text-white font-bold border border-white shadow-sm overflow-hidden">
-                            <?php if (!empty($profile_picture)): ?>
-                                <img src="<?php echo $root_url . $profile_picture; ?>" class="w-full h-full object-cover">
-                            <?php else: ?>
-                                <span
-                                    class="text-[10px]"><?php echo strtoupper(substr($_SESSION['first_name'] ?? 'U', 0, 1)); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <span id="nav-profile-name" class="text-[9px] font-black text-slate-700 uppercase tracking-widest">
-                            <?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>
-                        </span>
-                    </button>
-                <?php endif; ?>
-            </div>
+
 
             <!-- Mobile/Tablet block buttons (shown on screens smaller than lg) -->
             <div class="flex lg:hidden items-stretch h-14 sm:h-16">
@@ -187,6 +180,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 $all_nav_items = [
                     ['HOME', 'dashboard.php', 'මුල් පිටුව'],
                     ['PROFILE', 'profile.php', 'ගිණුම'],
+                    ['EDIT PROFILE', 'edit.php', 'ගිණුම් සංස්කරණය'],
                     ['RECORDINGS', 'recordings.php', 'පටිගත කිරීම්'],
                     ['LIVE CLASSES', 'live_classes.php', 'සජීවී පන්ති'],
                     ['INSTRUCTORS', 'instructors.php', 'ගුරුවරුන්'],
@@ -301,7 +295,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         <!-- Modal Footer -->
         <div class="bg-slate-50 px-8 py-4 flex justify-between items-center">
             <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
-                <a href="<?php echo $base_url; ?>profile.php"
+                <a href="<?php echo $base_url; ?>edit.php"
                     class="text-slate-600 font-bold text-xs hover:text-red-600 transition-colors uppercase tracking-widest flex items-center gap-2">
                     <i class="fas fa-edit"></i> Edit Profile
                 </a>

@@ -124,6 +124,12 @@ $stmt->close();
             background: #f9fafb;
             <?php endif; ?>
             min-height: 100vh;
+            padding-top: 5rem;
+        }
+        @media (min-width: 640px) {
+            .content-overlay {
+                padding-top: 6rem;
+            }
         }
 
         /* Carousel Styles */

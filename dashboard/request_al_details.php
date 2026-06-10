@@ -57,8 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_request'])) {
     $result = $stmt->get_result();
     
     $count = 0;
-    $details_link = "https://" . $_SERVER['HTTP_HOST'] . "/lms/student/al_exam_form.php";
-    $results_link = "https://" . $_SERVER['HTTP_HOST'] . "/lms/student/al_results_form.php";
+    $details_link = "https://" . $_SERVER['HTTP_HOST'] . rtrim(BASE_PATH, '/') . "/student/al_exam_form.php";
+    $results_link = "https://" . $_SERVER['HTTP_HOST'] . rtrim(BASE_PATH, '/') . "/student/al_results_form.php";
     
     while ($student = $result->fetch_assoc()) {
         if (!empty($student['whatsapp_number'])) {
@@ -161,7 +161,7 @@ while ($row = $result->fetch_assoc()) {
         ?>
         
         <!-- Main Content -->
-        <div class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
+        <div class="flex-grow container mx-auto px-4 pt-24 pb-8 max-w-7xl">
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-3xl font-bold text-gray-900">A/L Exam Details Collection</h1>

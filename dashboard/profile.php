@@ -382,13 +382,32 @@ if ($role === 'student') {
 <body class="bg-[#f8fafc] text-slate-900 min-h-screen flex flex-col">
     <?php include 'navbar.php'; ?>
 
-    <main class="w-full px-4 sm:px-6 lg:px-12 py-8 flex-grow">
+    <main class="w-full px-4 sm:px-6 lg:px-12 pt-24 pb-8 flex-grow">
         
 
-        <!-- Welcome Greeting -->
-        <div class="mb-10 animate-fade-in" style="animation-delay: 0.05s">
-            <h1 class="text-3xl md:text-5xl font-black text-[#1e293b] tracking-tight">ආයුබෝවන්, <span class="text-red-600"><?php echo htmlspecialchars($user_data['first_name'] ?? $user_id); ?>!</span></h1>
-            <p class="text-slate-500 font-medium mt-2">Welcome back to your personalized learning workspace.</p>
+        <!-- Welcome Greeting & Profile Button -->
+        <div class="mb-10 animate-fade-in flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6" style="animation-delay: 0.05s">
+            <div>
+                <h1 class="text-3xl md:text-5xl font-black text-[#1e293b] tracking-tight">ආයුබෝවන්, <span class="text-red-600"><?php echo htmlspecialchars($user_data['first_name'] ?? $user_id); ?>!</span></h1>
+                <p class="text-slate-500 font-medium mt-2">Welcome back to your personalized learning workspace.</p>
+            </div>
+            
+            <button onclick="openProfileModal()" id="nav-profile-btn"
+                class="flex items-center gap-3 group px-6 py-3.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm transition-all active:scale-[0.98]">
+                <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white text-base font-bold border-2 border-white shadow-sm overflow-hidden flex-shrink-0">
+                    <?php if (!empty($user_data['profile_picture'])): ?>
+                        <img src="../<?php echo htmlspecialchars($user_data['profile_picture']); ?>" class="w-full h-full object-cover">
+                    <?php else: ?>
+                        <span><?php echo strtoupper(substr($user_data['first_name'] ?? 'U', 0, 1)); ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="text-left">
+                    <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">My Account</span>
+                    <span class="block text-sm font-black text-slate-800 uppercase tracking-wide">
+                        <?php echo htmlspecialchars($user_data['first_name'] ?? 'User'); ?>
+                    </span>
+                </div>
+            </button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">

@@ -25,7 +25,7 @@ if (!empty($user_id) && $role === 'student') {
         $al_requested = !empty($al_state) && intval($al_state['al_details_requested'] ?? 0) === 1;
 
         if ($al_requested && !$al_submitted) {
-            header("Location: /lms/student/al_exam_form.php");
+            header("Location: " . BASE_PATH . "student/al_exam_form.php");
             exit();
         }
     }
@@ -33,7 +33,7 @@ if (!empty($user_id) && $role === 'student') {
 
 // If not logged in and not a guest who submitted details, redirect to login
 if (empty($user_id) && empty($_SESSION['guest_name'])) {
-    header("Location: /lms/login.php");
+    header("Location: " . BASE_PATH . "login.php");
     exit();
 }
 

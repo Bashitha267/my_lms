@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt']) && !$exis
 <body class="pb-20">
     <?php include 'navbar.php'; ?>
 
-    <div class="max-w-xl mx-auto px-4 pt-12">
+    <div class="max-w-xl mx-auto px-4 pt-24">
         <div class="form-card">
             <!-- Header -->
             <div class="mb-8 border-b border-slate-100 pb-6">

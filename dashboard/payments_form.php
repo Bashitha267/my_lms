@@ -323,7 +323,7 @@ if ($enrollment_id > 0) {
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
     
-    <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto pt-24 pb-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">
             <!-- Header -->
             <div class="bg-white rounded-lg shadow p-6 mb-6">

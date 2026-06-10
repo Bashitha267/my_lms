@@ -169,7 +169,7 @@ $attendance_list = $a_stmt->get_result();
 <body class="bg-gray-50 min-h-screen">
     <?php include 'navbar.php'; ?>
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="max-w-7xl mx-auto px-4 pt-24 pb-8">
         <div class="flex flex-col lg:flex-row gap-8">
             <!-- Left Side: Scanner -->
             <div class="w-full lg:w-1/2">

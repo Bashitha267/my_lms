@@ -378,10 +378,16 @@ if ($role === 'teacher') {
             <?php endif; ?>
         }
         .content-overlay {
-         
+          
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             min-height: 100vh;
+            padding-top: 5rem;
+        }
+        @media (min-width: 640px) {
+            .content-overlay {
+                padding-top: 6rem;
+            }
         }
         .glass-card {
             background: rgba(255, 255, 255, 1);

@@ -196,7 +196,7 @@ if ($user_role === 'student') {
     <?php include 'navbar.php'; ?>
 
     <!-- Simplified Header -->
-    <div class="bg-slate-900 py-12 px-4 shadow-inner">
+    <div class="bg-slate-900 pt-28 pb-12 px-4 shadow-inner">
         <div class="max-w-7xl mx-auto">
             <h1 class="text-2xl md:text-3xl font-bold text-white tracking-tight">පෞද්ගලික උපදේශන සහාය</h1>
             <p class="text-slate-400 text-sm mt-1 font-medium">ඔබේ ඉගනීමේ කටයුතු සඳහා ඉහළ පෙළේ උපදේශකයන් සමඟ 1-on-1 සම්බන්ධ වන්න.</p>

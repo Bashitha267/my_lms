@@ -70,7 +70,7 @@ $assign_stmt->close();
 <body class="bg-gray-50">
     <?php include 'navbar.php'; ?>
 
-    <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto pt-24 pb-10 px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900">Attendance Reports</h1>

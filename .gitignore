@@ -1,0 +1,19 @@
+# Environment specific database credentials
+config.production.php
+
+# Local dev scratch files
+scratch/
+temp_tables.txt
+tables.txt
+tables_utf8.txt
+subjects_cols.txt
+schema_output.txt
+schema.json
+schema_utf8.json
+
+# IDE / workspace configuration files
+.vscode/
+.idea/
+.gemini/
+.DS_Store
+Thumbs.db

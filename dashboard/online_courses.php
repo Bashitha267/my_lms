@@ -301,7 +301,7 @@ $bg_stmt->close();
 <body class="bg-gray-50 bg-cover bg-center bg-fixed bg-no-repeat min-h-screen backdrop-blur-sm" <?php echo $background_image ? 'style="background-image: url(\'../' . htmlspecialchars($background_image) . '\');"' : ''; ?>>
     <?php include 'navbar.php'; ?>
     
-    <div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8 ">
+    <div class="max-w-7xl mx-auto pt-24 pb-10 px-4 sm:px-6 lg:px-8 ">
         
         <!-- Messages -->
         <?php if($success_msg): ?>

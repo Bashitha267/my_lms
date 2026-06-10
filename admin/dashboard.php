@@ -4,7 +4,7 @@ require_once '../config.php';
 
 // Verify user is admin or super_admin
 if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
-    header("Location: /lms/login.php?error=" . urlencode("Access denied. Admin only."));
+    header("Location: " . BASE_PATH . "login.php?error=" . urlencode("Access denied. Admin only."));
     exit();
 }
 

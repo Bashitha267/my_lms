@@ -592,6 +592,12 @@ if (empty($role)) {
             background: linear-gradient(to bottom, rgba(243, 244, 246, 0.4), rgba(243, 244, 246, 0.6));
             backdrop-filter: blur(8px);
             min-height: 100vh;
+            padding-top: 5rem;
+        }
+        @media (min-width: 640px) {
+            .content-overlay {
+                padding-top: 6rem;
+            }
         }
         .premium-card {
             background: rgba(255, 255, 255, 0.9);

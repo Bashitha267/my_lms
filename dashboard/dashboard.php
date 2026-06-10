@@ -452,6 +452,18 @@ if (!function_exists('format_html_color')) {
 
                         <!-- Compact Glassmorphic Login Bar -->
                         <div class="max-w-2xl">
+                            <?php if (!empty($error_message)): ?>
+                                <div class="bg-red-600/90 text-white px-4 py-3 mb-4 font-bold border-l-4 border-white backdrop-blur-md flex items-center shadow-lg">
+                                    <i class="fas fa-exclamation-circle mr-3"></i>
+                                    <span><?php echo htmlspecialchars($error_message); ?></span>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($success_message)): ?>
+                                <div class="bg-emerald-600/90 text-white px-4 py-3 mb-4 font-bold border-l-4 border-white backdrop-blur-md flex items-center shadow-lg">
+                                    <i class="fas fa-check-circle mr-3"></i>
+                                    <span><?php echo htmlspecialchars($success_message); ?></span>
+                                </div>
+                            <?php endif; ?>
                             <form action="../auth.php" method="POST"
                                 class="bg-white/10 backdrop-blur-xl p-1 rounded-none flex flex-col md:flex-row gap-1 border border-white/20 shadow-2xl group transition-all hover:bg-white/15">
                                 <div

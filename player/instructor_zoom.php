@@ -6,7 +6,7 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role    = $_SESSION['role'] ?? '';
 
 if (empty($user_id)) {
-    header("Location: /lms/login.php");
+    header("Location: " . BASE_PATH . "login.php");
     exit();
 }
 

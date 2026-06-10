@@ -4,7 +4,7 @@ require_once '../config.php';
 
 // Verify user is admin
 if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
-    header("Location: /lms/login.php");
+    header("Location: " . BASE_PATH . "login.php");
     exit();
 }
 

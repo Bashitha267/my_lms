@@ -1,5 +1,7 @@
 <?php
 // check_al_redirection.php - Shared logic to enforce AL details submission
+require_once __DIR__ . '/config.php';
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -14,8 +16,6 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
     ) {
         // Use flags in session to avoid DB query on every page load
         if (!isset($_SESSION['al_subjects_submitted']) || !isset($_SESSION['al_results_submitted']) || !isset($_SESSION['al_requested'])) {
-            require_once __DIR__ . '/config.php';
-            
             $uid = $_SESSION['user_id'];
             $chk = $conn->prepare("SELECT 
                 (SELECT COUNT(*) FROM al_exam_submissions WHERE student_id = u.user_id) as subjects_submitted,
@@ -35,11 +35,11 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
         // Enforcement:
         if (!empty($_SESSION['al_requested'])) {
             if (empty($_SESSION['al_subjects_submitted'])) {
-                header("Location: /lms/student/al_exam_form.php");
+                header("Location: " . BASE_PATH . "student/al_exam_form.php");
                 exit();
             }
             if (empty($_SESSION['al_results_submitted'])) {
-                header("Location: /lms/student/al_results_form.php");
+                header("Location: " . BASE_PATH . "student/al_results_form.php");
                 exit();
             }
         }
