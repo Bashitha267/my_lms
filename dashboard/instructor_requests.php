@@ -5,7 +5,7 @@ require_once '../whatsapp_config.php';
 
 // Verify user is instructor
 if ($_SESSION['role'] !== 'instructor') {
-    header("Location: ../dashboard/dashboard.php");
+    header("Location: ../index.php");
     exit();
 }
 
@@ -97,6 +97,11 @@ $stmt->close();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
+    <link rel="manifest" href="../assests/site.webmanifest">
+    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instructor Dashboard - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>

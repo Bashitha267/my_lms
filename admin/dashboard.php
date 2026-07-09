@@ -97,6 +97,15 @@ while ($row = $result->fetch_assoc()) {
     ];
 }
 $stmt->close();
+
+// Fetch newly joined users
+$new_users = [];
+$new_users_res = $conn->query("SELECT user_id, first_name, second_name, role, registering_date, profile_picture FROM users ORDER BY registering_date DESC LIMIT 15");
+if ($new_users_res) {
+    while ($row = $new_users_res->fetch_assoc()) {
+        $new_users[] = $row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -142,6 +151,21 @@ $stmt->close();
             background-color: white;
         }
         <?php endif; ?>
+        
+        /* Custom scrollbar for clean design */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -151,19 +175,22 @@ $stmt->close();
     <div class="content-overlay">
     <?php endif; ?>
     
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="px-4 py-6 sm:px-0">
-            <!-- Welcome Section -->
-            <div class="transparent-card rounded-lg shadow p-6 mb-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-                <p class="text-gray-600">
-                    Welcome, <span class="font-semibold text-red-600"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Admin'); ?></span>!
-                </p>
-            </div>
+    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        <!-- Dashboard Layout Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Main Content Area (left 3 columns on lg) -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Welcome Section -->
+                <div class="transparent-card rounded-lg shadow p-6">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+                    <p class="text-gray-600">
+                        Welcome, <span class="font-semibold text-red-600"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Admin'); ?></span>!
+                    </p>
+                </div>
 
-            <!-- Teachers Section -->
-            <div class="mb-6">
-                <h2 class="text-2xl font-bold text-gray-900 mb-4">All Teachers</h2>
+                <!-- Teachers Section -->
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">All Teachers</h2>
                 
                 <?php if (empty($teachers)): ?>
                     <div class="transparent-card rounded-lg shadow p-8 text-center">
@@ -291,6 +318,55 @@ $stmt->close();
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
+                </div>
+            </div>
+            
+            <!-- Right Sidebar Area (right 1 column on lg) -->
+            <div class="lg:col-span-1">
+                <!-- Newly Joined Users Card -->
+                <div class="transparent-card rounded-lg shadow p-6 flex flex-col h-[600px] sticky top-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                        </svg>
+                        <span>Newly Joined Users</span>
+                    </h3>
+                    <div class="overflow-y-auto space-y-4 flex-1 pr-1 custom-scrollbar">
+                        <?php if (empty($new_users)): ?>
+                            <p class="text-sm text-gray-500 italic text-center py-8">No recent users.</p>
+                        <?php else: ?>
+                            <?php foreach ($new_users as $nu): 
+                                $nu_name = trim(($nu['first_name'] ?? '') . ' ' . ($nu['second_name'] ?? '')) ?: $nu['user_id'];
+                                $nu_role = strtoupper($nu['role'] ?? 'student');
+                                $nu_date = $nu['registering_date'] ? date('M d, Y', strtotime($nu['registering_date'])) : 'N/A';
+                                
+                                // Role color
+                                $role_class = 'bg-blue-100 text-blue-800';
+                                if ($nu['role'] === 'teacher') $role_class = 'bg-red-100 text-red-800';
+                                elseif ($nu['role'] === 'instructor') $role_class = 'bg-purple-100 text-purple-800';
+                                elseif ($nu['role'] === 'admin' || $nu['role'] === 'super_admin') $role_class = 'bg-amber-100 text-amber-800';
+                            ?>
+                                <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <?php if ($nu['profile_picture']): ?>
+                                        <img src="../<?php echo htmlspecialchars($nu['profile_picture']); ?>" class="w-10 h-10 rounded-full object-cover border border-gray-200">
+                                    <?php else: ?>
+                                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                            <?php echo strtoupper(substr($nu_name, 0, 1)); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-semibold text-gray-900 truncate" title="<?php echo htmlspecialchars($nu_name); ?>"><?php echo htmlspecialchars($nu_name); ?></p>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <span class="px-1.5 py-0.5 text-[9px] font-bold rounded-full <?php echo $role_class; ?>"><?php echo $nu_role; ?></span>
+                                            <span class="text-[10px] text-gray-400 font-medium"><?php echo $nu_date; ?></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

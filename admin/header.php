@@ -27,8 +27,8 @@ $admin_header_prefix = $admin_header_prefix ?? '';
         <div class="flex justify-between items-center h-16">
             <!-- Logo/Brand -->
             <div class="flex items-center flex-shrink-0">
-                <a href="<?php echo $admin_header_prefix; ?>dashboard.php" class="text-white text-2xl font-bold hover:text-blue-100 transition-colors tracking-tight">
-                    LMS ADMIN
+                <a href="<?php echo $admin_header_prefix; ?>dashboard.php" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                    <img src="<?php echo $admin_header_prefix; ?>../assests/logo.jpeg" alt="LMS Logo" class="h-10 w-auto object-contain rounded">
                 </a>
             </div>
             

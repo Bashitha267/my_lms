@@ -156,7 +156,7 @@ if (isset($_GET['skip']) && $_GET['skip'] == '1') {
     $clear_request->bind_param("s", $user_id);
     if ($clear_request->execute()) {
         $_SESSION['al_requested'] = false;
-        header("Location: ../dashboard/dashboard.php");
+        header("Location: ../index.php");
         exit();
     }
     $clear_request->close();

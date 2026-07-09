@@ -26,8 +26,8 @@ $root_url = '../';
         <div class="flex justify-between items-center h-12">
             <!-- Logo -->
             <div class="flex items-center flex-shrink-0">
-                <a href="<?php echo $root_url; ?>index.php" class="text-white text-base font-bold tracking-tight">
-                    LearnerX <span class="text-[10px] font-normal opacity-75">Instructor</span>
+                <a href="<?php echo $root_url; ?>index.php" class="flex items-center hover:opacity-80 transition-opacity">
+                    <img src="<?php echo $root_url; ?>assests/logo.jpeg" alt="LMS Logo" class="h-9 w-auto object-contain rounded">
                 </a>
             </div>
 

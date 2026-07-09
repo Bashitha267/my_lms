@@ -6,7 +6,7 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 
 if (!in_array($role, ['admin', 'super_admin']) && $role !== 'teacher') {
-    header('Location: ../dashboard/dashboard.php');
+    header('Location: ../index.php');
     exit;
 }
 
@@ -155,6 +155,11 @@ $response_rate = $total_count > 0 ? round(($responded_count / $total_count) * 10
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
+    <link rel="manifest" href="../assests/site.webmanifest">
+    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Responses - <?php echo htmlspecialchars($title_name); ?></title>
     <script src="https://cdn.tailwindcss.com"></script>

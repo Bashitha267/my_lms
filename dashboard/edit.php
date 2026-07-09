@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // edit.php - Edit user profile details (excluding email, including profile picture)
 require_once __DIR__ . '/../config.php';
 
@@ -152,6 +152,11 @@ $districts = ["Ampara", "Anuradhapura", "Badulla", "Batticaloa", "Colombo", "Gal
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
+    <link rel="manifest" href="../assests/site.webmanifest">
+    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Profile - Learner.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>

@@ -107,7 +107,7 @@ if (isset($_GET['skip']) && $_GET['skip'] == '1') {
     $clear_request->bind_param("s", $user_id);
     if ($clear_request->execute()) {
         $_SESSION['al_requested'] = false;
-        header("Location: ../dashboard/dashboard.php");
+        header("Location: ../index.php");
         exit();
     }
     $clear_request->close();
@@ -193,7 +193,7 @@ $al_subjects = [
                         <a href="al_results_form.php" class="inline-block bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition font-semibold">
                             Submit Results / Publish (Optional)
                         </a>
-                        <a href="../dashboard/dashboard.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                        <a href="../index.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
                             Go to Dashboard
                         </a>
                     </div>

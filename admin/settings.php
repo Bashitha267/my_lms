@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require_once '../config.php';
 
@@ -372,6 +372,11 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
+    <link rel="manifest" href="../assests/site.webmanifest">
+    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Settings - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -533,7 +538,7 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                     <div id="tab-dashboard_colors" class="tab-content hidden">
                         <div class="bg-gray-50 p-6 rounded-lg border mb-8">
                             <h4 class="text-lg font-bold mb-2">Dashboard Section & Card Colors</h4>
-                            <p class="text-xs text-gray-500 mb-6">Specify HTML color values (e.g. <code>#e0f2fe</code> or <code>e0f2fe</code> or <code>rgb(224, 242, 254)</code>. Card colors should be separated by commas. We will randomly select a color from the card colors list for each item card.</p>
+                            <p class="text-xs text-gray-500 mb-6">Use the color pickers to choose colors visually — values are saved as HTML hex codes (e.g. <code>#e0f2fe</code>). For the section background, pick a color or type a hex value. For card colors, pick a color and click <strong>Add</strong>; each color will appear as a chip below.</p>
                             
                             <form method="POST" action="" class="space-y-8">
                                 <input type="hidden" name="update_colors" value="1">
@@ -607,17 +612,12 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                                                 <!-- Controls to add a new color -->
                                                 <div class="flex items-center gap-2">
                                                     <div class="relative flex-1">
-                                                        <input type="text" id="<?php echo $key; ?>_new_color_input" 
-                                                               class="w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10 text-sm focus:ring-red-500 focus:border-red-500" 
-                                                               placeholder="Enter hex (e.g. #f3e8ff) or Tailwind bg class"
-                                                               onkeypress="if(event.key === 'Enter') { event.preventDefault(); addColor('<?php echo $key; ?>'); }">
-                                                        <!-- Direct quick color picker -->
-                                                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
-                                                            <input type="color" id="<?php echo $key; ?>_new_color_picker" 
-                                                                   value="#e0f2fe"
-                                                                   class="w-6 h-6 border border-gray-300 rounded cursor-pointer p-0 bg-transparent"
-                                                                   onchange="document.getElementById('<?php echo $key; ?>_new_color_input').value = this.value;">
-                                                        </div>
+                                                        <input type="color" id="<?php echo $key; ?>_new_color_picker" 
+                                                               value="#e0f2fe"
+                                                               class="w-full h-10 border border-gray-300 rounded-md cursor-pointer p-1 bg-white"
+                                                               onchange="document.getElementById('<?php echo $key; ?>_new_color_input').value = this.value;">
+                                                        <!-- Hidden input to hold the value before adding -->
+                                                        <input type="hidden" id="<?php echo $key; ?>_new_color_input" value="#e0f2fe">
                                                     </div>
                                                     <button type="button" onclick="addColor('<?php echo $key; ?>')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-semibold transition shadow-sm">
                                                         Add
@@ -752,6 +752,18 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
             let color = input.value.trim();
             if (!color) return;
             
+            // Normalize to a valid hex color
+            // If 3 or 6 hex chars without #, prepend it
+            if (/^[a-fA-F0-9]{6}$/.test(color) || /^[a-fA-F0-9]{3}$/.test(color)) {
+                color = '#' + color;
+            }
+            // If still not a valid hex, attempt to parse via canvas (only for color picker values which are always valid)
+            // Reject invalid values
+            if (!/^#[a-fA-F0-9]{3}([a-fA-F0-9]{3})?$/.test(color) && !/^rgb/i.test(color)) {
+                alert('Please enter a valid color using the color picker or type a hex value like #ff0000.');
+                return;
+            }
+            
             const container = document.getElementById(sectionKey + '_chips_container');
             
             // Check if color already exists
@@ -810,8 +822,10 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
             const hiddenInput = document.getElementById(sectionKey + '_card_colors');
             saveColorSetting(sectionKey, 'card_colors', hiddenInput.value);
             
-            // Clear input
-            input.value = '';
+            // Reset picker & hidden input to default so admin can pick next color
+            const picker = document.getElementById(sectionKey + '_new_color_picker');
+            if (picker) { picker.value = '#e0f2fe'; }
+            input.value = '#e0f2fe';
         }
 
         // Auto-save settings via AJAX

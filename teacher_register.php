@@ -59,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_teacher'])) 
         }
         
         if (empty($error_message)) {
-            $nic_number = trim($_POST['nic_number'] ?? '');
-            $dob = $_POST['dob'] ?? null;
-            $gender = $_POST['gender'] ?? null;
+            $nic_number = !empty(trim($_POST['nic_number'] ?? '')) ? trim($_POST['nic_number']) : null;
+            $dob    = !empty(trim($_POST['dob'] ?? ''))    ? trim($_POST['dob'])    : null;
+            $gender = !empty(trim($_POST['gender'] ?? '')) ? trim($_POST['gender']) : null;
             $requested_rate = isset($_POST['requested_rate']) ? floatval($_POST['requested_rate']) : 75.00;
 
             $is_mentor = 0;
@@ -209,6 +209,11 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assests/favicon-16x16.png">
+    <link rel="manifest" href="assests/site.webmanifest">
+    <link rel="shortcut icon" href="assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teacher Registration | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -296,13 +301,14 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 
         @media (max-width: 640px) {
             body {
-                padding: 20px 16px;
+                padding: 16px 12px;
                 display: block;
+                align-items: unset;
             }
             .registration-container {
-                padding: 24px 20px;
+                padding: 24px 18px;
                 border-radius: 20px;
-                margin-top: 20px;
+                margin-top: 12px;
                 margin-bottom: 20px;
             }
         }
@@ -355,18 +361,26 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
             padding: 0 4px;
             background: white;
             color: #5f6368;
-            font-size: 16px;
+            font-size: 14px;
             pointer-events: none;
             transition: all 0.2s;
+            /* Prevent long labels from overflowing out of the input box */
+            max-width: calc(100% - 24px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .google-input:focus+.google-label,
         .google-input:not(:placeholder-shown)+.google-label {
             top: -10px;
             left: 10px;
-            font-size: 12px;
+            font-size: 11px;
             color: #1a73e8;
             font-weight: 500;
+            white-space: normal;   /* allow wrapping only when floated up */
+            overflow: visible;
+            max-width: calc(100% - 20px);
         }
 
         .google-input:not(:focus)+.google-label {
@@ -475,9 +489,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
         @media (max-width: 480px) {
             .registration-container {
                 padding: 24px 16px;
-                border-radius: 0;
-                border: none;
-                box-shadow: none;
+                border-radius: 16px;
             }
 
             .google-logo h2 {
@@ -503,28 +515,63 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 
             .google-input {
                 font-size: 14px;
-                padding: 11px 13px;
+                padding: 12px 13px;
             }
 
+            /* Keep label matching the new 14px base at rest */
             .google-label {
-                font-size: 14px;
-                top: 11px;
+                font-size: 13px;
+                top: 13px;
             }
 
-            .google-input:focus+.google-label,
-            .google-input:not(:placeholder-shown)+.google-label {
-                font-size: 11px;
+            .google-input:focus + .google-label,
+            .google-input:not(:placeholder-shown) + .google-label {
+                font-size: 10px;
                 top: -9px;
             }
 
             .btn-google,
             .btn-google-outline {
-                padding: 9px 20px;
+                padding: 10px 16px;
                 font-size: 13px;
+            }
+
+            /* Prevent "Register as Teacher" from overflowing */
+            .btn-google {
+                white-space: nowrap;
             }
 
             .progress-stepper {
                 margin-bottom: 20px;
+            }
+
+            /* OTP / NIC rows: stack button below input on tiny screens */
+            .mobile-stack {
+                flex-direction: column;
+            }
+            .mobile-stack > button {
+                width: 100%;
+                margin-top: 4px;
+                padding: 10px;
+                border-radius: 6px;
+            }
+
+            /* Step 3 header: allow wrap so button doesn't squish title */
+            .step3-header {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .step3-header h3 {
+                font-size: 15px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .registration-container {
+                padding: 20px 12px;
+            }
+            .google-input {
+                font-size: 13px;
             }
         }
     </style>
@@ -582,14 +629,14 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 
             <!-- STEP 1: Personal Info -->
             <div class="step-content active" id="step1">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                     <div class="google-input-group">
-                        <input type="text" id="first_name" name="first_name" class="google-input" placeholder="First Name (මුල් නම)"
+                        <input type="text" id="first_name" name="first_name" class="google-input" placeholder=" "
                             required value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>">
                         <label for="first_name" class="google-label">First name (මුල් නම)</label>
                     </div>
                     <div class="google-input-group">
-                        <input type="text" id="second_name" name="second_name" class="google-input" placeholder="Last Name (වාසගම)"
+                        <input type="text" id="second_name" name="second_name" class="google-input" placeholder=" "
                             required value="<?php echo htmlspecialchars($_POST['second_name'] ?? ''); ?>">
                         <label for="second_name" class="google-label">Last name (වාසගම)</label>
                     </div>
@@ -609,13 +656,13 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
             <!-- STEP 2: Contact & Verification -->
             <div class="step-content" id="step2">
                 <div class="google-input-group">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mobile-stack">
                         <div class="relative flex-1">
-                            <input type="text" id="mobile_number" name="mobile_number" class="google-input" placeholder="947xxxxxxxx (ජංගම දුරකථන අංකය)"
+                            <input type="text" id="mobile_number" name="mobile_number" class="google-input" placeholder=" "
                                 required value="<?php echo htmlspecialchars($_POST['mobile_number'] ?? ''); ?>">
                             <label for="mobile_number" class="google-label">Mobile Number (ජංගම දුරකථන අංකය)</label>
                         </div>
-                        <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition">Send OTP</button>
+                        <button type="button" onclick="sendOTP()" id="sendOtpBtn" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition whitespace-nowrap">Send OTP</button>
                     </div>
                 </div>
 
@@ -629,13 +676,13 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                 </div>
 
                 <div class="google-input-group">
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 mobile-stack">
                         <div class="relative flex-1">
-                            <input type="text" id="nic_number" name="nic_number" class="google-input uppercase" placeholder="NIC Number (ජාතික හැඳුනුම්පත් අංකය)"
+                            <input type="text" id="nic_number" name="nic_number" class="google-input uppercase" placeholder=" "
                                 required value="<?php echo htmlspecialchars($_POST['nic_number'] ?? ''); ?>">
                             <label for="nic_number" class="google-label">NIC Number (ජාතික හැඳුනුම්පත් අංකය)</label>
                         </div>
-                        <button type="button" onclick="verifyNIC()" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition">Check</button>
+                        <button type="button" onclick="verifyNIC()" class="bg-red-50 text-red-600 px-4 rounded border border-red-100 hover:bg-red-100 font-semibold text-xs transition whitespace-nowrap">Check NIC</button>
                     </div>
                 </div>
 
@@ -659,9 +706,9 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 
             <!-- STEP 3: Academic Background -->
             <div class="step-content" id="step3">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800">Academic Background (අධ්‍යාපන සුදුසුකම්)</h3>
-                    <button type="button" onclick="addEducationField()" class="text-xs bg-red-50 text-red-700 px-3 py-1.5 rounded font-bold border border-red-100 hover:bg-red-100 transition">+ ADD QUALIFICATION</button>
+                <div class="flex justify-between items-center mb-6 step3-header">
+                    <h3 class="text-base font-semibold text-gray-800">Academic Background <span class="block text-xs font-normal text-gray-500">(අධ්‍යාපන සුදුසුකම්)</span></h3>
+                    <button type="button" onclick="addEducationField()" class="text-xs bg-red-50 text-red-700 px-3 py-1.5 rounded font-bold border border-red-100 hover:bg-red-100 transition whitespace-nowrap flex-shrink-0">+ Add Qualification</button>
                 </div>
 
                 <div id="educationContainer" class="space-y-4">
@@ -676,14 +723,14 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 
             <!-- STEP 4: Teaching Preferences & Register -->
             <div class="step-content" id="step4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                     <div class="google-input-group">
-                        <input type="number" id="academic_year" name="academic_year" class="google-input font-semibold" placeholder="Academic Year (අධ්‍යයන වර්ෂය)"
+                        <input type="number" id="academic_year" name="academic_year" class="google-input font-semibold" placeholder=" "
                             value="<?php echo date('Y'); ?>" required>
                         <label for="academic_year" class="google-label">Academic Year (අධ්‍යයන වර්ෂය)</label>
                     </div>
                     <div class="google-input-group">
-                        <input type="number" id="requested_rate" name="requested_rate" class="google-input font-semibold" placeholder="Requested Commission % (කොමිස් %)"
+                        <input type="number" id="requested_rate" name="requested_rate" class="google-input font-semibold" placeholder=" "
                             value="75" min="1" max="100" required>
                         <label for="requested_rate" class="google-label">Requested Commission % (කොමිස් %)</label>
                     </div>
@@ -714,22 +761,22 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Can't find your subject or stream?</span>
                         <div class="h-px flex-1 bg-gray-200"></div>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                         <div class="google-input-group">
-                            <input type="text" id="new_stream_name" name="new_stream_name" class="google-input" placeholder="New Stream (නව අධ්‍යයන අංශය)">
-                            <label for="new_stream_name" class="google-label">New Stream Name (Arts,Commerce...) (නව විෂයධාරාවක් එකතූ කරන්න )</label>
+                            <input type="text" id="new_stream_name" name="new_stream_name" class="google-input" placeholder=" ">
+                            <label for="new_stream_name" class="google-label">New Stream Name (Arts, Commerce...) (නව විෂයධාරාවක් එකතූ කරන්න)</label>
                         </div>
                         <div class="google-input-group">
-                            <input type="text" id="new_subject_name" name="new_subject_name" class="google-input" placeholder="New Subject (නව විෂය)">
+                            <input type="text" id="new_subject_name" name="new_subject_name" class="google-input" placeholder=" ">
                             <label for="new_subject_name" class="google-label">New Subject Name (නව විෂය එකතූ කරන්න)</label>
                         </div>
                     </div>
                     <p class="text-[10px] text-gray-400 italic">Note: New subjects will be linked to the new stream above or your first selected stream.</p>
                 </div>
 
-                <div class="flex justify-between items-center mt-10">
+                <div class="flex justify-between items-center mt-10 gap-3">
                     <button type="button" onclick="prevStep(4)" class="btn-google-outline">Back</button>
-                    <button type="submit" class="btn-google px-8 shadow-lg shadow-red-500/20">Register as Teacher</button>
+                    <button type="submit" class="btn-google shadow-lg shadow-red-500/20 flex-shrink-0">Register as Teacher</button>
                 </div>
             </div>
 

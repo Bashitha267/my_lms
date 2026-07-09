@@ -201,27 +201,7 @@ $stmt->close();
             </div>
         </section>
 
-        <!-- Animated Statistics Section -->
-        <section class="py-16 bg-red-600">
-            <div class="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
-                <div class="text-center">
-                    <div class="text-5xl font-black text-white mb-2 counter" data-target="<?php echo $student_count; ?>">0</div>
-                    <div class="text-red-100 uppercase tracking-widest text-xs font-bold">Active Students</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-5xl font-black text-white mb-2 counter" data-target="<?php echo $teacher_count; ?>">0</div>
-                    <div class="text-red-100 uppercase tracking-widest text-xs font-bold">Expert Teachers</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-5xl font-black text-white mb-2 counter" data-target="<?php echo $course_count; ?>">0</div>
-                    <div class="text-red-100 uppercase tracking-widest text-xs font-bold">Special Courses</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-5xl font-black text-white mb-2"><?php echo $active_hours; ?></div>
-                    <div class="text-red-100 uppercase tracking-widest text-xs font-bold">Available Online</div>
-                </div>
-            </div>
-        </section>
+    
 
         <!-- Teachers Grid Section -->
         <section class="py-24 px-4 bg-white/40">

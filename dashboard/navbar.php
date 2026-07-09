@@ -82,19 +82,16 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         <div class="flex justify-between items-center h-14 sm:h-16 transition-all duration-500" id="navbar-container">
             <!-- Logo/Brand - Left Side -->
             <div class="flex items-center flex-shrink-0 mr-auto pl-2 sm:pl-6 lg:pl-8">
-                <a href="<?php echo $base_url; ?>dashboard.php" class="flex items-center gap-2 group">
-                    <span id="nav-logo"
-                        class="text-[11px] sm:text-lg md:text-xl font-black tracking-tighter transition-colors duration-500 text-red-600">
-                        LEARNER<span id="logo-dot" class="text-slate-900">.LK</span>
-                    </span>
+                <a href="<?php echo $root_url; ?>" class="flex items-center gap-2 group hover:opacity-80 transition-opacity">
+                    <img src="<?php echo $root_url; ?>assests/logo.jpeg" alt="LMS Logo" class="h-10 w-auto object-contain">
                 </a>
             </div>
 
             <!-- Navigation Links - Moved to Right -->
             <div class="hidden lg:flex items-stretch h-14 sm:h-16">
-                <a href="dashboard.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">Home</a>
-                <a href="live_classes.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
-                <a href="publications.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
+                <a href="<?php echo $root_url; ?>" class="flex items-center px-5 text-[11px] font-black tracking-widest text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">Home</a>
+                <a href="<?php echo $base_url; ?>live_classes.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
+                <a href="<?php echo $base_url; ?>publications.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
                 <!-- Desktop Dropdown Menu -->
                 <div class="relative group/dropdown h-full">
                     <button class="flex items-center h-full px-5 text-[11px] font-black tracking-widest text-white bg-black group-hover/dropdown:bg-zinc-900 transition-all gap-3 uppercase">
@@ -119,7 +116,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                             ['ABOUT US', 'about_us.php', 'fa-info-circle', 'අප ගැන']
                         ];
                         foreach ($dropdown_items as $item): ?>
-                            <a href="<?php echo $item[1]; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
+                            <a href="<?php echo $base_url . $item[1]; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
                                 <div class="flex flex-col">
                                     <span class="text-[10px] font-black tracking-widest text-white/90 group-hover/item:text-white uppercase"><?php echo $item[0]; ?></span>
                                     <span class="text-[9px] text-white/40 font-medium group-hover/item:text-white/60"><?php echo $item[3]; ?></span>
@@ -139,9 +136,9 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
 
             <!-- Mobile/Tablet block buttons (shown on screens smaller than lg) -->
             <div class="flex lg:hidden items-stretch h-14 sm:h-16">
-                <a href="dashboard.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">HOME</a>
-                <a href="live_classes.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
-                <a href="publications.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
+                <a href="<?php echo $root_url; ?>" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">HOME</a>
+                <a href="<?php echo $base_url; ?>live_classes.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
+                <a href="<?php echo $base_url; ?>publications.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
                 <button onclick="toggleMobileMenu()" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-black hover:bg-zinc-900 transition-all gap-1 uppercase">
                     <span>MENU</span>
                     <div class="space-y-0.5">
@@ -164,8 +161,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         id="mobile-panel">
         <div class="p-6">
             <div class="flex items-center justify-between mb-8">
-                <span class="text-2xl font-black tracking-tighter text-slate-900">LERNERR<span
-                        class="text-red-600">.LK</span></span>
+                <img src="<?php echo $root_url; ?>assests/logo.jpeg" alt="LMS Logo" class="h-10 w-auto object-contain">
                 <button onclick="toggleMobileMenu()"
                     class="p-2 bg-slate-100 rounded-full text-slate-500 hover:text-red-600 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +190,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 foreach ($all_nav_items as $item):
                     $is_active = ($current_page == $item[1]);
                     ?>
-                    <a href="<?php echo $base_url . $item[1]; ?>"
+                    <a href="<?php echo $item[1] === 'dashboard.php' ? $root_url : $base_url . $item[1]; ?>"
                         class="flex items-center justify-between px-4 py-4 rounded-2xl transition-all <?php echo $is_active ? 'bg-red-50 text-red-600 font-black' : 'text-slate-600 hover:bg-slate-50 font-bold'; ?>">
                         <div class="flex flex-col">
                             <span class="text-sm"><?php echo $item[0]; ?></span>
@@ -339,7 +335,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         const nav = document.getElementById('main-navbar');
         const logo = document.getElementById('nav-logo');
         const logoDot = document.getElementById('logo-dot');
-        const isHome = "<?php echo $current_page; ?>" === "dashboard.php";
+        const isHome = "<?php echo $current_page; ?>" === "dashboard.php" || "<?php echo $current_page; ?>" === "index.php";
         const navLinks = document.querySelectorAll('.nav-link-item');
         const regBtn = document.getElementById('nav-register-btn');
         const profileBtn = document.getElementById('nav-profile-btn');
@@ -409,8 +405,8 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 link.addEventListener('click', function (e) {
                     const href = this.getAttribute('href');
                     if (!href || href.includes('#')) return;
-                    const allowed = ['dashboard.php', 'live_classes.php', 'publications.php', 'about_us.php', 'index.php', 'ALDetails.php', 'register.php'];
-                    const isAllowed = allowed.some(p => href.includes(p));
+                    const allowed = ['dashboard.php', 'live_classes.php', 'publications.php', 'about_us.php', 'index.php', 'ALDetails.php', 'register.php', '<?php echo parse_url($root_url, PHP_URL_PATH); ?>'];
+                    const isAllowed = allowed.some(p => href.includes(p)) || href === '<?php echo $root_url; ?>' || href === '/' || href === '';
                     if (!isAllowed) {
                         e.preventDefault();
                         showGuestAuthModal();

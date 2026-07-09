@@ -26,10 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $role = $_POST['role'];
     $commission_rate = floatval($_POST['commission_rate'] ?? 0);
     $hourly_rate = floatval($_POST['hourly_rate'] ?? 0);
+    $password = $_POST['password'] ?? '';
     
     // Update basic info
-    $stmt = $conn->prepare("UPDATE users SET first_name=?, second_name=?, email=?, mobile_number=?, whatsapp_number=?, role=?, commission_rate=?, hourly_rate=? WHERE user_id=?");
-    $stmt->bind_param("ssssssdds", $fname, $sname, $email, $mobile, $whatsapp, $role, $commission_rate, $hourly_rate, $user_id);
+    if (!empty($password)) {
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $conn->prepare("UPDATE users SET first_name=?, second_name=?, email=?, mobile_number=?, whatsapp_number=?, role=?, commission_rate=?, hourly_rate=?, password=? WHERE user_id=?");
+        $stmt->bind_param("ssssssddss", $fname, $sname, $email, $mobile, $whatsapp, $role, $commission_rate, $hourly_rate, $password_hash, $user_id);
+    } else {
+        $stmt = $conn->prepare("UPDATE users SET first_name=?, second_name=?, email=?, mobile_number=?, whatsapp_number=?, role=?, commission_rate=?, hourly_rate=? WHERE user_id=?");
+        $stmt->bind_param("ssssssdds", $fname, $sname, $email, $mobile, $whatsapp, $role, $commission_rate, $hourly_rate, $user_id);
+    }
     
     if ($stmt->execute()) {
         $success_msg = "User profile updated successfully.";
@@ -91,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $qual = trim($_POST['qualification']);
         $inst = trim($_POST['institution']);
         $year = intval($_POST['year_obtained']);
-        $field = trim($_POST['field_of_study']);
+        $field = '';
         $grade = trim($_POST['grade_or_class']);
         
         $stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study, grade_or_class) VALUES (?, ?, ?, ?, ?, ?)");
@@ -108,7 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $qual = trim($_POST['qualification']);
         $inst = trim($_POST['institution']);
         $year = intval($_POST['year_obtained']);
-        $field = trim($_POST['field_of_study']);
+        $field = '';
         $grade = trim($_POST['grade_or_class']);
         
         $stmt = $conn->prepare("UPDATE teacher_education SET qualification=?, institution=?, year_obtained=?, field_of_study=?, grade_or_class=? WHERE id=? AND teacher_id=?");
@@ -231,16 +238,16 @@ if ($user['role'] === 'teacher') {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                <input type="text" name="first_name" value="<?php echo htmlspecialchars($user['first_name']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                                <input type="text" name="first_name" value="<?php echo htmlspecialchars($user['first_name'] ?? ''); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Second Name</label>
-                                <input type="text" name="second_name" value="<?php echo htmlspecialchars($user['second_name']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                                <input type="text" name="second_name" value="<?php echo htmlspecialchars($user['second_name'] ?? ''); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                                <input type="email" name="email" value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
@@ -254,11 +261,16 @@ if ($user['role'] === 'teacher') {
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                                <input type="text" name="mobile_number" value="<?php echo htmlspecialchars($user['mobile_number']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                                <input type="text" name="mobile_number" value="<?php echo htmlspecialchars($user['mobile_number'] ?? ''); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Whatsapp Number</label>
-                                <input type="text" name="whatsapp_number" value="<?php echo htmlspecialchars($user['whatsapp_number']); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                                <input type="text" name="whatsapp_number" value="<?php echo htmlspecialchars($user['whatsapp_number'] ?? ''); ?>" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                                <input type="password" name="password" placeholder="Leave blank to keep current password" class="w-full border-gray-300 rounded-md shadow-sm focus:border-red-500 focus:ring-red-500 p-2 border">
                             </div>
 
                             <?php if ($user['role'] === 'teacher'): ?>
@@ -319,10 +331,6 @@ if ($user['role'] === 'teacher') {
                                             <input type="number" name="year_obtained" value="<?php echo htmlspecialchars($edu['year_obtained']); ?>" class="w-full text-sm border-gray-300 rounded p-1">
                                         </div>
                                         <div>
-                                            <label class="text-xs text-gray-500">Field</label>
-                                            <input type="text" name="field_of_study" value="<?php echo htmlspecialchars($edu['field_of_study']); ?>" class="w-full text-sm border-gray-300 rounded p-1">
-                                        </div>
-                                        <div>
                                             <label class="text-xs text-gray-500">Grade/Class</label>
                                             <input type="text" name="grade_or_class" value="<?php echo htmlspecialchars($edu['grade_or_class']); ?>" class="w-full text-sm border-gray-300 rounded p-1">
                                         </div>
@@ -365,9 +373,6 @@ if ($user['role'] === 'teacher') {
                             </div>
                             <div>
                                 <input type="number" name="year_obtained" placeholder="Year" class="w-full text-sm border-gray-300 rounded p-2">
-                            </div>
-                            <div>
-                                <input type="text" name="field_of_study" placeholder="Field of Study" class="w-full text-sm border-gray-300 rounded p-2">
                             </div>
                             <div>
                                 <input type="text" name="grade_or_class" placeholder="Grade/Class" class="w-full text-sm border-gray-300 rounded p-2">

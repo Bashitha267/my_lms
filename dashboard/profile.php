@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // profile.php - User profile page for both students and teachers
 require_once __DIR__ . '/../config.php';
 
@@ -259,6 +259,11 @@ if ($role === 'student') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
+    <link rel="manifest" href="../assests/site.webmanifest">
+    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile - Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -595,7 +600,7 @@ if ($role === 'student') {
     <footer class="bg-white border-t border-gray-100 py-12 px-6">
         <div class="max-w-7xl mx-auto flex flex-col items-center">
             <div class="text-center">
-                <h2 class="text-2xl font-black text-[#1e293b] mb-2 tracking-tight">Lernerr<span class="text-red-600">.LK</span></h2>
+                <img src="../assests/logo.jpeg" alt="LMS Logo" class="h-14 w-auto object-contain mx-auto rounded-lg mb-3">
                 <p class="text-slate-400 text-[10px] uppercase font-bold tracking-[0.4em] mb-4">&copy; <?php echo date('Y'); ?> Digital Learning Ecosystem</p>
                 <div class="h-1.5 w-12 bg-red-600 rounded-full mx-auto"></div>
             </div>

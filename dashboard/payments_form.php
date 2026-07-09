@@ -466,6 +466,44 @@ if ($enrollment_id > 0) {
                         
                         <!-- Bank Transfer Fields -->
                         <div id="bankFields" class="hidden">
+
+                            <!-- Bank Account Cards -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+
+                                <!-- HNB -->
+                                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">HNB — Hatton National Bank</p>
+                                    <p class="text-sm font-mono font-bold text-gray-900">014020501014</p>
+                                    <p class="text-sm text-gray-700">SAMEERA PERERA</p>
+                                    <p class="text-xs text-gray-500">Gampola Branch</p>
+                                </div>
+
+                                <!-- BOC -->
+                                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">BOC — Bank of Ceylon</p>
+                                    <p class="text-sm font-mono font-bold text-gray-900">0082153803</p>
+                                    <p class="text-sm text-gray-700">KVK SAMEERA PERERA</p>
+                                    <p class="text-xs text-gray-500">Gampola Branch</p>
+                                </div>
+
+                                <!-- Peoples' Bank -->
+                                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Peoples' Bank</p>
+                                    <p class="text-sm font-mono font-bold text-gray-900">018200210032205</p>
+                                    <p class="text-sm text-gray-700">KVK SAMEERA PERERA</p>
+                                    <p class="text-xs text-gray-500">Gampola Branch</p>
+                                </div>
+
+                                <!-- Commercial Bank -->
+                                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <p class="text-xs font-bold text-gray-500 uppercase mb-2">Commercial Bank</p>
+                                    <p class="text-sm font-mono font-bold text-gray-900">8009104712</p>
+                                    <p class="text-sm text-gray-700">KVK SAMEERA PERERA</p>
+                                    <p class="text-xs text-gray-500">Gampola Branch</p>
+                                </div>
+
+                            </div>
+
                             <div>
                                 <label for="receipt" class="block text-sm font-medium text-gray-700 mb-1">Upload Payment Receipt *</label>
                                 <input type="file" id="receipt" name="receipt" accept="image/*,.pdf"
@@ -473,6 +511,7 @@ if ($enrollment_id > 0) {
                                 <p class="text-xs text-gray-500 mt-1">Accepted formats: JPG, PNG, GIF, PDF (Max 5MB)</p>
                             </div>
                         </div>
+
                         
                         <div class="flex justify-end space-x-3 pt-4 border-t">
                             <a href="payments.php" class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">

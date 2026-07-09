@@ -88,6 +88,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $role_row = $check_res->fetch_assoc();
                     $check_stmt->close();
 
+                    if ($role_row && $role_row['role'] === 'super_admin') {
+                        throw new Exception("Super Admin cannot be deleted.");
+                    }
+
                     if ($role_row && $role_row['role'] === 'teacher') {
                         // 1. Delete Course Payments associated with teacher's courses
                         // "payments for that course"
@@ -458,7 +462,7 @@ $stats = $stats_result->fetch_assoc();
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($users as $user): ?>
-                                    <tr class="hover:bg-gray-50">
+                                    <tr class="hover:bg-gray-100 cursor-pointer transition-colors" onclick="showUserDetails('<?php echo htmlspecialchars($user['user_id']); ?>')">
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                             <?php echo htmlspecialchars($user['user_id']); ?>
                                         </td>
@@ -466,7 +470,7 @@ $stats = $stats_result->fetch_assoc();
                                             <?php echo htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['second_name'] ?? '')) ?: 'N/A'); ?>
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                            <?php echo htmlspecialchars($user['email']); ?>
+                                             <?php echo !empty($user['email']) ? htmlspecialchars($user['email']) : ''; ?>
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap">
                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
@@ -499,7 +503,7 @@ $stats = $stats_result->fetch_assoc();
                                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">Pending</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium" onclick="event.stopPropagation()">
                                             <div class="flex items-center space-x-2">
                                                 <?php if ($user['approved'] == 0): ?>
                                                     <form method="POST" action="" class="inline">
@@ -551,15 +555,17 @@ $stats = $stats_result->fetch_assoc();
                                                     </svg>
                                                 </a>
 
-                                                <form method="POST" action="" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
-                                                    <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id']); ?>">
-                                                    <input type="hidden" name="action" value="delete">
-                                                    <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
-                                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                        </svg>
-                                                    </button>
-                                                </form>
+                                                 <?php if ($user['role'] !== 'super_admin'): ?>
+                                                     <form method="POST" action="" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
+                                                         <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($user['user_id']); ?>">
+                                                         <input type="hidden" name="action" value="delete">
+                                                         <button type="submit" class="text-red-600 hover:text-red-900" title="Delete">
+                                                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                             </svg>
+                                                         </button>
+                                                     </form>
+                                                 <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>
@@ -576,6 +582,235 @@ $stats = $stats_result->fetch_assoc();
             </div>
         </div>
     </div>
+
+    <!-- User Details Modal -->
+    <div id="userDetailsModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity z-50 flex items-center justify-center p-4 hidden" onclick="if(event.target === this) closeModal();">
+        <div class="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all sm:max-w-2xl sm:w-full max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-800">User Details</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <!-- Modal Body -->
+            <div id="modalContent" class="p-6 overflow-y-auto space-y-6 flex-1">
+                <!-- Content will be injected dynamically -->
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 border-t border-gray-200 flex justify-end items-center space-x-2 bg-gray-50">
+                <div id="modalFooterActions"></div>
+                <button onclick="closeModal()" class="bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200 px-4 py-2 rounded-md font-medium text-sm transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showUserDetails(userId) {
+            document.getElementById('modalFooterActions').innerHTML = '';
+            document.getElementById('userDetailsModal').classList.remove('hidden');
+            document.getElementById('modalContent').innerHTML = `
+                <div class="flex justify-center items-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            `;
+
+            fetch('get_user_details.php?user_id=' + encodeURIComponent(userId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderUserDetails(data);
+                    } else {
+                        document.getElementById('modalContent').innerHTML = `
+                            <div class="text-center py-6 text-red-600 font-semibold">
+                                Error: ${data.message}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('modalContent').innerHTML = `
+                        <div class="text-center py-6 text-red-600 font-semibold">
+                            Failed to fetch user details.
+                        </div>
+                    `;
+                });
+        }
+
+        function renderUserDetails(data) {
+            const user = data.user;
+            const isTeacher = user.role === 'teacher';
+            
+            const fullName = ((user.first_name || '') + ' ' + (user.second_name || '')).trim() || 'N/A';
+            const statusText = user.status == 1 ? 'Active' : 'Inactive';
+            const statusClass = user.status == 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+            const approvedText = user.approved == 1 ? 'Approved' : 'Pending';
+            const approvedClass = user.approved == 1 ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800';
+            const registeringDate = user.registering_date ? new Date(user.registering_date).toLocaleDateString() : 'N/A';
+            
+            let photoHtml = '';
+            if (user.profile_picture) {
+                photoHtml = `<img class="h-20 w-20 object-cover rounded-full border-2 border-gray-200" src="../${user.profile_picture}" alt="Profile photo" />`;
+            } else {
+                const initial = (user.first_name || user.user_id || 'U').substring(0, 1).toUpperCase();
+                photoHtml = `
+                    <div class="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl font-bold">
+                        ${initial}
+                    </div>
+                `;
+            }
+
+            let modalHtml = `
+                <div class="space-y-6">
+                    <!-- User Basic Profile -->
+                    <div class="flex items-center space-x-6 pb-6 border-b border-gray-100">
+                        <div class="shrink-0">${photoHtml}</div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">${fullName}</h3>
+                            <p class="text-sm text-gray-500">${user.email || 'No email available'}</p>
+                            <div class="mt-2 flex space-x-2">
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">${user.role.toUpperCase()}</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${statusClass}">${statusText}</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${approvedClass}">${approvedText}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">User ID</span>
+                            <span class="text-gray-900 font-medium">${user.user_id}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">Registering Date</span>
+                            <span class="text-gray-900 font-medium">${registeringDate}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">Mobile Number</span>
+                            <span class="text-gray-900 font-medium">${user.mobile_number || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">WhatsApp Number</span>
+                            <span class="text-gray-900 font-medium">${user.whatsapp_number || 'N/A'}</span>
+                        </div>
+                    </div>
+            `;
+
+            if (isTeacher) {
+                // Education Details
+                let eduHtml = `
+                    <div class="pt-6 border-t border-gray-100">
+                        <h4 class="text-md font-bold text-gray-800 mb-3">Education Details</h4>
+                `;
+                if (data.education && data.education.length > 0) {
+                    eduHtml += `
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Qualification</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Institution</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Year</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Grade/Class</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                    `;
+                    data.education.forEach(edu => {
+                        eduHtml += `
+                            <tr>
+                                <td class="px-4 py-2 text-gray-900 font-medium">${edu.qualification}</td>
+                                <td class="px-4 py-2 text-gray-500">${edu.institution || 'N/A'}</td>
+                                <td class="px-4 py-2 text-gray-500">${edu.year_obtained || 'N/A'}</td>
+                                <td class="px-4 py-2 text-gray-500">${edu.grade_or_class || 'N/A'}</td>
+                            </tr>
+                        `;
+                    });
+                    eduHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    eduHtml += `<p class="text-xs text-gray-500 italic">No education details recorded.</p>`;
+                }
+                eduHtml += `</div>`;
+                modalHtml += eduHtml;
+
+                // Assigned Classes
+                let assignHtml = `
+                    <div class="pt-6 border-t border-gray-100">
+                        <h4 class="text-md font-bold text-gray-800 mb-3">Assigned Classes</h4>
+                `;
+                if (data.assignments && data.assignments.length > 0) {
+                    assignHtml += `
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Academic Year</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Stream</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Subject</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                    `;
+                    data.assignments.forEach(asg => {
+                        assignHtml += `
+                            <tr>
+                                <td class="px-4 py-2 text-gray-900 font-medium">${asg.academic_year}</td>
+                                <td class="px-4 py-2 text-gray-500">${asg.stream_name}</td>
+                                <td class="px-4 py-2 text-gray-500">${asg.subject_name}</td>
+                            </tr>
+                        `;
+                    });
+                    assignHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    assignHtml += `<p class="text-xs text-gray-500 italic">No classes assigned.</p>`;
+                }
+                assignHtml += `</div>`;
+                modalHtml += assignHtml;
+            }
+
+            modalHtml += `</div>`;
+            document.getElementById('modalContent').innerHTML = modalHtml;
+
+            const footerActions = document.getElementById('modalFooterActions');
+            if (user.approved == 0) {
+                footerActions.innerHTML = `
+                    <form method="POST" action="" class="inline" onsubmit="return confirm('Are you sure you want to approve this user?');">
+                        <input type="hidden" name="user_id" value="${user.user_id}">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors flex items-center space-x-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Approve User</span>
+                        </button>
+                    </form>
+                `;
+            } else {
+                footerActions.innerHTML = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('userDetailsModal').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
 

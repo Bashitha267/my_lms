@@ -22,6 +22,33 @@ if (file_exists(__DIR__ . '/whatsapp_config.php')) {
 }
 
 /**
+ * Performance helper: flush the HTTP response to the browser immediately,
+ * then continue executing PHP in the background (works on Nginx + PHP-FPM).
+ * This means the user is redirected instantly while WhatsApp API runs after.
+ */
+function flush_response_to_browser() {
+    // Close the session so it's written before we flush
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    // Ignore user abort so background work continues after browser disconnects
+    ignore_user_abort(true);
+    // Set content length so the browser knows it got the full response
+    if (function_exists('header_remove')) {
+        header_remove('Content-Encoding');
+    }
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+    flush();
+    // On Nginx + PHP-FPM this is the key call — closes the FastCGI connection
+    // to the browser while PHP keeps running
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+}
+
+/**
  * WhatsApp functions moved to whatsapp_config.php
  */
 
@@ -87,11 +114,13 @@ if (isset($_POST['login'])) {
                 // Database updated successfully
 
                 // 5. SET SESSION VARIABLES
+                // Note: session_regenerate_id is called BEFORE we flush so the
+                // new session ID is set in the cookie header sent to the browser.
                 session_regenerate_id(true);
 
                 $_SESSION['user_id'] = $user_id;
                 // Since username column is gone, we use user_id as the username in session for compatibility
-                $_SESSION['username'] = $user_id; 
+                $_SESSION['username'] = $user_id;
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['first_name'] = $user['first_name'] ?? '';
                 $_SESSION['second_name'] = $user['second_name'] ?? '';
@@ -100,10 +129,49 @@ if (isset($_POST['login'])) {
 
                 $update_stmt->close();
 
-                // Get target number for WhatsApp (fallback to mobile_number)
+                // ── REDIRECT FIRST ──────────────────────────────────────────
+                // Determine redirect URL before we flush so the header is sent.
+                $redirect_role = $user['role'];
+
+                // Fallback for super_admin if role is empty but ID starts with sad_
+                if (empty($redirect_role) && strpos($user_id, 'sad_') === 0) {
+                    $redirect_role = 'super_admin';
+                    $_SESSION['role'] = 'super_admin';
+                }
+
+                switch ($redirect_role) {
+                    case 'admin':
+                        $redirect_url = 'admin/dashboard.php';
+                        break;
+                    case 'super_admin':
+                        $redirect_url = 'admin/teacher_payments.php';
+                        break;
+                    case 'teacher':
+                        $redirect_url = 'dashboard/profile.php';
+                        break;
+                    case 'student':
+                        $redirect_url = 'dashboard/profile.php';
+                        break;
+                    case 'instructor':
+                        $redirect_url = BASE_PATH . 'instructor/dashboard.php';
+                        break;
+                    default:
+                        $redirect_url = $login_path;
+                }
+
+                // Send the redirect header to the browser
+                header("Location: " . $redirect_url);
+
+                // ── FLUSH RESPONSE TO BROWSER ────────────────────────────────
+                // This closes the FastCGI connection on Nginx+PHP-FPM so the
+                // browser gets the redirect instantly. PHP keeps running below.
+                flush_response_to_browser();
+
+                // ── BACKGROUND: SEND WHATSAPP NOTIFICATION ──────────────────
+                // This now runs AFTER the browser has already been redirected.
+                // Even if it takes 10-30s, the user never notices.
                 $whatsapp_target = !empty($user['whatsapp_number']) ? $user['whatsapp_number'] : ($user['mobile_number'] ?? '');
 
-                // Send login notification via WhatsApp (non-blocking)
                 if (WHATSAPP_ENABLED && !empty($whatsapp_target)) {
                     try {
                         $current_time = date('Y-m-d h:i A');
@@ -113,51 +181,12 @@ if (isset($_POST['login'])) {
                                          "ඔබ සාර්ථකව Learner.LK ගිණුමට ප්‍රවිෂ්ට විය.\n\n" .
                                          "⏰ *Time:* {$current_time}";
 
-                        $response = sendWhatsAppMessage($whatsapp_target, $login_message);
-                        $_SESSION['whatsapp_debug'] = [
-                            'target' => $whatsapp_target,
-                            'success' => $response['success'],
-                            'message' => $response['message'],
-                            'time' => $current_time
-                        ];
+                        sendWhatsAppMessage($whatsapp_target, $login_message);
                     } catch (Exception $e) {
-                        $_SESSION['whatsapp_debug'] = [
-                            'success' => false,
-                            'message' => 'Exception: ' . $e->getMessage()
-                        ];
                         error_log("WhatsApp login message failed: " . $e->getMessage());
                     }
                 }
 
-
-                // Redirection based on role
-                $redirect_role = $user['role'];
-                
-                // Fallback for super_admin if role is empty but ID starts with sad_
-                if (empty($redirect_role) && strpos($user_id, 'sad_') === 0) {
-                    $redirect_role = 'super_admin';
-                    $_SESSION['role'] = 'super_admin'; // Update session role as well
-                }
-
-                switch ($redirect_role) {
-                    case 'admin':
-                        header("Location: admin/dashboard.php");
-                        break;
-                    case 'super_admin':
-                        header("Location: admin/teacher_payments.php");
-                        break;
-                    case 'teacher':
-                        header("Location: dashboard/profile.php");
-                        break;
-                    case 'student':
-                        header("Location: dashboard/profile.php");
-                        break;
-                    case 'instructor':
-                        header("Location: " . BASE_PATH . "instructor/dashboard.php");
-                        break;
-                    default:
-                        header("Location: " . $login_path);
-                }
                 exit();
 
             } else {
