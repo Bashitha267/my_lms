@@ -588,9 +588,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
     <div class="registration-container">
         <!-- Logo -->
         <div class="google-logo">
-            <h2 class="text-2xl font-black tracking-tighter text-[#dc2626]">
-                LERNERR.LK
-            </h2>
+            <img src="assests/logo.jpeg" alt="LMS Logo" class="h-16 w-auto object-contain rounded-lg shadow-sm">
         </div>
 
         <div class="section-header">

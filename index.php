@@ -346,114 +346,76 @@ if (!function_exists('format_html_color')) {
         </style>
 
         <?php if (!$is_logged_in): ?>
-            <!-- Blurred Hero Section with Background Video Redesign -->
-            <section class="relative w-full h-screen flex items-center overflow-hidden pt-16 pb-4 sm:pt-20 lg:pt-20 lg:pb-0">
+            <!-- Redesigned Hero Section with Background Video -->
+            <section class="relative w-full h-screen flex flex-col justify-start items-center overflow-hidden pt-16 sm:pt-20 lg:pt-28 pb-4 px-4 text-center bg-white">
                 <!-- Desktop Background Video -->
-                <video autoplay loop muted playsinline class="hidden lg:block absolute top-0 left-0 w-screen h-screen object-cover z-0">
-                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783627206/video_202607100123_yenske.mp4" type="video/mp4">
+                <video autoplay loop muted playsinline class="hidden lg:block absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none">
+                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783682874/Animated_face_with_changing_expr__202607101654_c32ud3.mp4" type="video/mp4">
                 </video>
                 <!-- Mobile Background Video -->
-                <video autoplay loop muted playsinline class="block lg:hidden absolute top-0 left-0 w-screen h-screen object-cover z-0">
-                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783631311/Children_watching_with_happy_exp__202607100237_ijxyhs.mp4">
+                <video autoplay loop muted playsinline class="block lg:hidden absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none">
+                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783682874/Animated_blinking_smiling_face_202607101656_iooai6.mp4" type="video/mp4">
                 </video>
-                <div class="hero-overlay z-10"></div>
-
-                <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-20 w-full">
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-12 items-center">
-                        
-                        <!-- Left Column: Welcome Texts -->
-                        <div class="lg:col-span-7 text-left animate-fade-in-up flex flex-col justify-center">
-                            <div class="inline-block bg-red-600 text-white px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.25em] mb-2 lg:mb-6 rounded-none shadow-md self-start">
-                                Learner.LK
-                            </div>
-                            <h1 class="text-2xl sm:text-4xl lg:text-6xl font-bold text-white leading-tight mb-2 lg:mb-6 uppercase tracking-wide">
-                                ආයුබෝවන්!! <br>
-                                <span class="text-red-700">සාදරයෙන් පිළිගනිමු</span>
-                            </h1>
-
-                            <p class="block text-[11px] sm:text-base text-white/95 font-medium leading-relaxed mb-3 lg:mb-6 max-w-2xl font-semibold">
-                                ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
-                            </p>
-                            
-                            <div class="flex flex-row gap-2 items-center mb-3 lg:mb-6">
-                                <div class="flex items-center gap-1.5 text-white bg-slate-950/65 backdrop-blur-md px-2.5 py-1.5 border border-white/20 rounded-none text-[9px] sm:text-xs font-bold shadow-md">
-                                    <i class="fas fa-check-circle text-red-500"></i>
-                                    <span>Live & Recording Classes</span>
-                                </div>
-                                <div class="flex items-center gap-1.5 text-white bg-slate-950/65 backdrop-blur-md px-2.5 py-1.5 border border-white/20 rounded-none text-[9px] sm:text-xs font-bold shadow-md">
-                                    <i class="fas fa-check-circle text-red-500"></i>
-                                    <span>24/7 Student Portal Access</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right Column: Glassmorphic Login & Register Card -->
-                        <div class="lg:col-span-5 animate-fade-in-up flex flex-col justify-center" style="animation-delay: 0.1s;">
-                            <div class="bg-slate-950/70 backdrop-blur-2xl p-4 sm:p-8 border border-white/10 shadow-2xl relative overflow-hidden w-full">
-                                <div class="absolute -top-24 -right-24 w-48 h-48 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
-                                <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
-                                
-                                <h2 class="text-lg sm:text-2xl font-black text-white mb-1 uppercase tracking-wide">Dashboard Login</h2>
-                                <p class="text-[10px] sm:text-xs text-white/60 mb-3 sm:mb-6 font-bold">Enter your details to access your account</p>
-
-                                <?php if (!empty($error_message)): ?>
-                                    <div class="bg-red-600/90 text-white px-4 py-3 mb-4 font-bold border-l-4 border-white backdrop-blur-md flex items-center shadow-lg text-xs">
-                                        <i class="fas fa-exclamation-circle mr-3"></i>
-                                        <span><?php echo htmlspecialchars($error_message); ?></span>
-                                    </div>
-                                <?php endif; ?>
-                                <?php if (!empty($success_message)): ?>
-                                    <div class="bg-emerald-600/90 text-white px-4 py-3 mb-4 font-bold border-l-4 border-white backdrop-blur-md flex items-center shadow-lg text-xs">
-                                        <i class="fas fa-check-circle mr-3"></i>
-                                        <span><?php echo htmlspecialchars($success_message); ?></span>
-                                    </div>
-                                <?php endif; ?>
-
-                                <form action="auth.php" method="POST" class="space-y-3 sm:space-y-4">
-                                    <div class="space-y-1">
-                                        <label class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white/50 block">Mobile Number</label>
-                                        <div class="flex items-center bg-white/5 border border-white/15 focus-within:border-red-500 focus-within:bg-white/10 transition-all px-3 py-2 sm:px-4 sm:py-3">
-                                            <i class="fas fa-mobile-alt text-red-500 mr-3 text-base w-5 text-center"></i>
-                                            <input type="text" name="identifier" required placeholder="07XXXXXXXX"
-                                                class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-bold text-sm placeholder-white/30">
-                                        </div>
-                                    </div>
-
-                                    <div class="space-y-1">
-                                        <label class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-white/50 block">Password</label>
-                                        <div class="flex items-center bg-white/5 border border-white/15 focus-within:border-red-500 focus-within:bg-white/10 transition-all px-3 py-2 sm:px-4 sm:py-3">
-                                            <i class="fas fa-lock text-red-500 mr-3 text-base w-5 text-center"></i>
-                                            <input type="password" name="password" required placeholder="••••••••"
-                                                class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-white font-semibold text-sm placeholder-white/30">
-                                        </div>
-                                    </div>
-
-                                    <button type="submit" name="login"
-                                        class="w-full bg-red-600 text-white py-3 sm:py-4 font-black text-xs sm:text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 active:scale-[0.98] uppercase tracking-widest flex items-center justify-center gap-2">
-                                        <span>Login Now</span>
-                                        <i class="fas fa-arrow-right text-xs"></i>
-                                    </button>
-                                </form>
-
-                                <div class="relative flex py-3 sm:py-5 items-center">
-                                    <div class="flex-grow border-t border-white/10"></div>
-                                    <span class="flex-shrink mx-4 text-[9px] sm:text-[10px] text-white/30 font-black uppercase tracking-widest">New Student?</span>
-                                    <div class="flex-grow border-t border-white/10"></div>
-                                </div>
-
-                                <div class="space-y-2 sm:space-y-4">
-                                    <p class="hidden sm:block text-[10px] text-white/80 font-semibold uppercase tracking-[0.1em] text-center leading-relaxed">
-                                        අලුතින්ම සම්බන්ධ වීම සඳහා පහත ඇති Register Now Button එක ක්ලික් කරන්න.
-                                    </p>
-                                    <a href="register.php"
-                                        class="block w-full text-center bg-white/10 border border-white/20 text-white py-2.5 sm:py-3.5 font-bold text-xs hover:bg-white/20 hover:border-white/30 transition-all active:scale-[0.98] uppercase tracking-widest">
-                                        Register Now
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
+ 
+                <!-- Content Container (Top Aligned) -->
+                <div class="max-w-4xl mx-auto relative z-20 w-full flex flex-col items-center animate-fade-in-up">
+                    <div class="inline-block bg-red-600 text-white px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.25em] mb-2 sm:mb-4 shadow-sm rounded-full">
+                        Learner.LK
                     </div>
+
+                    <h1 class="text-2xl sm:text-4xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight mb-2 sm:mb-4">
+                        ආයුබෝවන්!! <br class="sm:hidden"> <span class="text-red-600">සාදරයෙන් පිළිගනිමු</span>
+                    </h1>
+
+                    <p class="text-[11px] sm:text-base lg:text-lg text-slate-700 max-w-3xl mx-auto mb-4 sm:mb-8 font-semibold leading-relaxed">
+                        ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
+                    </p>
+ 
+                    <!-- Sleek Form with Pill Inputs and Buttons -->
+                    <form action="auth.php" method="POST" class="w-full max-w-2xl mx-auto px-4 flex flex-col items-center gap-2 sm:gap-4">
+                        <!-- Error/Success Messages -->
+                        <?php if (!empty($error_message)): ?>
+                            <div class="w-full max-w-md bg-red-50 text-red-700 px-4 py-2.5 border border-red-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
+                                <i class="fas fa-exclamation-circle text-red-500"></i>
+                                <span><?php echo htmlspecialchars($error_message); ?></span>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($success_message)): ?>
+                            <div class="w-full max-w-md bg-emerald-50 text-emerald-700 px-4 py-2.5 border border-emerald-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
+                                <i class="fas fa-check-circle text-emerald-500"></i>
+                                <span><?php echo htmlspecialchars($success_message); ?></span>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Inputs Row -->
+                        <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full justify-center">
+                            <!-- Phone Number Input Styled as a Pill -->
+                            <div class="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-2.5 sm:px-5 sm:py-3 w-full sm:w-64 hover:border-slate-300 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all shadow-sm">
+                                <i class="fas fa-phone-alt text-slate-400 mr-3 text-sm"></i>
+                                <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-semibold text-xs sm:text-sm placeholder-slate-400">
+                            </div>
+                            
+                            <!-- Password Input Styled as a Pill -->
+                            <div class="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-2.5 sm:px-5 sm:py-3 w-full sm:w-64 hover:border-slate-300 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all shadow-sm">
+                                <i class="fas fa-lock text-slate-400 mr-3 text-sm"></i>
+                                <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-semibold text-xs sm:text-sm placeholder-slate-400">
+                            </div>
+                        </div>
+
+                        <!-- Actions Row -->
+                        <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full justify-center mt-1 sm:mt-2">
+                            <!-- Login Button (Primary Pill) -->
+                            <button type="submit" name="login" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
+                                <span>Login Now</span>
+                                <i class="fas fa-arrow-right text-xs"></i>
+                            </button>
+                            
+                            <!-- Register Button (Secondary Pill) -->
+                            <a href="register.php" class="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]">
+                                <span>Register Now</span>
+                            </a>
+                        </div>
+                    </form>
                 </div>
             </section>
 

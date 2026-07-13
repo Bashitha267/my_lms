@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 
 
@@ -93,24 +93,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         $error_message = 'Please verify your mobile number with OTP before submitting.';
     } else {
         // Additional validation for students
-        $enrollment_type = $_POST['enrollment_type'] ?? 'subject';
+        $enrollment_type = $_POST['enrollment_type'] ?? '';
 
-        if ($enrollment_type === 'subject') {
+        if (empty($enrollment_type)) {
+            $error_message = 'Please select an enrollment path (Class Enrollment or Online Course) / කරුණාකර ඇතුළත් වීමේ ක්‍රමයක් තෝරන්න.';
+        } elseif ($enrollment_type === 'subject') {
             $stream_id_input = $_POST['stream_id'] ?? '';
             $subject_id_input = $_POST['subject_id'] ?? '';
             $selected_teacher_id = trim($_POST['selected_teacher_id'] ?? '');
 
             if (intval($stream_id_input) <= 0) {
-                $error_message = 'Please select a stream.';
+                $error_message = 'Please select a stream / කරුණාකර අංශයක් තෝරන්න.';
             } elseif (intval($subject_id_input) <= 0) {
-                $error_message = 'Please select a subject.';
+                $error_message = 'Please select a subject / කරුණාකර විෂයක් තෝරන්න.';
             } elseif (empty($selected_teacher_id)) {
-                $error_message = 'Please select a teacher.';
+                $error_message = 'Please select a teacher / කරුණාකර ගුරුවරයෙකු තෝරන්න.';
             }
         } elseif ($enrollment_type === 'course') {
             $course_id_input = $_POST['course_id'] ?? '';
             if (intval($course_id_input) <= 0) {
-                $error_message = 'Please select a course.';
+                $error_message = 'Please select a course / කරුණාකර පාඨමාලාවක් තෝරන්න.';
             }
         }
 
@@ -190,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     // Handle student-specific data
                     // Handle student-specific data
                     if ($role === 'student') {
-                        $enrollment_type = $_POST['enrollment_type'] ?? 'subject';
+                        $enrollment_type = $_POST['enrollment_type'] ?? '';
                         $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
 
                         if ($enrollment_type === 'subject') {
@@ -749,9 +751,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <div class="registration-container">
         <!-- LERNERR.LK Logo -->
         <div class="google-logo">
-            <h2 class="text-2xl font-black tracking-tighter text-[#ea4335]">
-                LERNERR.LK
-            </h2>
+            <img src="assests/logo.jpeg" alt="LMS Logo" class="h-16 w-auto object-contain rounded-lg shadow-sm">
         </div>
 
         <div class="section-header">
@@ -894,23 +894,21 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Choose Your Path</p>
                     <div class="grid grid-cols-2 gap-4">
                         <label class="relative cursor-pointer group">
-                            <input type="radio" name="enrollment_type" value="subject" checked onchange="toggleEnrollmentType()" class="peer sr-only">
-                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 peer-checked:bg-red-50/50 group-hover:border-red-200">
-                                <div class="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-chalkboard-teacher"></i>
-                                </div>
+                            <input type="radio" name="enrollment_type" value="subject" onchange="toggleEnrollmentType()" class="peer sr-only">
+                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 group-hover:border-red-200">
                                 <h3 class="font-bold text-sm text-slate-800">Class Enrollment</h3>
-                                <p class="text-[10px] text-slate-500 mt-1">Join weekly sessions</p>
+                                <p class="text-xs font-semibold text-gray-500 mt-0.5">පන්ති ලියාපදිංචිය</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Join weekly sessions</p>
+                                <p class="text-[10px] text-slate-400">සතිපතා පන්ති සඳහා සම්බන්ධ වන්න</p>
                             </div>
                         </label>
                         <label class="relative cursor-pointer group">
                             <input type="radio" name="enrollment_type" value="course" onchange="toggleEnrollmentType()" class="peer sr-only">
-                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 peer-checked:bg-red-50/50 group-hover:border-red-200">
-                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-graduation-cap"></i>
-                                </div>
+                            <div class="p-4 rounded-2xl border-2 border-slate-100 bg-white transition-all peer-checked:border-red-600 group-hover:border-red-200">
                                 <h3 class="font-bold text-sm text-slate-800">Online Course</h3>
-                                <p class="text-[10px] text-slate-500 mt-1">Self-paced learning</p>
+                                <p class="text-xs font-semibold text-gray-500 mt-0.5">පාඨමාලා ලියාපදිංචිය</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Self-paced learning</p>
+                                <p class="text-[10px] text-slate-400">ස්වයං අධ්‍යයන පාඨමාලා</p>
                             </div>
                         </label>
                     </div>
@@ -2125,10 +2123,36 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                 // Default toggle
                 toggleEnrollmentType();
             }
+            // Click-to-deselect logic for enrollment type cards
+            document.querySelectorAll('input[name="enrollment_type"]').forEach(radio => {
+                if (radio.checked) {
+                    radio.wasChecked = true;
+                }
+
+                radio.addEventListener('click', function(e) {
+                    if (this.wasChecked) {
+                        this.checked = false;
+                        this.wasChecked = false;
+                        toggleEnrollmentType();
+                    } else {
+                        document.querySelectorAll('input[name="enrollment_type"]').forEach(r => {
+                            r.wasChecked = false;
+                        });
+                        this.wasChecked = true;
+                        toggleEnrollmentType();
+                    }
+                });
+            });
         });
 
         function toggleEnrollmentType() {
-            const enrollmentType = document.querySelector('input[name="enrollment_type"]:checked').value;
+            const checkedInput = document.querySelector('input[name="enrollment_type"]:checked');
+            if (!checkedInput) {
+                document.getElementById('classEnrollmentContainer').classList.add('hidden');
+                document.getElementById('courseEnrollmentContainer').classList.add('hidden');
+                return;
+            }
+            const enrollmentType = checkedInput.value;
             const classContainer = document.getElementById('classEnrollmentContainer');
             const courseContainer = document.getElementById('courseEnrollmentContainer');
             // Element IDs inside class container that we need to target specifically if they are moved
