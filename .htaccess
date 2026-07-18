@@ -1,0 +1,32 @@
+# ============================================================
+# Apache Clean URLs rewrite rules for LMS system
+# ============================================================
+
+# Turn on URL rewriting
+RewriteEngine On
+
+# 1. Strip trailing slash from clean URLs (redirect to version without slash)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^(.*)/$
+RewriteRule ^ %1 [R=301,L]
+
+# 2. Redirect index.php to the directory root
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteRule ^(.*)index\.php$ $1 [R=301,L,NC]
+
+# 3. Redirect user-facing .php GET requests to clean URLs (for bookmarks/SEO)
+# - Only GET requests are redirected (avoids breaking POST form submissions)
+# - Excludes AJAX requests and API endpoints starting with "get_", "ajax_", "setup_", etc.
+RewriteCond %{REQUEST_METHOD} GET
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+RewriteCond %{HTTP:X-Requested-With} !XMLHttpRequest
+RewriteCond %{HTTP:Sec-Fetch-Dest} ^(document|iframe|$) [NC]
+RewriteCond %{REQUEST_URI} !/(get_|ajax_|setup_|create_|update_|verify_otp|send_otp) [NC]
+RewriteRule ^(.*)\.php$ $1 [R=301,L,NE]
+
+# 3. Internal Rewrite: clean URL to .php file (behaves behind the scenes)
+# - If the requested path is not a directory
+# - And the path with .php appended exists as a file
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.*)$ $1.php [L]

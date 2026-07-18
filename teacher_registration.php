@@ -209,13 +209,32 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Registration | Lernerr.LK</title>
+    <meta name="description" content="Register as a teacher on Lernerr.LK, Sri Lanka's leading online Learning Management System. Share your expertise and educate students nationwide.">
+    <meta name="keywords" content="Lernerr.LK teacher registration, become a teacher Lernerr.LK, online teaching Sri Lanka">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Teacher Registration | Lernerr.LK">
+    <meta property="og:description" content="Register as a teacher on Lernerr.LK, Sri Lanka's leading online Learning Management System.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:title" content="Teacher Registration | Lernerr.LK">
+    <meta property="twitter:description" content="Register as a teacher on Lernerr.LK, Sri Lanka's leading online Learning Management System.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
+    <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="assests/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assests/favicon-16x16.png">
     <link rel="manifest" href="assests/site.webmanifest">
     <link rel="shortcut icon" href="assests/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teacher Registration | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -641,7 +660,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                 </div>
 
                 <div class="google-input-group">
-                    <input type="password" id="password" name="password" class="google-input" placeholder="Password (මුරපදය)" required>
+                    <input type="password" id="password" name="password" class="google-input" placeholder=" " required>
                     <label for="password" class="google-label">Password (මුරපදය)</label>
                 </div>
 
@@ -685,7 +704,7 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
                 </div>
 
                 <div class="google-input-group">
-                    <input type="text" id="whatsapp_number" name="whatsapp_number" class="google-input" placeholder="WhatsApp Number (වට්ස්ඇප් අංකය)"
+                    <input type="text" id="whatsapp_number" name="whatsapp_number" class="google-input" placeholder=" "
                         value="<?php echo htmlspecialchars($_POST['whatsapp_number'] ?? ''); ?>">
                     <label for="whatsapp_number" class="google-label">WhatsApp number (වට්ස්ඇප් අංකය)</label>
                 </div>
@@ -867,19 +886,19 @@ $display_user_id = $prefix_display . '_' . str_pad($next_num_display, 4, '0', ST
             div.innerHTML = `
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                     <div class="google-input-group">
-                        <input type="text" name="education[${eduCount}][qualification]" class="google-input" placeholder="Qualification (සුදුසුකම)" required>
+                        <input type="text" name="education[${eduCount}][qualification]" class="google-input" placeholder=" " required>
                         <label class="google-label">Qualification (සුදුසුකම)</label>
                     </div>
                     <div class="google-input-group">
-                        <input type="text" name="education[${eduCount}][institution]" class="google-input" placeholder="Institution (ආයතනය)" required>
+                        <input type="text" name="education[${eduCount}][institution]" class="google-input" placeholder=" " required>
                         <label class="google-label">Institution (ආයතනය)</label>
                     </div>
                     <div class="google-input-group">
-                        <input type="number" name="education[${eduCount}][year_obtained]" class="google-input" placeholder="Year Obtain (ලබාගත් වසර)" required>
+                        <input type="number" name="education[${eduCount}][year_obtained]" class="google-input" placeholder=" " required>
                         <label class="google-label">Year Obtain (ලබාගත් වසර)</label>
                     </div>
                     <div class="google-input-group">
-                        <input type="text" name="education[${eduCount}][grade_or_class]" class="google-input" placeholder="Grade/Class (සාමාර්ථය)" required>
+                        <input type="text" name="education[${eduCount}][grade_or_class]" class="google-input" placeholder=" " required>
                         <label class="google-label">Grade/Class (සාමාර්ථය)</label>
                     </div>
                 </div>

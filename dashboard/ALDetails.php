@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once __DIR__ . '/../config.php';
 
@@ -99,13 +99,32 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A/L Results Portal | Lernerr.LK</title>
+    <meta name="description" content="View and submit Advanced Level results on Lernerr.LK. Celebrate outstanding academic achievements with our student community.">
+    <meta name="keywords" content="Lernerr.LK A/L results, exam results portal, Sri Lanka A/L achievements">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="A/L Results Portal | Lernerr.LK">
+    <meta property="og:description" content="View and submit Advanced Level results on Lernerr.LK. Celebrate outstanding academic achievements.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:title" content="A/L Results Portal | Lernerr.LK">
+    <meta property="twitter:description" content="View and submit Advanced Level results on Lernerr.LK. Celebrate outstanding academic achievements.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
+    <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
     <link rel="manifest" href="../assests/site.webmanifest">
     <link rel="shortcut icon" href="../assests/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A/L Results Portal | Lernerr.LK</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -182,7 +201,7 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                                 <h3 class="text-2xl font-black text-gray-900 tracking-tight">Your Achievement</h3>
                                 <p class="text-gray-500 font-bold text-xs uppercase tracking-widest mt-1">
                                     <?php if (empty($student_submission)): ?>
-                                        Share your results with the LearnerX community
+                                        Share your results with the Lernerr.LK community
                                     <?php elseif (empty($student_submission['results_submitted_at'])): ?>
                                         Complete your results submission
                                     <?php else: ?>
@@ -247,72 +266,90 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                     <!-- Students Grid (Exactly 4 columns on desktop) -->
                     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         <?php foreach ($students as $student): ?>
-                            <div class="bg-white rounded-lg p-4 flex flex-col h-full">
-                                <div class="flex items-start gap-3">
-                                    <div class="shrink-0">
+                            <div class="bg-white rounded-3xl p-5 flex flex-col h-full shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group">
+                                <!-- 1. Profile Picture & Student Name -->
+                                <div class="flex flex-col items-center text-center">
+                                    <div class="relative mb-3">
                                         <?php
                                             $display_photo = '';
                                             if (!empty($student['photo_path'])) $display_photo = $student['photo_path'];
                                             elseif (!empty($student['profile_picture'])) $display_photo = $student['profile_picture'];
+                                            $full_student_name = trim(($student['first_name'] ?? '') . ' ' . ($student['second_name'] ?? '')) ?: $student['student_id'];
                                         ?>
                                         <?php if (!empty($display_photo)): ?>
                                             <img src="<?php echo $root_url . htmlspecialchars($display_photo); ?>" 
-                                                 alt="Student" 
-                                                 class="w-16 h-16 rounded-full object-cover"
-                                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?php echo urlencode(trim(($student['first_name'] ?? '') . ' ' . ($student['second_name'] ?? '')) ?: $student['student_id']); ?>&background=e5e7eb&color=374151';">
+                                                 alt="<?php echo htmlspecialchars($full_student_name); ?>" 
+                                                 class="w-20 h-20 rounded-full object-cover border-4 border-red-50 shadow-md group-hover:scale-105 transition-transform duration-300"
+                                                 onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($full_student_name); ?>&background=fee2e2&color=dc2626&bold=true';">
                                         <?php else: ?>
-                                            <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                                                <i class="fas fa-user-graduate text-xl text-gray-600"></i>
+                                            <div class="w-20 h-20 rounded-full bg-red-50 border-4 border-red-50 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300">
+                                                <i class="fas fa-user-graduate text-3xl text-red-600"></i>
                                             </div>
                                         <?php endif; ?>
                                     </div>
-                                    <div class="min-w-0">
-                                        <div class="text-sm font-bold text-gray-900 truncate">
-                                            <?php echo htmlspecialchars(trim(($student['first_name'] ?? '') . ' ' . ($student['second_name'] ?? '')) ?: $student['student_id']); ?>
-                                        </div>
-                                        <div class="text-[11px] text-gray-500 mt-0.5">
-                                            Exam Admission No: <?php echo !empty($student['index_number']) ? htmlspecialchars($student['index_number']) : 'N/A'; ?>
-                                        </div>
-                                        <div class="text-[11px] text-gray-500 mt-0.5">
-                                            Stream: <?php echo htmlspecialchars($student['stream_label']); ?>
-                                        </div>
-                                        <div class="text-[11px] text-gray-500 mt-0.5">
-                                            Exam Year: <?php echo !empty($student['display_exam_year']) ? htmlspecialchars($student['display_exam_year']) : 'N/A'; ?>
-                                        </div>
+                                    <h3 class="text-sm font-extrabold text-gray-900 line-clamp-1 leading-snug" title="<?php echo htmlspecialchars($full_student_name); ?>">
+                                        <?php echo htmlspecialchars($full_student_name); ?>
+                                    </h3>
+                                </div>
+
+                                <!-- 2. Stream & Exam Year -->
+                                <div class="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+                                    <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 text-[10px] font-extrabold px-3 py-1 rounded-full border border-red-100">
+                                        <i class="fas fa-graduation-cap text-[9px]"></i>
+                                        <?php echo htmlspecialchars($student['stream_label']); ?>
+                                    </span>
+                                    <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-[10px] font-extrabold px-3 py-1 rounded-full border border-gray-200">
+                                        <i class="fas fa-calendar-alt text-[9px]"></i>
+                                        <?php echo !empty($student['display_exam_year']) ? htmlspecialchars($student['display_exam_year']) . ' A/L' : 'N/A'; ?>
+                                    </span>
+                                </div>
+
+                                <!-- 3. Results -->
+                                <div class="mt-4 bg-gray-50/80 rounded-2xl p-3.5 border border-gray-100 space-y-2 flex-grow">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-gray-700 text-xs font-bold truncate" title="<?php echo htmlspecialchars($student['subject_1']); ?>">
+                                            <?php echo htmlspecialchars($student['subject_1']); ?>
+                                        </span>
+                                        <span class="px-2.5 py-0.5 rounded-lg bg-white border border-gray-200 text-red-600 font-black text-xs shadow-2xs">
+                                            <?php echo htmlspecialchars($student['result_1']); ?>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-gray-700 text-xs font-bold truncate" title="<?php echo htmlspecialchars($student['subject_2']); ?>">
+                                            <?php echo htmlspecialchars($student['subject_2']); ?>
+                                        </span>
+                                        <span class="px-2.5 py-0.5 rounded-lg bg-white border border-gray-200 text-red-600 font-black text-xs shadow-2xs">
+                                            <?php echo htmlspecialchars($student['result_2']); ?>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-gray-700 text-xs font-bold truncate" title="<?php echo htmlspecialchars($student['subject_3']); ?>">
+                                            <?php echo htmlspecialchars($student['subject_3']); ?>
+                                        </span>
+                                        <span class="px-2.5 py-0.5 rounded-lg bg-white border border-gray-200 text-red-600 font-black text-xs shadow-2xs">
+                                            <?php echo htmlspecialchars($student['result_3']); ?>
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div class="mt-4 space-y-3 flex-grow">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <span class="text-gray-700 text-xs font-semibold truncate" title="<?php echo htmlspecialchars($student['subject_1']); ?>">
-                                                <?php echo htmlspecialchars($student['subject_1']); ?>
-                                            </span>
-                                            <span class="result-typography leading-none">
-                                                <?php echo htmlspecialchars($student['result_1']); ?>
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center justify-between gap-2">
-                                            <span class="text-gray-700 text-xs font-semibold truncate" title="<?php echo htmlspecialchars($student['subject_2']); ?>">
-                                                <?php echo htmlspecialchars($student['subject_2']); ?>
-                                            </span>
-                                            <span class="result-typography leading-none">
-                                                <?php echo htmlspecialchars($student['result_2']); ?>
-                                            </span>
-                                        </div>
-                                        <div class="flex items-center justify-between gap-2">
-                                            <span class="text-gray-700 text-xs font-semibold truncate" title="<?php echo htmlspecialchars($student['subject_3']); ?>">
-                                                <?php echo htmlspecialchars($student['subject_3']); ?>
-                                            </span>
-                                            <span class="result-typography leading-none">
-                                                <?php echo htmlspecialchars($student['result_3']); ?>
-                                            </span>
-                                        </div>
-                                </div>
-
-                                <div class="mt-4 text-[11px] text-gray-600 space-y-1">
-                                    <div>District: <span class="font-semibold text-gray-800"><?php echo !empty($student['district']) ? htmlspecialchars($student['district']) : 'N/A'; ?></span></div>
-                                    <div>District Rank: <span class="font-semibold text-gray-800"><?php echo !empty($student['district_rank']) ? htmlspecialchars($student['district_rank']) : 'N/A'; ?></span></div>
-                                    <div>Island Rank: <span class="font-semibold text-gray-800"><?php echo !empty($student['island_rank']) ? htmlspecialchars($student['island_rank']) : 'N/A'; ?></span></div>
+                                <!-- 4. Ranks & Location -->
+                                <div class="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-1.5 text-center text-[10px]">
+                                    <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                                        <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">District</span>
+                                        <span class="font-bold text-gray-800 truncate block"><?php echo !empty($student['district']) ? htmlspecialchars($student['district']) : 'N/A'; ?></span>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                                        <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">District Rank</span>
+                                        <span class="font-extrabold text-red-600"><?php echo !empty($student['district_rank']) ? '#' . htmlspecialchars($student['district_rank']) : 'N/A'; ?></span>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                                        <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">Island Rank</span>
+                                        <span class="font-extrabold text-red-600"><?php echo !empty($student['island_rank']) ? '#' . htmlspecialchars($student['island_rank']) : 'N/A'; ?></span>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
+                                        <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">Z-Score</span>
+                                        <span class="font-bold text-gray-800"><?php echo isset($student['z_score']) && $student['z_score'] !== null ? number_format((float)$student['z_score'], 4) : 'N/A'; ?></span>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>

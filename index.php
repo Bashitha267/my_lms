@@ -221,13 +221,54 @@ if (!function_exists('format_html_color')) {
 
 <head>
     <meta charset="UTF-8">
+    <!-- Primary SEO Metadata -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Lernerr.LK</title>
+    <meta name="description" content="Lernerr.LK is Sri Lanka's leading online Learning Management System (LMS), offering top-tier classes, experienced teachers, and online courses. Join us to elevate your academic success.">
+    <meta name="keywords" content="Lernerr.LK, LMS Sri Lanka, online learning, AL classes, education portal Sri Lanka, study online, video lessons, Sinhala classes, Lernerr">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '/'); ?>">
+    <meta property="og:title" content="Lernerr.LK - Best Online Learning Platform in Sri Lanka">
+    <meta property="og:description" content="Access high-quality classes, video lessons, and interactive learning resources on Lernerr.LK, the leading LMS in Sri Lanka.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '/'); ?>">
+    <meta property="twitter:title" content="Lernerr.LK - Best Online Learning Platform in Sri Lanka">
+    <meta property="twitter:description" content="Access high-quality classes, video lessons, and interactive learning resources on Lernerr.LK, the leading LMS in Sri Lanka.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
+    <!-- Canonical Link -->
+    <link rel="canonical" href="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['REQUEST_URI'] ?? '/'); ?>">
+
+    <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="assests/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assests/favicon-16x16.png">
     <link rel="manifest" href="assests/site.webmanifest">
     <link rel="shortcut icon" href="assests/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $is_logged_in ? 'Dashboard' : 'Welcome'; ?> - Learner.LK</title>
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "Lernerr.LK",
+      "url": "<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/'; ?>",
+      "logo": "<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>",
+      "description": "Lernerr.LK is Sri Lanka's premier online learning management system, providing high-quality courses and learning resources for students.",
+      "sameAs": [
+        "https://www.facebook.com/Lernerr.LK",
+        "https://www.youtube.com/Lernerr.LK"
+      ]
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -359,15 +400,15 @@ if (!function_exists('format_html_color')) {
  
                 <!-- Content Container (Top Aligned) -->
                 <div class="max-w-4xl mx-auto relative z-20 w-full flex flex-col items-center animate-fade-in-up">
-                    <div class="inline-block bg-red-600 text-white px-4 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.25em] mb-2 sm:mb-4 shadow-sm rounded-full">
-                        Learner.LK
+                    <div class="mb-4">
+                        <img src="assests/logo.jpeg" alt="LMS Logo" class="h-16 w-auto object-contain rounded-lg shadow-sm">
                     </div>
 
                     <h1 class="text-2xl sm:text-4xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight mb-2 sm:mb-4">
-                        ආයුබෝවන්!! <br class="sm:hidden"> <span class="text-red-600">සාදරයෙන් පිළිගනිමු</span>
+                        ආයුබෝවන්!!
                     </h1>
 
-                    <p class="text-[11px] sm:text-base lg:text-lg text-slate-700 max-w-3xl mx-auto mb-4 sm:mb-8 font-semibold leading-relaxed">
+                    <p class="text-[11px] sm:text-base lg:text-lg text-slate-800 max-w-3xl mx-auto mb-4 sm:mb-8 font-semibold leading-relaxed">
                         ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
                     </p>
  
@@ -411,7 +452,7 @@ if (!function_exists('format_html_color')) {
                             </button>
                             
                             <!-- Register Button (Secondary Pill) -->
-                            <a href="register.php" class="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]">
+                            <a href="student_registration" class="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]">
                                 <span>Register Now</span>
                             </a>
                         </div>
@@ -501,11 +542,11 @@ if (!function_exists('format_html_color')) {
                             <div class="h-1 w-20 bg-slate-900 mb-6 rounded-full"></div>
                             
                             <p class="text-slate-900/90 text-sm sm:text-base font-semibold leading-relaxed mb-8 max-w-2xl">
-                                Learner.LK හරහා ක්‍රමානුකූලව සහ සරලව විෂය කරුණු ඉගෙනීමෙන්, පසුගිය උසස් පෙළ විභාගයෙන් දිස්ත්‍රික් මට්ටමේ මෙන්ම දිවයිනේ ඉහළම ප්‍රතිඵල ලබා ගැනීමට අපගේ සිසුන් විශාල පිරිසක් සමත් වී ඇත. ඔවුන්ගේ සාර්ථකත්වයේ හඬ ඔබත් අත්දකින්න.
+                                Lernerr.LK හරහා ක්‍රමානුකූලව සහ සරලව විෂය කරුණු ඉගෙනීමෙන්, පසුගිය උසස් පෙළ විභාගයෙන් දිස්ත්‍රික් මට්ටමේ මෙන්ම දිවයිනේ ඉහළම ප්‍රතිඵල ලබා ගැනීමට අපගේ සිසුන් විශාල පිරිසක් සමත් වී ඇත. ඔවුන්ගේ සාර්ථකත්වයේ හඬ ඔබත් අත්දකින්න.
                             </p>
                             
                             <!-- Navigate to ALDetails.php button -->
-                            <a href="dashboard/ALDetails.php" class="inline-flex items-center gap-3 bg-slate-900 text-white px-8 py-4 font-medium text-xs uppercase tracking-widest hover:bg-slate-800 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-slate-900/20 group">
+                            <a href="dashboard/ALDetails" class="inline-flex items-center gap-3 bg-slate-900 text-white px-8 py-4 font-medium text-xs uppercase tracking-widest hover:bg-slate-800 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-slate-900/20 group">
                                 <span>සියලුම ප්‍රතිඵල බලන්න / View More Results</span>
                                 <i class="fas fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
                             </a>
@@ -547,33 +588,43 @@ if (!function_exists('format_html_color')) {
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         <!-- Welcome Card -->
                         <div
-                            class="lg:col-span-4 bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full">
-                            <div
-                                class="absolute top-0 right-0 w-48 h-48 bg-red-50 rounded-none blur-3xl opacity-50 -mr-24 -mt-24">
-                            </div>
+                            class="<?php echo $role === 'teacher' ? 'lg:col-span-12' : 'lg:col-span-4'; ?> bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full flex flex-col justify-between group">
+                            <!-- Premium Background Blobs -->
+                            <div class="absolute -top-12 -right-12 w-36 h-36 bg-red-50 rounded-none blur-3xl opacity-60 group-hover:scale-125 transition-transform duration-700"></div>
+                            
                             <div class="relative z-10">
-                                <div
-                                    class="w-16 h-16 bg-red-600 rounded-none flex items-center justify-center text-white mb-6 shadow-lg shadow-red-200">
-                                    <i class="fas fa-user-graduate text-2xl"></i>
+                                <!-- User Avatar Initials Circle -->
+                                <div class="flex items-center gap-4 mb-6">
+                                    <div class="w-14 h-14 bg-gradient-to-tr from-red-500 to-red-600 rounded-none flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-red-500/25">
+                                        <?php 
+                                            $user_fullname = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['second_name'] ?? ''));
+                                            echo get_initials($user_fullname ?: 'User'); 
+                                        ?>
+                                    </div>
+                                    <div>
+                                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block"><?php echo $role === 'teacher' ? 'Teacher Account' : 'Student Account'; ?></span>
+                                        <span class="block text-xs font-bold text-slate-500 mt-0.5"><?php echo $role === 'teacher' ? 'Teacher ID' : 'Student ID'; ?>: <?php echo $user_id; ?></span>
+                                    </div>
                                 </div>
-                                <h1 class="text-2xl font-black text-slate-900 leading-tight">
-                                    ආයුබෝවන් <br>
-                                    <span
-                                        class="text-red-600"><?php echo htmlspecialchars($_SESSION['first_name'] ?? 'User'); ?>!</span>
-                                </h1>
-                                <p class="text-slate-500 font-bold mt-2 text-sm">ඔබගේ ඉගෙනුම් පුවරුවට නැවතත් සාදරයෙන්
-                                    පිළිගනිමු.</p>
 
-                                <div class="mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Student
-                                        ID: <?php echo $user_id; ?></span>
-                                    <a href="dashboard/profile.php"
-                                        class="text-red-600 text-[10px] font-black uppercase tracking-widest hover:translate-x-1 transition-transform">Edit
-                                        Profile <i class="fas fa-chevron-right ml-1 text-[8px]"></i></a>
-                                </div>
+                                <h1 class="text-3xl font-black text-slate-900 leading-tight tracking-tight">
+                                    ආයුබෝවන්, <br>
+                                    <span class="text-red-600 font-black">
+                                        <?php echo htmlspecialchars($user_fullname ?: 'User'); ?>!
+                                    </span>
+                                </h1>
+                            </div>
+
+                            <div class="relative z-10 mt-8">
+                                <a href="dashboard/profile"
+                                    class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-none shadow-lg shadow-red-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                    <span>Go to Profile</span>
+                                    <i class="fas fa-chevron-right text-[10px]"></i>
+                                </a>
                             </div>
                         </div>
 
+                        <?php if ($role !== 'teacher'): ?>
                         <!-- Stats Grid -->
                         <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- Enrolled Classes -->
@@ -586,7 +637,7 @@ if (!function_exists('format_html_color')) {
                                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled
                                     Classes</p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
-                                <a href="dashboard/recordings.php"
+                                <a href="dashboard/recordings"
                                     class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View
                                     Lessons</a>
                             </div>
@@ -601,7 +652,7 @@ if (!function_exists('format_html_color')) {
                                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments
                                 </p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
-                                <a href="dashboard/payments.php"
+                                <a href="dashboard/payments"
                                     class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay
                                     Now</a>
                             </div>
@@ -616,7 +667,7 @@ if (!function_exists('format_html_color')) {
                                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available
                                     Exams</p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
-                                <a href="dashboard/exam_center.php"
+                                <a href="dashboard/exam_center"
                                     class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go
                                     to Center</a>
                             </div>
@@ -631,11 +682,12 @@ if (!function_exists('format_html_color')) {
                                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses
                                 </p>
                                 <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
-                                <a href="dashboard/online_courses.php"
+                                <a href="dashboard/online_courses"
                                     class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore
                                     More</a>
                             </div>
                         </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -864,7 +916,7 @@ if (!function_exists('format_html_color')) {
 
                                         <?php if ($is_logged_in): ?>
                                             <?php if ($enrolled_data): ?>
-                                                <a href="dashboard/recordings.php"
+                                                <a href="dashboard/recordings"
                                                     class="block w-full text-center bg-slate-900 text-white py-2.5 px-4 rounded-none hover:bg-slate-800 transition duration-200 text-[10px] font-bold uppercase tracking-wider active:scale-95 shadow-md">
                                                     View Details
                                                 </a>
@@ -876,7 +928,7 @@ if (!function_exists('format_html_color')) {
                                                 </button>
                                             <?php endif; ?>
                                         <?php else: ?>
-                                            <a href="register.php?stream_id=<?php echo $stream_id; ?>&subject_id=<?php echo $class['subject_id']; ?>"
+                                            <a href="student_registration?stream_id=<?php echo $stream_id; ?>&subject_id=<?php echo $class['subject_id']; ?>"
                                                 class="block w-full text-center bg-slate-900 text-white py-2.5 px-4 rounded-none hover:bg-slate-800 transition duration-200 text-[10px] font-bold uppercase tracking-wider active:scale-95 shadow-md">
                                                 Enroll Now
                                             </a>
@@ -1165,7 +1217,7 @@ if (!function_exists('format_html_color')) {
                                         </div>
                                     </div>
 
-                                    <a href="register.php?course_id=<?php echo $course['id']; ?>"
+                                     <a href="student_registration?course_id=<?php echo $course['id']; ?>"
                                         class="block w-full text-center bg-slate-900 text-white py-2.5 px-4 rounded-full hover:bg-slate-800 transition duration-200 text-[10px] font-bold uppercase tracking-wider active:scale-95 shadow-md">
                                         <i class="fas fa-cart-plus mr-1"></i>Enroll Now
                                     </a>
@@ -1197,16 +1249,16 @@ if (!function_exists('format_html_color')) {
             </div>
 
             <div class="space-y-2">
-                <p class="text-base md:text-lg font-bold text-white">Learner.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන
+                <p class="text-base md:text-lg font-bold text-white">Lernerr.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන
                     ආයතනයයි.</p>
-                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Learner.LK is the best online
+                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Lernerr.LK is the best online
                     academy in Sri Lanka.</p>
             </div>
 
             <div
                 class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
                 <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?>
-                    Learner.LK. All rights reserved.</p>
+                    Lernerr.LK. All rights reserved.</p>
                 <div class="flex space-x-6">
                     <a href="#" class="text-white hover:text-red-200 transition-colors"><i
                             class="fab fa-facebook-f"></i></a>
@@ -1234,7 +1286,7 @@ if (!function_exists('format_html_color')) {
                     class="block w-full bg-slate-900 text-white py-4 px-6 rounded-xl hover:bg-slate-800 font-bold transition-all transform active:scale-95 shadow-lg">
                     ඇතුළු වන්න (Login)
                 </a>
-                <a href="register.php"
+                <a href="student_registration"
                     class="block w-full bg-gray-100 text-gray-700 py-4 px-6 rounded-xl hover:bg-gray-200 font-bold transition-all transform active:scale-95">
                     ලියාපදිංචි වන්න (Register)
                 </a>

@@ -90,8 +90,8 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <!-- Navigation Links - Moved to Right -->
             <div class="hidden lg:flex items-stretch h-14 sm:h-16">
                 <a href="<?php echo $root_url; ?>" class="flex items-center px-5 text-[11px] font-black tracking-widest text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">Home</a>
-                <a href="<?php echo $base_url; ?>live_classes.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
-                <a href="<?php echo $base_url; ?>publications.php" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
+                <a href="<?php echo $base_url; ?>live_classes" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
+                <a href="<?php echo $base_url; ?>publications" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
                 <!-- Desktop Dropdown Menu -->
                 <div class="relative group/dropdown h-full">
                     <button class="flex items-center h-full px-5 text-[11px] font-black tracking-widest text-white bg-black group-hover/dropdown:bg-zinc-900 transition-all gap-3 uppercase">
@@ -106,14 +106,15 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                         <!-- Dropdown Links -->
                         <?php 
                         $dropdown_items = [
-                            ['PROFILE', 'profile.php', 'fa-user-circle', 'ගිණුම'],
-                            ['RECORDINGS', 'recordings.php', 'fa-video', 'පටිගත කිරීම්'],
-                            ['INSTRUCTORS', 'instructors.php', 'fa-chalkboard-teacher', 'ගුරුවරුන්'],
-                            ['PAYMENTS', 'payments.php', 'fa-credit-card', 'ගෙවීම්'],
-                            ['EXAM CENTER', 'exam_center.php', 'fa-file-alt', 'විභාග'],
-                            ['ONLINE COURSES', 'online_courses.php', 'fa-graduation-cap', 'පාඨමාලා'],
-                            ['A/L RESULTS', 'ALDetails.php', 'fa-trophy', 'ප්‍රතිඵල'],
-                            ['ABOUT US', 'about_us.php', 'fa-info-circle', 'අප ගැන']
+                            ['PROFILE', 'profile', 'fa-user-circle', 'ගිණුම'],
+                            ['RECORDINGS', 'recordings', 'fa-video', 'පටිගත කිරීම්'],
+                            ['INSTRUCTORS', 'instructors', 'fa-chalkboard-teacher', 'ගුරුවරුන්'],
+                            ['PAYMENTS', 'payments', 'fa-credit-card', 'ගෙවීම්'],
+                            ['EXAM CENTER', 'exam_center', 'fa-file-alt', 'විභාග'],
+                            ['ONLINE COURSES', 'online_courses', 'fa-graduation-cap', 'පාඨමාලා'],
+                            ['A/L RESULTS', 'ALDetails', 'fa-trophy', 'ප්‍රතිඵල'],
+                            ['ABOUT US', 'about_us', 'fa-info-circle', 'අප ගැන'],
+                            ['REGISTER AS A TEACHER', '../teacher_registration', 'fa-user-plus', 'ගුරු ලියාපදිංචිය']
                         ];
                         foreach ($dropdown_items as $item): ?>
                             <a href="<?php echo $base_url . $item[1]; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
@@ -137,8 +138,8 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <!-- Mobile/Tablet block buttons (shown on screens smaller than lg) -->
             <div class="flex lg:hidden items-stretch h-14 sm:h-16">
                 <a href="<?php echo $root_url; ?>" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">HOME</a>
-                <a href="<?php echo $base_url; ?>live_classes.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
-                <a href="<?php echo $base_url; ?>publications.php" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
+                <a href="<?php echo $base_url; ?>live_classes" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
+                <a href="<?php echo $base_url; ?>publications" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
                 <button onclick="toggleMobileMenu()" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-black hover:bg-zinc-900 transition-all gap-1 uppercase">
                     <span>MENU</span>
                     <div class="space-y-0.5">
@@ -174,23 +175,24 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <div class="space-y-1">
                 <?php 
                 $all_nav_items = [
-                    ['HOME', 'dashboard.php', 'මුල් පිටුව'],
-                    ['PROFILE', 'profile.php', 'ගිණුම'],
-                    ['EDIT PROFILE', 'edit.php', 'ගිණුම් සංස්කරණය'],
-                    ['RECORDINGS', 'recordings.php', 'පටිගත කිරීම්'],
-                    ['LIVE CLASSES', 'live_classes.php', 'සජීවී පන්ති'],
-                    ['INSTRUCTORS', 'instructors.php', 'ගුරුවරුන්'],
-                    ['PAYMENTS', 'payments.php', 'ගෙවීම්'],
-                    ['EXAM CENTER', 'exam_center.php', 'විභාග'],
-                    ['ONLINE COURSES', 'online_courses.php', 'පාඨමාලා'],
-                    ['PUBLICATIONS', 'publications.php', 'ප්‍රකාශන'],
-                    ['A/L RESULTS', 'ALDetails.php', 'ප්‍රතිඵල'],
-                    ['ABOUT US', 'about_us.php', 'අප ගැන']
+                    ['HOME', 'dashboard', 'මුල් පිටුව'],
+                    ['PROFILE', 'profile', 'ගිණුම'],
+                    ['EDIT PROFILE', 'edit', 'ගිණුම් සංස්කරණය'],
+                    ['RECORDINGS', 'recordings', 'පටිගත කිරීම්'],
+                    ['LIVE CLASSES', 'live_classes', 'සජීවී පන්ති'],
+                    ['INSTRUCTORS', 'instructors', 'ගුරුවරුන්'],
+                    ['PAYMENTS', 'payments', 'ගෙවීම්'],
+                    ['EXAM CENTER', 'exam_center', 'විභාග'],
+                    ['ONLINE COURSES', 'online_courses', 'පාඨමාලා'],
+                    ['PUBLICATIONS', 'publications', 'ප්‍රකාශන'],
+                    ['A/L RESULTS', 'ALDetails', 'ප්‍රතිඵල'],
+                    ['ABOUT US', 'about_us', 'අප ගැන'],
+                    ['REGISTER AS A TEACHER', '../teacher_registration', 'ගුරු ලියාපදිංචිය']
                 ];
                 foreach ($all_nav_items as $item):
-                    $is_active = ($current_page == $item[1]);
+                    $is_active = (basename($current_page, '.php') === basename($item[1], '.php'));
                     ?>
-                    <a href="<?php echo $item[1] === 'dashboard.php' ? $root_url : $base_url . $item[1]; ?>"
+                    <a href="<?php echo $item[1] === 'dashboard' ? $root_url : $base_url . $item[1]; ?>"
                         class="flex items-center justify-between px-4 py-4 rounded-2xl transition-all <?php echo $is_active ? 'bg-red-50 text-red-600 font-black' : 'text-slate-600 hover:bg-slate-50 font-bold'; ?>">
                         <div class="flex flex-col">
                             <span class="text-sm"><?php echo $item[0]; ?></span>
@@ -205,7 +207,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
 
             <?php if (!isset($_SESSION['role'])): ?>
                 <div class="mt-8 pt-8 border-t border-slate-100">
-                    <a href="<?php echo $root_url; ?>register.php"
+                    <a href="<?php echo $root_url; ?>student_registration.php"
                         class="flex items-center justify-between bg-red-600 text-white p-5 rounded-2xl shadow-xl shadow-red-600/20 group hover:scale-[1.02] transition-all">
                         <span class="font-black tracking-widest text-sm">REGISTER NOW</span>
                         <div class="bg-white/20 p-2 rounded-full group-hover:bg-white/40 transition-colors">
@@ -291,7 +293,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         <!-- Modal Footer -->
         <div class="bg-slate-50 px-8 py-4 flex justify-between items-center">
             <?php if (($_SESSION['role'] ?? '') !== 'admin'): ?>
-                <a href="<?php echo $base_url; ?>edit.php"
+                <a href="<?php echo $base_url; ?>edit"
                     class="text-slate-600 font-bold text-xs hover:text-red-600 transition-colors uppercase tracking-widest flex items-center gap-2">
                     <i class="fas fa-edit"></i> Edit Profile
                 </a>
@@ -315,10 +317,10 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         <p class="text-slate-500 font-bold text-sm mb-8">Please login to access this section and start your learning
             journey.</p>
         <div class="space-y-3">
-            <a href="<?php echo $root_url; ?>index.php"
+            <a href="<?php echo $root_url; ?>"
                 class="block w-full bg-red-600 text-white font-black py-4 rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-600/20">LOGIN
                 NOW</a>
-            <a href="<?php echo $root_url; ?>register.php"
+            <a href="<?php echo $root_url; ?>student_registration"
                 class="block w-full bg-slate-100 text-slate-700 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all">CREATE
                 ACCOUNT</a>
             <button onclick="closeGuestAuthModal()"
@@ -405,7 +407,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                 link.addEventListener('click', function (e) {
                     const href = this.getAttribute('href');
                     if (!href || href.includes('#')) return;
-                    const allowed = ['dashboard.php', 'live_classes.php', 'publications.php', 'about_us.php', 'index.php', 'ALDetails.php', 'register.php', '<?php echo parse_url($root_url, PHP_URL_PATH); ?>'];
+                    const allowed = ['dashboard.php', 'dashboard', 'live_classes.php', 'live_classes', 'publications.php', 'publications', 'about_us.php', 'about_us', 'index.php', 'ALDetails.php', 'ALDetails', 'student_registration.php', 'student_registration', 'student_register.php', 'student_register', 'teacher_registration.php', 'teacher_registration', '<?php echo parse_url($root_url, PHP_URL_PATH); ?>'];
                     const isAllowed = allowed.some(p => href.includes(p)) || href === '<?php echo $root_url; ?>' || href === '/' || href === '';
                     if (!isAllowed) {
                         e.preventDefault();

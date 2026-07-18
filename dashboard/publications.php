@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -125,11 +125,11 @@ if ($user_logged_in && $view == 'orders') {
 
         .pub-cover {
             position: relative;
-            aspect-ratio: 16/10;
-            border-radius: 20px;
-            margin: 12px;
+            aspect-ratio: 3/4;
+            border-radius: 16px;
+            margin: 8px;
             overflow: hidden;
-            background: #f1f5f9;
+            background: #f8fafc;
         }
 
         .pub-cover img {
@@ -347,23 +347,23 @@ if ($user_logged_in && $view == 'orders') {
                                 </div>
 
                                 <!-- Content Section -->
-                                <div class="px-6 pb-6 pt-2 flex-1 flex flex-col">
-                                    <h3 class="text-lg md:text-xl font-bold text-slate-800 line-clamp-2 leading-tight mb-4 min-h-[3.5rem]">
+                                <div class="p-3 sm:p-5 flex-1 flex flex-col">
+                                    <h3 class="text-xs sm:text-base font-bold text-slate-800 line-clamp-2 leading-snug mb-2 sm:mb-4 min-h-[2.5rem] sm:min-h-[3rem]">
                                         <?php echo htmlspecialchars($pub['title']); ?>
                                     </h3>
                                     
-                                    <div class="mt-auto flex items-end justify-between gap-3">
+                                    <div class="mt-auto flex flex-col sm:flex-row sm:items-end justify-between gap-2.5 sm:gap-3">
                                         <div class="flex flex-col">
                                             <?php if($pub['discount'] > 0): ?>
-                                                <span class="text-xs text-slate-400 line-through font-bold mb-0.5">Rs.<?php echo number_format($pub['price'], 0); ?></span>
+                                                <span class="text-[10px] sm:text-xs text-slate-400 line-through font-bold mb-0.5">Rs.<?php echo number_format($pub['price'], 0); ?></span>
                                             <?php endif; ?>
-                                            <span class="text-xl md:text-2xl font-black text-red-600 tracking-tight">Rs.<?php echo number_format($final_price, 0); ?></span>
+                                            <span class="text-sm sm:text-lg font-black text-red-600 tracking-tight">Rs.<?php echo number_format($final_price, 0); ?></span>
                                         </div>
                                         <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
                                             'id'    => $pub['id'],
                                             'title' => $pub['title'],
                                             'price' => $final_price
-                                        ])); ?>)" class="bg-[#121826] text-white px-5 py-3 rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg active:scale-95">
+                                        ])); ?>)" class="w-full sm:w-auto bg-[#121826] text-white px-3 py-2 sm:px-5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold hover:bg-black transition-all shadow-lg active:scale-95 text-center">
                                             Buy Now
                                         </button>
                                     </div>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // profile.php - User profile page for both students and teachers
 require_once __DIR__ . '/../config.php';
 
@@ -48,7 +48,8 @@ if ($role === 'student') {
            FROM recordings r
            JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
            JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
-           JOIN subjects sub ON se.stream_subject_id = sub.id
+           JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+           JOIN subjects sub ON ss.subject_id = sub.id
            JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE se.student_id = ? AND r.is_live = 1 AND r.status = 'ongoing' AND se.status = 'active'";
     $st1 = $conn->prepare($q1);
@@ -64,7 +65,8 @@ if ($role === 'student') {
            FROM zoom_classes zc
            JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
            JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
-           JOIN subjects sub ON se.stream_subject_id = sub.id
+           JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+           JOIN subjects sub ON ss.subject_id = sub.id
            JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE se.student_id = ? AND zc.status = 'ongoing' AND se.status = 'active'";
     $st2 = $conn->prepare($q2);
@@ -98,7 +100,8 @@ if ($role === 'student') {
                   u.first_name as teacher_first, u.second_name as teacher_second, r.thumbnail_url
            FROM recordings r
            JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
-           JOIN subjects sub ON ta.stream_subject_id = sub.id
+           JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+           JOIN subjects sub ON ss.subject_id = sub.id
            JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE ta.teacher_id = ? AND r.is_live = 1 AND r.status = 'ongoing'";
     $st1 = $conn->prepare($q1);
@@ -113,7 +116,8 @@ if ($role === 'student') {
                   u.first_name as teacher_first, u.second_name as teacher_second
            FROM zoom_classes zc
            JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
-           JOIN subjects sub ON ta.stream_subject_id = sub.id
+           JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+           JOIN subjects sub ON ss.subject_id = sub.id
            JOIN users u ON ta.teacher_id COLLATE utf8mb4_unicode_ci = u.user_id COLLATE utf8mb4_unicode_ci
            WHERE ta.teacher_id = ? AND zc.status = 'ongoing'";
     $st2 = $conn->prepare($q2);
@@ -150,7 +154,8 @@ if ($role === 'student') {
               FROM recordings r
               JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
               JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
-              JOIN subjects sub ON se.stream_subject_id = sub.id
+              JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+              JOIN subjects sub ON ss.subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
               WHERE se.student_id = ? AND r.is_live = 1 AND r.status = 'scheduled' AND r.scheduled_start_time > NOW() AND se.status = 'active')
              UNION
@@ -159,7 +164,8 @@ if ($role === 'student') {
               FROM zoom_classes z
               JOIN teacher_assignments ta ON z.teacher_assignment_id = ta.id
               JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
-              JOIN subjects sub ON se.stream_subject_id = sub.id
+              JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+              JOIN subjects sub ON ss.subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
               WHERE se.student_id = ? AND z.status = 'scheduled' AND z.scheduled_start_time > NOW() AND se.status = 'active')
              ORDER BY scheduled_start_time ASC LIMIT 3";
@@ -174,7 +180,8 @@ if ($role === 'student') {
                      u.first_name as teacher_first, u.second_name as teacher_second
               FROM recordings r
               JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
-              JOIN subjects sub ON ta.stream_subject_id = sub.id
+              JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              JOIN subjects sub ON ss.subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
               WHERE ta.teacher_id = ? AND r.is_live = 1 AND r.status = 'scheduled' AND r.scheduled_start_time > NOW())
              UNION
@@ -182,7 +189,8 @@ if ($role === 'student') {
                      u.first_name as teacher_first, u.second_name as teacher_second
               FROM zoom_classes z
               JOIN teacher_assignments ta ON z.teacher_assignment_id = ta.id
-              JOIN subjects sub ON ta.stream_subject_id = sub.id
+              JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              JOIN subjects sub ON ss.subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
               WHERE ta.teacher_id = ? AND z.status = 'scheduled' AND z.scheduled_start_time > NOW())
              ORDER BY scheduled_start_time ASC LIMIT 3";
@@ -237,18 +245,21 @@ if ($role === 'student') {
 
     // Get latest 3 recordings (What's New) for ENROLLED subjects
     $latest_recordings = [];
-    $q_lat = "SELECT r.id, r.title, sub.name as subject_name, r.thumbnail_url, 
+    $q_lat = "SELECT r.id, r.title, sub.name as subject_name, r.thumbnail_url, r.youtube_video_id,
                      u.first_name as teacher_first, u.second_name as teacher_second,
-                     u.profile_picture as teacher_profile_picture
+                     u.profile_picture as teacher_profile_picture,
+                     (SELECT MAX(wl.watched_at) FROM video_watch_log wl WHERE wl.recording_id = r.id AND wl.student_id = ?) as last_watched
               FROM recordings r
               JOIN teacher_assignments ta ON r.teacher_assignment_id = ta.id
               JOIN student_enrollment se ON ta.stream_subject_id = se.stream_subject_id AND ta.academic_year = se.academic_year
-              JOIN subjects sub ON ta.stream_subject_id = sub.id
+              JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              JOIN subjects sub ON ss.subject_id = sub.id
               JOIN users u ON ta.teacher_id = u.user_id
-              WHERE r.status = 'active' AND se.student_id = ? AND se.status = 'active'
+              WHERE ((r.status = 'active' AND (r.is_live = 0 OR r.is_live IS NULL)) OR (r.is_live = 1 AND r.status = 'ended'))
+                AND se.student_id = ? AND se.status = 'active'
               ORDER BY r.id DESC LIMIT 3";
     $st_lat = $conn->prepare($q_lat);
-    $st_lat->bind_param("s", $user_id);
+    $st_lat->bind_param("ss", $user_id, $user_id);
     $st_lat->execute();
     $res_lat = $st_lat->get_result();
     while($row = $res_lat->fetch_assoc()) $latest_recordings[] = $row;
@@ -397,8 +408,16 @@ if ($role === 'student') {
                 <p class="text-slate-500 font-medium mt-2">Welcome back to your personalized learning workspace.</p>
             </div>
             
-            <button onclick="openProfileModal()" id="nav-profile-btn"
-                class="flex items-center gap-3 group px-6 py-3.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm transition-all active:scale-[0.98]">
+            <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+                <?php if ($role === 'teacher'): ?>
+                    <a href="recordings?action=create_enroll" 
+                       class="inline-flex items-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-red-600/20 transition-all transform active:scale-95">
+                        <i class="fas fa-plus"></i> Create New Enroll
+                    </a>
+                <?php endif; ?>
+
+                <button onclick="openProfileModal()" id="nav-profile-btn"
+                    class="flex items-center gap-3 group px-6 py-3.5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm transition-all active:scale-[0.98]">
                 <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white text-base font-bold border-2 border-white shadow-sm overflow-hidden flex-shrink-0">
                     <?php if (!empty($user_data['profile_picture'])): ?>
                         <img src="../<?php echo htmlspecialchars($user_data['profile_picture']); ?>" class="w-full h-full object-cover">
@@ -413,12 +432,93 @@ if ($role === 'student') {
                     </span>
                 </div>
             </button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <!-- Left Side: Main Content (8 columns) -->
             <div class="lg:col-span-8 space-y-16">
                 
+                <?php if ($role === 'student'): ?>
+                <!-- Quick Navigation Buttons -->
+                <div class="animate-fade-in grid grid-cols-1 sm:grid-cols-3 gap-4" style="animation-delay: 0.08s">
+                    <a href="recordings" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lessons</span>
+                            <span class="block text-sm font-black text-[#1e293b] uppercase tracking-wide">Recordings</span>
+                        </div>
+                    </a>
+
+                    <a href="payments" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Fees</span>
+                            <span class="block text-sm font-black text-[#1e293b] uppercase tracking-wide">Payments</span>
+                        </div>
+                    </a>
+
+                    <a href="exam_center" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Tests</span>
+                            <span class="block text-sm font-black text-[#1e293b] uppercase tracking-wide">Exam Center</span>
+                        </div>
+                    </a>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($role === 'teacher'): ?>
+                <!-- Teacher Quick Action Buttons -->
+                <div class="animate-fade-in grid grid-cols-1 sm:grid-cols-4 gap-4" style="animation-delay: 0.08s">
+                    <a href="live_classes" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Live Classes</span>
+                            <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">Create Live Class</span>
+                        </div>
+                    </a>
+
+                    <a href="recordings" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Lessons</span>
+                            <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">Add Recording</span>
+                        </div>
+                    </a>
+
+                    <a href="exam_center" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Exams</span>
+                            <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">Conduct Exam</span>
+                        </div>
+                    </a>
+
+                    <a href="payments" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Earnings</span>
+                            <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">Manage Payments</span>
+                        </div>
+                    </a>
+                </div>
+                <?php endif; ?>
+
                 <!-- Ongoing Live Classes (if any) -->
                 <?php if (!empty($ongoing_classes)): ?>
                     <div class="animate-fade-in" style="animation-delay: 0.1s">
@@ -434,7 +534,7 @@ if ($role === 'student') {
                                 $teacher_name = trim(($class['teacher_first'] ?? '') . ' ' . ($class['teacher_second'] ?? ''));
                             ?>
                                 <div class="live-session-card group flex flex-col shadow-sm">
-                                    <div class="relative h-48">
+                                    <div class="relative aspect-video">
                                         <?php if ($class['type'] === 'zoom'): ?>
                                             <div class="w-full h-full bg-[#1e293b] flex flex-col items-center justify-center text-white p-4">
                                                 <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-3 shadow-xl shadow-blue-500/20">
@@ -495,20 +595,18 @@ if ($role === 'student') {
                             <h2 class="text-2xl font-black text-slate-900 tracking-tight" data-sinhala="අලුතින් එක් කළ පාඩම්">New Recordings</h2>
                             <p class="text-slate-400 text-xs font-medium mt-1">Recently added video lessons.</p>
                         </div>
-                        <a href="recordings.php" class="text-red-600 font-bold text-xs hover:underline" data-sinhala="සියල්ල බලන්න">View All <i class="fas fa-arrow-right ml-1"></i></a>
+                        <a href="recordings" class="text-red-600 font-bold text-xs hover:underline" data-sinhala="සියල්ල බලන්න">View All <i class="fas fa-arrow-right ml-1"></i></a>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <?php foreach ($latest_recordings as $rec): 
                             $teacher_name = trim(($rec['teacher_first'] ?? '') . ' ' . ($rec['teacher_second'] ?? ''));
                         ?>
                         <div class="modern-card overflow-hidden group shadow-sm">
-                            <div class="relative h-40 overflow-hidden">
+                            <div class="relative aspect-video overflow-hidden">
                                 <?php if (!empty($rec['thumbnail_url'])): ?>
-                                    <img src="<?php echo htmlspecialchars($rec['thumbnail_url']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail">
+                                    <img src="<?php echo (strpos($rec['thumbnail_url'], 'http') === 0) ? htmlspecialchars($rec['thumbnail_url']) : '../' . htmlspecialchars($rec['thumbnail_url']); ?>" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail" onerror="this.src='https://img.youtube.com/vi/<?php echo htmlspecialchars($rec['youtube_video_id']); ?>/hqdefault.jpg'">
                                 <?php else: ?>
-                                    <div class="w-full h-full bg-[#1e293b] flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-500">
-                                        <i class="fas fa-play-circle text-4xl opacity-20"></i>
-                                    </div>
+                                    <img src="https://img.youtube.com/vi/<?php echo htmlspecialchars($rec['youtube_video_id']); ?>/hqdefault.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Recording Thumbnail">
                                 <?php endif; ?>
                                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent"></div>
                                 <div class="absolute bottom-3 left-4">
@@ -517,7 +615,11 @@ if ($role === 'student') {
                             </div>
                             <div class="p-5">
                                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1"><?php echo htmlspecialchars($rec['subject_name']); ?></p>
-                                <h3 class="text-sm font-bold text-slate-900 mb-4 line-clamp-2 h-10"><?php echo htmlspecialchars($rec['title']); ?></h3>
+                                <h3 class="text-sm font-bold text-slate-900 mb-2 line-clamp-2 h-10"><?php echo htmlspecialchars($rec['title']); ?></h3>
+                                <p class="text-[10px] font-bold text-slate-500 mb-4 flex items-center gap-1.5">
+                                    <i class="far fa-clock text-slate-400"></i>
+                                    <span><?php echo $rec['last_watched'] ? 'Watched: ' . date('M j, Y', strtotime($rec['last_watched'])) : 'Not watched yet'; ?></span>
+                                </p>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center gap-2">
                                         <?php if (!empty($rec['teacher_profile_picture'])): ?>

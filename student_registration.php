@@ -116,221 +116,247 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             }
         }
 
-        // If no validation errors, proceed with user creation
         if (empty($error_message)) {
-            // Generate user_id based on role
-            $role_prefix = [
-                'student' => 'stu',
-                'teacher' => 'tea',
-                'instructor' => 'ins',
-                'admin' => 'adm'
-            ];
-            $prefix = $role_prefix[$role] ?? 'usr';
+            try {
+                // Generate user_id based on role
+                $role_prefix = [
+                    'student' => 'stu',
+                    'teacher' => 'tea',
+                    'instructor' => 'ins',
+                    'admin' => 'adm'
+                ];
+                $prefix = $role_prefix[$role] ?? 'usr';
 
-            // Get next number for this role
-            $stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY user_id DESC LIMIT 1");
-            $pattern = $prefix . '_%';
-            $stmt->bind_param("s", $pattern);
-            $stmt->execute();
-            $result = $stmt->get_result();
+                // Get next number for this role using numeric casting for correct sorting
+                $stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY CAST(SUBSTRING(user_id, 5) AS UNSIGNED) DESC LIMIT 1");
+                $pattern = $prefix . '_%';
+                $stmt->bind_param("s", $pattern);
+                $stmt->execute();
+                $result = $stmt->get_result();
 
-            $next_num = 1000; // Start from 1000
-            if ($result->num_rows > 0) {
-                $last_user = $result->fetch_assoc();
-                $last_num = intval(substr($last_user['user_id'], strlen($prefix) + 1));
-                $next_num = max($last_num + 1, 1000);
-            }
-            $stmt->close();
-
-            $user_id = $prefix . '_' . str_pad($next_num, 4, '0', STR_PAD_LEFT);
-            // $username = $user_id; // Removed username assignment
-
-            // Hash password
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-            // Handle profile picture upload (optional for students)
-            $profile_picture_path = null;
-
-            // Process upload if file is provided
-            if (empty($error_message) && isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK && !empty($_FILES['profile_picture']['name'])) {
-                $upload_dir = 'uploads/profiles/';
-                if (!file_exists($upload_dir)) {
-                    mkdir($upload_dir, 0777, true);
+                $next_num = 1000; // Start from 1000
+                if ($result->num_rows > 0) {
+                    $last_user = $result->fetch_assoc();
+                    $last_num = intval(substr($last_user['user_id'], strlen($prefix) + 1));
+                    $next_num = max($last_num + 1, 1000);
                 }
+                $stmt->close();
 
-                $file = $_FILES['profile_picture'];
-                $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                $user_id = $prefix . '_' . str_pad($next_num, 4, '0', STR_PAD_LEFT);
+                // $username = $user_id; // Removed username assignment
 
-                // Validate file type
-                if (!in_array($file_ext, $allowed_extensions)) {
-                    $error_message = 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.';
-                } elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
-                    $error_message = 'File size too large. Maximum size is 5MB.';
-                } else {
-                    // Generate unique filename
-                    $new_filename = $user_id . '_' . time() . '.' . $file_ext;
-                    $upload_path = $upload_dir . $new_filename;
+                // Hash password
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-                    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                        $profile_picture_path = 'uploads/profiles/' . $new_filename;
+                // Handle profile picture upload (optional for students)
+                $profile_picture_path = null;
+
+                // Process upload if file is provided
+                if (empty($error_message) && isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK && !empty($_FILES['profile_picture']['name'])) {
+                    $upload_dir = 'uploads/profiles/';
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0777, true);
+                    }
+
+                    $file = $_FILES['profile_picture'];
+                    $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+                    // Validate file type
+                    if (!in_array($file_ext, $allowed_extensions)) {
+                        $error_message = 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.';
+                    } elseif ($file['size'] > 5 * 1024 * 1024) { // 5MB limit
+                        $error_message = 'File size too large. Maximum size is 5MB.';
                     } else {
-                        $error_message = 'Failed to upload profile picture.';
+                        // Generate unique filename
+                        $new_filename = $user_id . '_' . time() . '.' . $file_ext;
+                        $upload_path = $upload_dir . $new_filename;
+
+                        if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                            $profile_picture_path = 'uploads/profiles/' . $new_filename;
+                        } else {
+                            $error_message = 'Failed to upload profile picture.';
+                        }
                     }
                 }
-            }
 
-            // If no upload errors, proceed with user creation
-            if (empty($error_message)) {
-                $nic_no_value = ($verification_method === 'nic' && !empty($nic_number)) ? $nic_number : null;
-                $verification_method_value = ($verification_method !== 'none') ? $verification_method : 'none';
+                // If no upload errors, proceed with user creation
+                if (empty($error_message)) {
+                    $nic_no_value = ($verification_method === 'nic' && !empty($nic_number)) ? $nic_number : null;
+                    $verification_method_value = ($verification_method !== 'none') ? $verification_method : 'none';
 
-                $stmt = $conn->prepare("INSERT INTO users (user_id, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("ssssssssissssisss", $user_id, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $district, $address, $gender);
+                    $stmt = $conn->prepare("INSERT INTO users (user_id, password, role, first_name, second_name, mobile_number, whatsapp_number, profile_picture, approved, registering_date, status, nic_no, verification_method, dob, school_name, exam_year, district, address, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 1, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->bind_param("ssssssssissssisss", $user_id, $password_hash, $role, $first_name, $second_name, $mobile_number, $whatsapp_number, $profile_picture_path, $approved, $nic_no_value, $verification_method_value, $dob, $school_name, $exam_year, $district, $address, $gender);
 
-                if ($stmt->execute()) {
-                    // Handle student-specific data
-                    // Handle student-specific data
-                    if ($role === 'student') {
-                        $enrollment_type = $_POST['enrollment_type'] ?? '';
-                        $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+                    if ($stmt->execute()) {
+                        // Handle student-specific data
+                        if ($role === 'student') {
+                            $enrollment_type = $_POST['enrollment_type'] ?? '';
+                            $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
 
-                        if ($enrollment_type === 'subject') {
-                            $stream_id_input = $_POST['stream_id'] ?? '';
-                            $subject_id_input = $_POST['subject_id'] ?? '';
+                            if ($enrollment_type === 'subject') {
+                                $stream_id_input = $_POST['stream_id'] ?? '';
+                                $subject_id_input = $_POST['subject_id'] ?? '';
 
-                            $stream_id = intval($stream_id_input);
-                            $subject_id = intval($subject_id_input);
+                                $stream_id = intval($stream_id_input);
+                                $subject_id = intval($subject_id_input);
 
-                            // Create stream_subject if it doesn't exist
-                            if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
-                                $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
-                                $check_ss->bind_param("ii", $stream_id, $subject_id);
-                                $check_ss->execute();
-                                $ss_result = $check_ss->get_result();
+                                // Create stream_subject if it doesn't exist
+                                if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
+                                    $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+                                    $check_ss->bind_param("ii", $stream_id, $subject_id);
+                                    $check_ss->execute();
+                                    $ss_result = $check_ss->get_result();
 
-                                $stream_subject_id = null;
-                                if ($ss_result->num_rows > 0) {
-                                    $ss_row = $ss_result->fetch_assoc();
-                                    $stream_subject_id = $ss_row['id'];
-                                } else {
-                                    $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
-                                    $create_ss->bind_param("ii", $stream_id, $subject_id);
-                                    if ($create_ss->execute()) {
-                                        $stream_subject_id = $conn->insert_id;
+                                    $stream_subject_id = null;
+                                    if ($ss_result->num_rows > 0) {
+                                        $ss_row = $ss_result->fetch_assoc();
+                                        $stream_subject_id = $ss_row['id'];
                                     } else {
-                                        $error_message = 'Error creating stream-subject combination: ' . $conn->error;
+                                        $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+                                        $create_ss->bind_param("ii", $stream_id, $subject_id);
+                                        if ($create_ss->execute()) {
+                                            $stream_subject_id = $create_ss->insert_id;
+                                        } else {
+                                            $error_message = 'Error creating stream-subject combination: ' . $conn->error;
+                                        }
+                                        $create_ss->close();
                                     }
-                                    $create_ss->close();
+                                    $check_ss->close();
                                 }
-                                $check_ss->close();
 
-                                // Insert student enrollment
                                 if (empty($error_message) && $stream_subject_id) {
+                                    // Insert student enrollment
                                     $enroll_stmt = $conn->prepare("INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, enrolled_date, status, payment_status) VALUES (?, ?, ?, CURDATE(), 'active', 'pending')");
                                     $enroll_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+                                    if ($enroll_stmt->execute()) {
+                                        // Enrollment Success - Send WhatsApp
+                                        // Teacher-student link is already derivable via student_enrollment + teacher_assignments
 
-                                    if (!$enroll_stmt->execute()) {
-                                        $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
+                                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
+                                            try {
+                                                // Get subject name
+                                                $subj_stmt = $conn->prepare("SELECT name FROM subjects WHERE id = ?");
+                                                $subj_stmt->bind_param("i", $subject_id);
+                                                $subj_stmt->execute();
+                                                $subj_res = $subj_stmt->get_result();
+                                                $subj_name = ($subj_res->num_rows > 0) ? $subj_res->fetch_assoc()['name'] : 'Selected Subject';
+                                                $subj_stmt->close();
+
+                                                $enroll_msg = "🎓 *Enrollment Successful* \n\n" .
+                                                    "You have successfully enrolled in the subject: *{$subj_name}*\n\n" .
+                                                    "--------------------------\n\n" .
+                                                    "විෂය ලියාපදිංචිය සාර්ථකයි! 👋\n" .
+                                                    "ඔබ සාර්ථකව *{$subj_name}* විෂය සඳහා ලියාපදිංචි වී ඇත.";
+
+                                                sendWhatsAppMessage($whatsapp_number, $enroll_msg);
+                                            } catch (Exception $e) {
+                                                error_log("WhatsApp enrollment message failed: " . $e->getMessage());
+                                            }
+                                        }
                                     } else {
+                                        $error_message = 'User created but failed to enroll student: ' . $enroll_stmt->error;
+                                    }
+                                    $enroll_stmt->close();
+                                }
+                            } elseif ($enrollment_type === 'course') {
+                                $course_id_input = $_POST['course_id'] ?? '';
+                                $course_id = intval($course_id_input);
+
+                                if (empty($error_message) && $course_id > 0) {
+                                    $enroll_stmt = $conn->prepare("INSERT INTO course_enrollments (course_id, student_id, enrolled_at, status, payment_status) VALUES (?, ?, NOW(), 'active', 'pending')");
+                                    $enroll_stmt->bind_param("is", $course_id, $user_id);
+                                    if ($enroll_stmt->execute()) {
                                         // Enrollment Success - Send WhatsApp
                                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
-                                            $sub_stmt = $conn->prepare("SELECT name FROM subjects WHERE id = ?");
-                                            $sub_stmt->bind_param("i", $subject_id);
-                                            $sub_stmt->execute();
-                                            $sub_res = $sub_stmt->get_result();
-                                            if ($sub_row = $sub_res->fetch_assoc()) {
-                                                $subj_name = $sub_row['name'];
-                                                $enroll_msg = "📚 * / ඇතුළත් වීම  සාර්ථකයි*\n\n" .
-                                                    "Hello {$first_name},\n" .
-                                                    "Enrollment Successful \n\n,You have successfully enrolled in the subject: *{$subj_name}*\n\n" .
+                                            try {
+                                                // Get course name
+                                                $crs_stmt = $conn->prepare("SELECT title FROM courses WHERE id = ?");
+                                                $crs_stmt->bind_param("i", $course_id);
+                                                $crs_stmt->execute();
+                                                $crs_res = $crs_stmt->get_result();
+                                                $crs_title = ($crs_res->num_rows > 0) ? $crs_res->fetch_assoc()['title'] : 'Selected Course';
+                                                $crs_stmt->close();
+
+                                                $enroll_msg = "🎓 *Course Enrollment Successful*\n\n" .
+                                                    "You have successfully enrolled in the course: *{$crs_title}*\n\n" .
                                                     "--------------------------\n\n" .
-                                                    "ඔබ සාර්ථකව *{$subj_name}* විෂය සඳහා ලියාපදිංචි වී ඇත.";
+                                                    "පාඨමාලා ලියාපදිංචිය සාර්ථකයි! 👋\n" .
+                                                    "ඔබ සාර්ථකව *{$crs_title}* පාඨමාලාව සඳහා ලියාපදිංචි වී ඇත.";
+
                                                 sendWhatsAppMessage($whatsapp_number, $enroll_msg);
+                                            } catch (Exception $e) {
+                                                error_log("WhatsApp course enrollment message failed: " . $e->getMessage());
                                             }
-                                            $sub_stmt->close();
                                         }
+                                    } else {
+                                        $error_message = 'User created but failed to enroll in course: ' . $enroll_stmt->error;
                                     }
                                     $enroll_stmt->close();
                                 }
                             }
-                        } elseif ($enrollment_type === 'course') {
-                            $course_id = intval($_POST['course_id'] ?? 0);
+                        }
 
-                            if (empty($error_message) && $course_id > 0) {
-                                // Enroll in course
-                                $enroll_stmt = $conn->prepare("INSERT INTO course_enrollments (course_id, student_id, enrolled_at, status, payment_status) VALUES (?, ?, NOW(), 'active', 'pending')");
-                                $enroll_stmt->bind_param("is", $course_id, $user_id);
+                        if (empty($error_message)) {
+                            // Send welcome message via WhatsApp
+                            if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
+                                try {
+                                    $welcome_msg = "🎓 *Welcome to Lernerr.LK!* 🎓\n\n" .
+                                        "Hello {$first_name}, your account has been successfully created.\n" .
+                                        "🆔 *User ID:* {$user_id}\n\n" .
+                                        "--------------------------\n\n" .
+                                        "Lernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
+                                        "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
+                                        "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
+                                        "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
 
-                                if (!$enroll_stmt->execute()) {
-                                    if ($conn->errno != 1062) { // Ignore duplicate entry
-                                        $error_message = 'User created but failed to enroll in course: ' . $enroll_stmt->error;
-                                    }
-                                } else {
-                                    // Enrollment Success - Send WhatsApp
-                                    if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
-                                        $crs_stmt = $conn->prepare("SELECT name FROM courses WHERE id = ?");
-                                        $crs_stmt->bind_param("i", $course_id);
-                                        $crs_stmt->execute();
-                                        $crs_res = $crs_stmt->get_result();
-                                        if ($crs_row = $crs_res->fetch_assoc()) {
-                                            $course_name = $crs_row['name'];
-                                            $enroll_msg = "🎓 *Course Enrollment Successful*\n\n" .
-                                                "Hello {$first_name},\n" .
-                                                "You have successfully enrolled in the course: *{$course_name}*";
-                                            sendWhatsAppMessage($whatsapp_number, $enroll_msg);
-                                        }
-                                        $crs_stmt->close();
-                                    }
+                                    sendWhatsAppMessage($whatsapp_number, $welcome_msg);
+                                } catch (Exception $e) {
+                                    error_log("WhatsApp welcome message failed: " . $e->getMessage());
                                 }
-                                $enroll_stmt->close();
                             }
-                        }
-                    }
 
+                            $ui_welcome_msg = "Welcome to Lernerr.LK! 🎓\n\nHello $first_name, your account has been successfully created.\nYour User ID is: $user_id.\n\nLernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nඔබේ ලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
 
-                    if (empty($error_message)) {
-                        // Send welcome message via WhatsApp
-                        if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
-                            try {
-                                $welcome_msg = "🎓 *Welcome to Lernerr.LK!* 🎓\n\n" .
-                                    "Hello {$first_name}, your account has been successfully created.\n" .
-                                    "🆔 *User ID:* {$user_id}\n\n" .
-                                    "--------------------------\n\n" .
-                                    "Lernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
-                                    "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
-                                    "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
-                                    "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
-
-                                sendWhatsAppMessage($whatsapp_number, $welcome_msg);
-                            } catch (Exception $e) {
-                                error_log("WhatsApp welcome message failed: " . $e->getMessage());
+                            if ($approved == 1) {
+                                // Show welcome screen then redirect to index
+                                $registration_success = true;
+                                $welcome_first_name = $first_name;
+                                $welcome_user_id = $user_id;
+                                $welcome_redirect = 'index.php';
+                            } else {
+                                $registration_success = true;
+                                $welcome_first_name = $first_name;
+                                $welcome_user_id = $user_id;
+                                $welcome_redirect = 'login.php';
+                                $welcome_pending = true;
                             }
-                        }
+                            // Clear form data
+                            $_POST = array();
 
-                        $ui_welcome_msg = "Welcome to Lernerr.LK! 🎓\n\nHello $first_name, your account has been successfully created.\nYour User ID is: $user_id.\n\nLernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nඔබේ ලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
-
-                        if ($approved == 1) {
-                            header("Location: login.php?success=" . urlencode($ui_welcome_msg));
-                            exit;
-                        } else {
-                            $success_message = $ui_welcome_msg . "\n\nYour account is pending admin approval. You will be able to login once approved.";
                         }
-                        // Clear form data
-                        $_POST = array();
-                    }
-                } else {
-                    if ($conn->errno == 1062) {
-                        $error_message = 'User ID already exists.';
                     } else {
-                        $error_message = 'Error creating user: ' . $conn->error;
+                        if ($conn->errno == 1062) {
+                            $error_message = 'User ID or verification info already exists / මෙම පරිශීලක හැඳුනුම්පත හෝ තොරතුරු දැනටමත් පවතී.';
+                        } else {
+                            $error_message = 'Error creating user: ' . $conn->error;
+                        }
                     }
+                    $stmt->close();
                 }
-                $stmt->close();
+            } catch (mysqli_sql_exception $e) {
+                if ($e->getCode() == 1062 || $conn->errno == 1062) {
+                    $error_message = 'User ID or verification info already exists / මෙම පරිශීලක හැඳුනුම්පත හෝ තොරතුරු දැනටමත් පවතී.';
+                } else {
+                    $error_message = 'Database error: ' . $e->getMessage();
+                }
+            } catch (Exception $e) {
+                $error_message = 'Error: ' . $e->getMessage();
             }
         }
     }
 }
+
 
 // Get streams for dropdown
 $streams_query = "SELECT id, name FROM streams WHERE status = 1 ORDER BY name";
@@ -735,27 +761,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
             transition: all .25s;
         }
         .course-item:hover { border-color: #bfdbfe; }
-        .course-item.selected { border-color: #1a73e8; background: #f0f6ff; }ion: all .25s;
-            background: white;
-            text-align: center;
-        }
-        .enroll-card:hover { border-color: #fca5a5; }
-        .enroll-card.selected { border-color: #dc2626; background: #fff7f7; }
-
-        /* Course item */
-        .course-item {
-            cursor: pointer;
-            background: white;
-            border: 2px solid #e8eaed;
-            border-radius: 14px;
-            padding: 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all .25s;
-        }
-        .course-item:hover { border-color: #fca5a5; }
-        .course-item.selected { border-color: #dc2626; background: #fff7f7; }
+        .course-item.selected { border-color: #1a73e8; background: #f0f6ff; }
 
         /* Section label */
         .section-label {
@@ -827,6 +833,131 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
 <body>
 
+<?php if (!empty($registration_success)): ?>
+<!-- ============ WELCOME OVERLAY ============ -->
+<div id="welcomeOverlay" style="
+    position: fixed; inset: 0; z-index: 9999;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow: hidden;
+">
+    <!-- Animated background orbs -->
+    <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+        <div style="position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(239,68,68,0.15) 0%,transparent 70%);top:-100px;left:-100px;animation:orbFloat 8s ease-in-out infinite;"></div>
+        <div style="position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%);bottom:-100px;right:-100px;animation:orbFloat 10s ease-in-out infinite reverse;"></div>
+        <div style="position:absolute;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(251,191,36,0.1) 0%,transparent 70%);top:50%;left:60%;animation:orbFloat 6s ease-in-out infinite;"></div>
+    </div>
+
+    <!-- Stars / particles -->
+    <div id="particles" style="position:absolute;inset:0;pointer-events:none;"></div>
+
+    <!-- Content Card -->
+    <div style="
+        position:relative; text-align:center; padding: 56px 48px;
+        background: rgba(255,255,255,0.04);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 28px;
+        max-width: 480px; width: 90%;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+        animation: cardPop .6s cubic-bezier(.34,1.56,.64,1) both;
+    ">
+        <!-- Confetti emoji burst -->
+        <div style="font-size:60px;margin-bottom:8px;animation:bounce 1s ease infinite alternate;">🎉</div>
+
+        <!-- Title -->
+        <h1 style="font-size:28px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-0.5px;">
+            Welcome, <?php echo htmlspecialchars($welcome_first_name); ?>! 👋
+        </h1>
+        <p style="font-size:15px;color:rgba(255,255,255,0.6);margin-bottom:32px;line-height:1.6;">
+            ඔබේ ලියාපදිංචිය සාර්ථකයි! Your account has been created.<br>
+            <?php if (!empty($welcome_pending)): ?>
+                <span style="color:#fbbf24;">⏳ Pending admin approval before you can login.</span>
+            <?php else: ?>
+                <span style="color:#4ade80;">✅ Your account is active and ready to use.</span>
+            <?php endif; ?>
+        </p>
+
+        <!-- User ID Badge -->
+        <div style="
+            display:inline-flex; align-items:center; gap:10px;
+            background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+            border-radius: 50px; padding: 10px 24px; margin-bottom: 36px;
+        ">
+            <span style="font-size:13px;color:rgba(255,255,255,0.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em;">Your Student ID</span>
+            <span style="font-size:18px;font-weight:800;color:#f87171;letter-spacing:.05em;"><?php echo htmlspecialchars($welcome_user_id); ?></span>
+        </div>
+
+        <!-- Countdown bar -->
+        <div style="margin-bottom:20px;">
+            <p style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;">
+                Redirecting in <span id="countdownNum">5</span>s…
+            </p>
+            <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:100px;overflow:hidden;">
+                <div id="countdownBar" style="height:100%;background:linear-gradient(90deg,#ef4444,#f97316);border-radius:100px;width:100%;transition:width 1s linear;"></div>
+            </div>
+        </div>
+
+        <!-- Button -->
+        <a href="<?php echo htmlspecialchars($welcome_redirect); ?>" style="
+            display:inline-block;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white; text-decoration: none;
+            padding: 14px 40px; border-radius: 50px;
+            font-size: 15px; font-weight: 700;
+            box-shadow: 0 8px 24px rgba(239,68,68,0.4);
+            transition: transform .2s, box-shadow .2s;
+            letter-spacing: .02em;
+        " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 12px 32px rgba(239,68,68,0.5)'"
+           onmouseout="this.style.transform='';this.style.boxShadow='0 8px 24px rgba(239,68,68,0.4)'">
+            <?php echo empty($welcome_pending) ? '🏠 Go to Home' : '🔐 Go to Login'; ?>
+        </a>
+    </div>
+</div>
+
+<style>
+@keyframes cardPop { from { opacity:0; transform: scale(.8) translateY(30px); } to { opacity:1; transform: scale(1) translateY(0); } }
+@keyframes orbFloat { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,40px) scale(1.1); } }
+@keyframes bounce { from { transform: scale(1) translateY(0); } to { transform: scale(1.1) translateY(-8px); } }
+@keyframes starFade { 0% { opacity:0; transform: scale(0); } 20% { opacity:1; transform: scale(1); } 80% { opacity:1; } 100% { opacity:0; transform: translateY(-60px); } }
+</style>
+
+<script>
+// Countdown & redirect
+(function(){
+    var secs = 5;
+    var target = '<?php echo htmlspecialchars($welcome_redirect); ?>';
+    var bar = document.getElementById('countdownBar');
+    var num = document.getElementById('countdownNum');
+    var iv = setInterval(function(){
+        secs--;
+        num.textContent = secs;
+        bar.style.width = (secs / 5 * 100) + '%';
+        if (secs <= 0) { clearInterval(iv); window.location.href = target; }
+    }, 1000);
+})();
+
+// Floating stars/particles
+(function(){
+    var container = document.getElementById('particles');
+    for (var i = 0; i < 30; i++) {
+        (function(i){
+            setTimeout(function(){
+                var star = document.createElement('div');
+                star.innerHTML = ['⭐','✨','🌟','💫'][Math.floor(Math.random()*4)];
+                star.style.cssText = 'position:absolute;font-size:'+(10+Math.random()*18)+'px;left:'+(Math.random()*100)+'%;top:'+(40+Math.random()*50)+'%;animation:starFade '+(2+Math.random()*3)+'s ease forwards;pointer-events:none;';
+                container.appendChild(star);
+                setTimeout(function(){ star.remove(); }, 5000);
+            }, i * 180);
+        })(i);
+    }
+})();
+</script>
+<!-- ============ END WELCOME OVERLAY ============ -->
+<?php endif; ?>
+
+
     <div class="bg-design">
         <picture>
             <source media="(max-width: 640px)" srcset="https://res.cloudinary.com/dnfbik3if/image/upload/v1784129659/Untitled_design_18_woorfv.jpg">
@@ -880,10 +1011,11 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         <div class="md:col-span-7 w-full flex flex-col md:justify-center md:relative z-10 md:pt-20">
 
             <?php if (!empty($error_message)): ?>
-                <div class="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-4 text-sm flex items-start gap-2">
-                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                    <span><?php echo htmlspecialchars($error_message); ?></span>
-                </div>
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        showToast(<?php echo json_encode($error_message); ?>, 'error');
+                    });
+                </script>
             <?php endif; ?>
 
             <?php if (!empty($success_message)): ?>
@@ -1021,11 +1153,11 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <!-- Class Enrollment -->
                         <div class="enroll-card" id="enrollCard_subject" onclick="selectEnrollType('subject')">
-                            <div class="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
-                                <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
+                            <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                                <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
                             </div>
                             <h3 class="font-bold text-sm text-slate-800">Class Enrollment</h3>
-                            <p class="text-xs font-semibold text-red-400 mt-0.5">පන්ති ලියාපදිංචිය</p>
+                            <p class="text-xs font-semibold text-blue-400 mt-0.5">පන්ති ලියාපදිංචිය</p>
                             <p class="text-[10px] text-slate-400 mt-2">Join weekly sessions with a teacher</p>
                         </div>
                         <!-- Online Course -->
@@ -1250,7 +1382,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     </div><!-- end bg-design -->
 
     <!-- Toast container -->
-    <div id="toastContainer" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
+    <div id="toastContainer" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
 
     <script>
     // ═══════════════════════════════════════════════════
@@ -1645,6 +1777,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         const loading = document.getElementById('teachersLoading');
 
         grid.innerHTML = '';
+        grid.classList.add('hidden');
         emptyMsg.classList.add('hidden');
         loading.classList.remove('hidden');
 
@@ -1656,8 +1789,10 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                     data.teachers.forEach(t => {
                         grid.appendChild(createTeacherCard(t));
                     });
+                    grid.classList.remove('hidden');
                     emptyMsg.classList.add('hidden');
                 } else {
+                    grid.classList.add('hidden');
                     emptyMsg.classList.remove('hidden');
                 }
                 document.getElementById('selected_teacher_id').value = '';
@@ -1665,6 +1800,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
             })
             .catch(() => {
                 loading.classList.add('hidden');
+                grid.classList.add('hidden');
                 emptyMsg.classList.remove('hidden');
                 if (callback) callback();
             });
@@ -1955,7 +2091,8 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         toast.innerHTML = `<span class="flex-1">${message}</span><button onclick="closeToast('${id}')" class="text-white/80 hover:text-white ml-2 text-lg leading-none">&times;</button>`;
         container.appendChild(toast);
         setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); }, 10);
-        setTimeout(() => closeToast(id), 5000);
+        const duration = type === 'error' ? 2000 : 5000;
+        setTimeout(() => closeToast(id), duration);
     }
     function closeToast(id) {
         const t = document.getElementById(id);

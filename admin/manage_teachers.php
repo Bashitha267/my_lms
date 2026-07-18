@@ -181,7 +181,7 @@ $teachers = ($active_tab === 'pending') ? $pending_teachers : $active_teachers;
                 // Get the current URL and extract the base path excluding the /admin/ portion
                 const currentHref = window.location.href;
                 const basePath = currentHref.split('/admin/')[0];
-                const regLink = `${basePath}/teacher_register.php`;
+                const regLink = `${basePath}/teacher_registration.php`;
                 
                 navigator.clipboard.writeText(regLink).then(() => {
                     const feedback = document.getElementById('copyFeedback');

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // Start session safely if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -1599,7 +1599,7 @@ if (empty($role)) {
                 <a href="dashboard.php#login-section" class="block w-full bg-red-600 text-white text-center py-3 px-4 rounded-lg hover:bg-red-700 font-semibold transition shadow-md">
                     Login
                 </a>
-                <a href="../register.php" class="block w-full bg-gray-600 text-white text-center py-3 px-4 rounded-lg hover:bg-gray-700 font-semibold transition shadow-md">
+                <a href="../student_registration.php" class="block w-full bg-gray-600 text-white text-center py-3 px-4 rounded-lg hover:bg-gray-700 font-semibold transition shadow-md">
                     Register
                 </a>
             </div>
@@ -1904,6 +1904,17 @@ if (empty($role)) {
             // Restore body scroll
             document.body.style.overflow = 'auto';
         }
+
+        // Show loading spinner inside the submit button when forms are submitted
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>' + submitBtn.textContent.trim();
+                }
+            });
+        });
 
         // Auto-refresh when returning to this page (e.g. back from player)
         window.addEventListener('pageshow', function(event) {

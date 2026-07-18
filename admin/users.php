@@ -241,7 +241,7 @@ $stats = $stats_result->fetch_assoc();
                             </svg>
                             <span>Copy Teacher Link</span>
                         </button>
-                        <a href="add_user.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium flex items-center space-x-2">
+                        <a href="add_user" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium flex items-center space-x-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                             </svg>
@@ -253,10 +253,10 @@ $stats = $stats_result->fetch_assoc();
 
             <script>
                 function copyTeacherLink() {
-                    // Construct the URL (assuming /lms/teacher_register.php is the path relative to domain root)
-                    // If current path is /lms/admin/users.php, we want /lms/teacher_register.php
+                    // Construct the URL (assuming /lms/teacher_registration.php is the path relative to domain root)
+                    // If current path is /lms/admin/users.php, we want /lms/teacher_registration.php
                     const path = window.location.pathname;
-                    // Remove 'admin/users.php' and append 'teacher_register.php'
+                    // Remove 'admin/users.php' and append 'teacher_registration.php'
                     // Careful with simple replace if 'admin' appears elsewhere.
                     // Better: resolve relative to current location
                     const adminIndex = path.indexOf('/admin/');
@@ -265,7 +265,7 @@ $stats = $stats_result->fetch_assoc();
                          rootPath = path.substring(0, adminIndex);
                     }
                     // Handle case where admin is not in path (unlikely given file location)
-                    const link = window.location.origin + rootPath + '/teacher_register.php';
+                    const link = window.location.origin + rootPath + '/teacher_registration.php';
                     
                     navigator.clipboard.writeText(link).then(() => {
                         // Show temporary success feedback
@@ -415,7 +415,7 @@ $stats = $stats_result->fetch_assoc();
                     
                     <!-- Clear Filters -->
                     <div class="<?php echo $active_tab === 'all' ? 'md:col-span-4' : 'md:col-span-4'; ?> flex justify-end">
-                        <a href="users.php?tab=<?php echo $active_tab; ?>" class="px-4 py-2 text-red-600 hover:text-red-800 font-medium flex items-center">
+                        <a href="users?tab=<?php echo $active_tab; ?>" class="px-4 py-2 text-red-600 hover:text-red-800 font-medium flex items-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -549,7 +549,7 @@ $stats = $stats_result->fetch_assoc();
                                                     </form>
                                                 <?php endif; ?>
 
-                                                <a href="edit_user.php?user_id=<?php echo htmlspecialchars($user['user_id']); ?>" class="text-blue-600 hover:text-blue-900" title="Edit">
+                                                <a href="edit_user?user_id=<?php echo htmlspecialchars($user['user_id']); ?>" class="text-blue-600 hover:text-blue-900" title="Edit">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                                     </svg>

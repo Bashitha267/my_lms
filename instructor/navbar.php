@@ -26,22 +26,22 @@ $root_url = '../';
         <div class="flex justify-between items-center h-12">
             <!-- Logo -->
             <div class="flex items-center flex-shrink-0">
-                <a href="<?php echo $root_url; ?>index.php" class="flex items-center hover:opacity-80 transition-opacity">
+                <a href="<?php echo $root_url; ?>" class="flex items-center hover:opacity-80 transition-opacity">
                     <img src="<?php echo $root_url; ?>assests/logo.jpeg" alt="LMS Logo" class="h-9 w-auto object-contain rounded">
                 </a>
             </div>
 
             <!-- Main Nav Items -->
             <div class="hidden lg:flex lg:items-center lg:space-x-1 flex-1 justify-center">
-                <a href="dashboard.php" 
+                <a href="dashboard" 
                    class="<?php echo ($current_page == 'dashboard.php') ? 'bg-purple-800' : 'hover:bg-purple-800'; ?> text-white px-3 py-1.5 rounded text-[11px] font-bold uppercase transition">
                     DASHBOARD
                 </a>
-                <a href="payments.php" 
+                <a href="payments" 
                    class="<?php echo ($current_page == 'payments.php') ? 'bg-purple-800' : 'hover:bg-purple-800'; ?> text-white px-3 py-1.5 rounded text-[11px] font-bold uppercase transition">
                     PAYMENTS
                 </a>
-                <a href="history.php" 
+                <a href="history" 
                    class="<?php echo ($current_page == 'history.php') ? 'bg-purple-800' : 'hover:bg-purple-800'; ?> text-white px-3 py-1.5 rounded text-[11px] font-bold uppercase transition">
                     HISTORY
                 </a>
@@ -73,8 +73,8 @@ $root_url = '../';
     
     <!-- Mobile Menu -->
     <div id="mobile-instructor-menu" class="hidden lg:hidden bg-purple-800 px-2 pt-2 pb-3 space-y-1 border-t border-purple-900">
-        <a href="dashboard.php" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'dashboard.php') ? 'bg-purple-900' : ''; ?>">DASHBOARD</a>
-        <a href="payments.php" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'payments.php') ? 'bg-purple-900' : ''; ?>">PAYMENTS</a>
-        <a href="history.php" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'history.php') ? 'bg-purple-900' : ''; ?>">HISTORY</a>
+        <a href="dashboard" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'dashboard.php') ? 'bg-purple-900' : ''; ?>">DASHBOARD</a>
+        <a href="payments" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'payments.php') ? 'bg-purple-900' : ''; ?>">PAYMENTS</a>
+        <a href="history" class="block text-white px-3 py-2 rounded text-xs font-bold uppercase <?php echo ($current_page == 'history.php') ? 'bg-purple-900' : ''; ?>">HISTORY</a>
     </div>
 </nav>

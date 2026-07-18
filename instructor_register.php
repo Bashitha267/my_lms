@@ -128,8 +128,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
                 
                  // Send WhatsApp Notification (Welcome)
                  if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
-                    $msg = "👋 *Welcome to Lernerr - Instructor Portal*\n\n" .
-                           "Hello $first_name,\n" .
+                    $msg = "👋 *Welcome to Lernerr.LK - Instructor Portal*\n\n" .
+                            "Hello $first_name,\n" .
                            "Your registration as an Instructor is successful.\n" .
                            "🆔 *ID:* $user_id\n" .
                            "⚠️ *Status:* Pending Admin Approval\n\n" .
@@ -149,13 +149,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_instructor']
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instructor Registration | Lernerr.LK</title>
+    <meta name="description" content="Register as an instructor on Lernerr.LK, the best online learning platform in Sri Lanka. Manage sessions, stream classes, and support student success.">
+    <meta name="keywords" content="Lernerr.LK instructor registration, become an instructor Lernerr.LK, online coaching Sri Lanka">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Instructor Registration | Lernerr.LK">
+    <meta property="og:description" content="Register as an instructor on Lernerr.LK, the best online learning platform in Sri Lanka.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:title" content="Instructor Registration | Lernerr.LK">
+    <meta property="twitter:description" content="Register as an instructor on Lernerr.LK, the best online learning platform in Sri Lanka.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
+    <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="assests/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assests/favicon-16x16.png">
     <link rel="manifest" href="assests/site.webmanifest">
     <link rel="shortcut icon" href="assests/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instructor Registration | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Sinhala:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>

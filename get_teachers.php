@@ -14,11 +14,15 @@ try {
     }
     
     // Get teachers assigned to this stream-subject combination for the current academic year
-    $query = "SELECT DISTINCT u.user_id as teacher_id, u.email, u.first_name, u.second_name, 
-                     u.mobile_number, u.whatsapp_number, u.profile_picture, u.role, ta.academic_year
+    // Also pull enrollment_fee and monthly_fee from the enrollment_fees table
+    $query = "SELECT DISTINCT u.user_id as teacher_id, u.first_name, u.second_name, 
+                     u.mobile_number, u.whatsapp_number, u.profile_picture, u.role, 
+                     ta.academic_year, ta.id as assignment_id,
+                     ef.enrollment_fee, ef.monthly_fee
               FROM users u
               INNER JOIN teacher_assignments ta ON u.user_id = ta.teacher_id
               INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+              LEFT JOIN enrollment_fees ef ON ef.teacher_assignment_id = ta.id
               WHERE ss.stream_id = ? 
                 AND ss.subject_id = ? 
                 AND ta.academic_year = ?
@@ -45,72 +49,57 @@ try {
     while ($row = $result->fetch_assoc()) {
         $teacher_id = $row['teacher_id'];
         
-        // Get education details for this teacher
-        $edu_query = "SELECT qualification, institution, year_obtained, field_of_study, grade_or_class 
+        // Get highest education entry for this teacher
+        $edu_query = "SELECT qualification, institution, field_of_study
                       FROM teacher_education 
                       WHERE teacher_id = ? 
-                      ORDER BY year_obtained DESC, id ASC";
+                      ORDER BY year_obtained DESC, id DESC
+                      LIMIT 1";
         $edu_stmt = $conn->prepare($edu_query);
+        $top_degree = '';
+        $top_institution = '';
         if ($edu_stmt) {
             $edu_stmt->bind_param("s", $teacher_id);
             $edu_stmt->execute();
             $edu_result = $edu_stmt->get_result();
-            
-            $education = [];
-            while ($edu_row = $edu_result->fetch_assoc()) {
-                $education[] = [
-                    'qualification' => $edu_row['qualification'],
-                    'institution' => $edu_row['institution'],
-                    'year_obtained' => $edu_row['year_obtained'],
-                    'field_of_study' => $edu_row['field_of_study'],
-                    'grade_or_class' => $edu_row['grade_or_class']
-                ];
+            if ($edu_row = $edu_result->fetch_assoc()) {
+                $top_degree = $edu_row['qualification'] ?? '';
+                if (!empty($edu_row['field_of_study'])) {
+                    $top_degree .= ' (' . $edu_row['field_of_study'] . ')';
+                }
+                $top_institution = $edu_row['institution'] ?? '';
             }
             $edu_stmt->close();
         }
         
         $teachers[] = [
-            'teacher_id' => $teacher_id,
-            'email' => $row['email'],
-            'first_name' => $row['first_name'],
-            'second_name' => $row['second_name'],
-            'mobile_number' => $row['mobile_number'],
+            'teacher_id'      => $teacher_id,
+            'first_name'      => $row['first_name'],
+            'second_name'     => $row['second_name'],
+            'mobile_number'   => $row['mobile_number'],
             'whatsapp_number' => $row['whatsapp_number'],
             'profile_picture' => $row['profile_picture'],
-            'academic_year' => $row['academic_year'],
-            'education' => $education ?? []
+            'academic_year'   => $row['academic_year'],
+            'enrollment_fee'  => $row['enrollment_fee'] ?? 0,
+            'monthly_fee'     => $row['monthly_fee'] ?? 0,
+            'degree'          => $top_degree,
+            'university'      => $top_institution,
         ];
     }
     
     $stmt->close();
     
     echo json_encode([
-        'success' => true,
+        'success'  => true,
         'teachers' => $teachers
     ]);
     
 } catch (Exception $e) {
     error_log('get_teachers.php error: ' . $e->getMessage());
     echo json_encode([
-        'success' => false,
-        'message' => 'Error loading teachers: ' . $e->getMessage(),
+        'success'  => false,
+        'message'  => 'Error loading teachers: ' . $e->getMessage(),
         'teachers' => []
     ]);
 }
 ?>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

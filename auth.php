@@ -58,8 +58,8 @@ if (isset($_POST['login'])) {
     $identifier = trim($_POST['identifier'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // Use absolute path for redirects
-    $login_path = BASE_PATH . 'login.php';
+    // Use absolute path for redirects (redirect back to referer index/login form)
+    $login_path = (strpos($_SERVER['HTTP_REFERER'] ?? '', 'login') !== false) ? BASE_PATH . 'login.php' : BASE_PATH;
 
     if (empty($identifier) || empty($password)) {
         header("Location: " . $login_path . "?error=" . urlencode("Fields cannot be empty"));
@@ -141,19 +141,19 @@ if (isset($_POST['login'])) {
 
                 switch ($redirect_role) {
                     case 'admin':
-                        $redirect_url = 'admin/dashboard.php';
+                        $redirect_url = BASE_PATH . 'admin/dashboard';
                         break;
                     case 'super_admin':
-                        $redirect_url = 'admin/teacher_payments.php';
+                        $redirect_url = BASE_PATH . 'admin/teacher_payments';
                         break;
                     case 'teacher':
-                        $redirect_url = 'dashboard/profile.php';
+                        $redirect_url = BASE_PATH . 'dashboard/profile';
                         break;
                     case 'student':
-                        $redirect_url = 'dashboard/profile.php';
+                        $redirect_url = BASE_PATH . 'dashboard/profile';
                         break;
                     case 'instructor':
-                        $redirect_url = BASE_PATH . 'instructor/dashboard.php';
+                        $redirect_url = BASE_PATH . 'instructor/dashboard';
                         break;
                     default:
                         $redirect_url = $login_path;
@@ -235,7 +235,7 @@ if (isset($_GET['logout'])) {
     session_destroy();
 
     // Redirect to login
-    header("Location: " . BASE_PATH . "login.php?success=" . urlencode("Logged out successfully"));
+    header("Location: " . BASE_PATH . "?success=" . urlencode("Logged out successfully"));
     exit();
 }
 ?>

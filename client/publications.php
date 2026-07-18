@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -62,13 +62,32 @@ $stmt->close();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publications - Lernerr.LK</title>
+    <meta name="description" content="Browse and order educational books, papers, and publications from Lernerr.LK. High-quality study materials designed for your academic success.">
+    <meta name="keywords" content="Lernerr.LK publications, study materials Sri Lanka, educational books, exam papers A/L">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Publications - Lernerr.LK">
+    <meta property="og:description" content="Browse and order educational books, papers, and publications from Lernerr.LK.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:title" content="Publications - Lernerr.LK">
+    <meta property="twitter:description" content="Browse and order educational books, papers, and publications from Lernerr.LK.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
+    <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
     <link rel="manifest" href="../assests/site.webmanifest">
     <link rel="shortcut icon" href="../assests/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Publications - LearnerX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -308,7 +327,7 @@ $stmt->close();
                             </div>
                             <div class="space-y-1 mb-4 text-sm font-medium text-slate-600">
                                 <p>Bank: <span class="text-slate-900">Commercial Bank</span></p>
-                                <p>Account Name: <span class="text-slate-900">LearnerX Institute</span></p>
+                                <p>Account Name: <span class="text-slate-900">Lernerr.LK Institute</span></p>
                                 <p>Account No: <span class="text-slate-900 font-bold">1234 5678 9012</span></p>
                             </div>
                             

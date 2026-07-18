@@ -97,7 +97,25 @@ $stmt->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About Us - Learner.LK</title>
+    <title>About Us - Lernerr.LK</title>
+    <meta name="description" content="Discover Lernerr.LK, Sri Lanka's leading digital academy. Our mission is to democratize education by providing high-quality, accessible, and affordable learning resources.">
+    <meta name="keywords" content="about Lernerr.LK, online academy Sri Lanka, LMS Sri Lanka history, learn online Sri Lanka">
+    <meta name="author" content="Lernerr.LK">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="About Us - Lernerr.LK">
+    <meta property="og:description" content="Empowering students across Sri Lanka with world-class education. Learn about our academy, mission, and instructors.">
+    <meta property="og:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+    <meta property="og:site_name" content="Lernerr.LK">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary">
+    <meta property="twitter:title" content="About Us - Lernerr.LK">
+    <meta property="twitter:description" content="Empowering students across Sri Lanka with world-class education. Learn about our academy, mission, and instructors.">
+    <meta property="twitter:image" content="<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -343,7 +361,7 @@ $stmt->close();
                             </div>
                             <div>
                                 <h4 class="font-bold text-lg mb-1">Official Email</h4>
-                                <p class="text-gray-400">support@learner.lk<br>info@learner.lk</p>
+                                <p class="text-gray-400">support@lernerr.lk<br>info@lernerr.lk</p>
                             </div>
                         </div>
                     </div>
@@ -365,7 +383,7 @@ $stmt->close();
         <footer class="bg-black py-12 px-4 border-t border-gray-900">
             <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
                 <div class="mb-8 md:mb-0 text-center md:text-left">
-                    <h2 class="text-2xl font-black text-white mb-2 tracking-tighter">Learner.LK</h2>
+                    <h2 class="text-2xl font-black text-white mb-2 tracking-tighter">Lernerr.LK</h2>
                     <p class="text-gray-600 text-xs uppercase tracking-widest font-bold">&copy; <?php echo date('Y'); ?> All Rights Reserved.</p>
                 </div>
                 <div class="flex space-x-8">

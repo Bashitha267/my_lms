@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 require_once '../config.php';
 
@@ -1028,8 +1028,24 @@ if ($role === 'teacher') {
             if (filterYearStudent) {
                 filterYearStudent.addEventListener('change', filterStudentCards);
             }
+
+            // Show loading spinner inside the submit button when forms are submitted
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>' + submitBtn.textContent.trim();
+                    }
+                });
+            });
+
+            // Auto-open assignment modal if requested in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('action') === 'create_enroll') {
+                openAssignmentModal();
+            }
         });
     </script>
 </body>
 </html>
-
