@@ -46,7 +46,7 @@ while ($row = $result->fetch_assoc()) {
     $teacher_id = $row['teacher_id'];
     
     // Get education details for this teacher
-    $edu_query = "SELECT qualification, institution, year_obtained, field_of_study, grade_or_class 
+    $edu_query = "SELECT qualification, institution, year_obtained, field_of_study 
                   FROM teacher_education 
                   WHERE teacher_id = ? 
                   ORDER BY year_obtained DESC, id ASC";
@@ -61,8 +61,7 @@ while ($row = $result->fetch_assoc()) {
             'qualification' => $edu_row['qualification'],
             'institution' => $edu_row['institution'],
             'year_obtained' => $edu_row['year_obtained'],
-            'field_of_study' => $edu_row['field_of_study'],
-            'grade_or_class' => $edu_row['grade_or_class']
+            'field_of_study' => $edu_row['field_of_study']
         ];
     }
     $edu_stmt->close();

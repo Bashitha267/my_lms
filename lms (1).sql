@@ -308,6 +308,7 @@ DELIMITER ;
 CREATE TABLE `exams` (
   `id` int(11) NOT NULL COMMENT 'Primary Key',
   `teacher_id` varchar(20) NOT NULL COMMENT 'FK to users.user_id',
+  `teacher_assignment_id` int(11) DEFAULT NULL COMMENT 'FK to teacher_assignments.id',
   `subject_id` int(11) NOT NULL COMMENT 'FK to subjects.id',
   `title` varchar(255) NOT NULL COMMENT 'Exam title',
   `duration_minutes` int(11) NOT NULL DEFAULT 60 COMMENT 'Duration in minutes',
@@ -1435,6 +1436,7 @@ ALTER TABLE `enrollment_payments`
 ALTER TABLE `exams`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_teacher_id` (`teacher_id`),
+  ADD KEY `idx_teacher_assignment_id` (`teacher_assignment_id`),
   ADD KEY `idx_subject_id` (`subject_id`),
   ADD KEY `idx_is_published` (`is_published`),
   ADD KEY `idx_status` (`status`);
@@ -2192,7 +2194,8 @@ ALTER TABLE `enrollment_payments`
 --
 ALTER TABLE `exams`
   ADD CONSTRAINT `fk_exams_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_exams_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `fk_exams_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_exams_teacher_assignment` FOREIGN KEY (`teacher_assignment_id`) REFERENCES `teacher_assignments` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Constraints for table `exam_attempts`

@@ -4,9 +4,12 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 // Get user info
 $full_name = 'Instructor';
-$profile_picture = null;
 if (isset($_SESSION['user_id'])) {
-    require_once __DIR__ . '/../config.php';
+    if (file_exists(__DIR__ . '/config.php')) {
+        require_once __DIR__ . '/config.php';
+    } elseif (file_exists(__DIR__ . '/../config.php')) {
+        require_once __DIR__ . '/../config.php';
+    }
     $stmt = $conn->prepare("SELECT first_name, second_name, profile_picture FROM users WHERE user_id = ?");
     $stmt->bind_param("s", $_SESSION['user_id']);
     $stmt->execute();

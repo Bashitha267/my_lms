@@ -8,6 +8,7 @@ set_time_limit(300);
 // Ensure required columns exist in al_exam_submissions table
 function ensure_columns(mysqli $conn) {
     $columns = [
+        'teacher_id' => "VARCHAR(20) DEFAULT 'T_0002'",
         'district_rank' => "INT(11) DEFAULT NULL",
         'island_rank' => "INT(11) DEFAULT NULL",
         'exam_year' => "INT(11) DEFAULT NULL",
@@ -2440,9 +2441,10 @@ foreach ($students as $index => $s) {
 
         // 2. Insert or Update AL Exam Submissions
         $query_sub = "INSERT INTO al_exam_submissions 
-            (student_id, subject_1, result_1, subject_2, result_2, subject_3, result_3, index_number, district, stream, agreed_to_publish, results_submitted_at, exam_year, district_rank, island_rank, z_score) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), ?, ?, ?, ?)
+            (student_id, teacher_id, subject_1, result_1, subject_2, result_2, subject_3, result_3, index_number, district, stream, agreed_to_publish, results_submitted_at, exam_year, district_rank, island_rank, z_score) 
+            VALUES (?, 'T_0002', ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE 
+                teacher_id = 'T_0002',
                 subject_1 = VALUES(subject_1), result_1 = VALUES(result_1),
                 subject_2 = VALUES(subject_2), result_2 = VALUES(result_2),
                 subject_3 = VALUES(subject_3), result_3 = VALUES(result_3),

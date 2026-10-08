@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 require_once '../config.php';
 
@@ -17,12 +17,31 @@ if ($exam_id <= 0) {
     exit;
 }
 
+// Check if exams table has teacher_assignment_id column
+$col_check = $conn->query("SHOW COLUMNS FROM exams LIKE 'teacher_assignment_id'");
+$has_ta_col = ($col_check && $col_check->num_rows > 0);
+
 // Get exam details
-$exam_stmt = $conn->prepare("SELECT e.*, sub.name as subject_name, u.first_name, u.second_name
-                              FROM exams e
-                              INNER JOIN subjects sub ON e.subject_id = sub.id
-                              INNER JOIN users u ON e.teacher_id = u.user_id
-                              WHERE e.id = ? AND (e.is_published = 1 OR e.teacher_id = ?) AND e.status = 'active'");
+if ($has_ta_col) {
+    $exam_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+                          u.first_name, u.second_name,
+                          s.name as stream_name, ta.academic_year, ta.batch_name
+                   FROM exams e
+                   INNER JOIN subjects sub ON e.subject_id = sub.id
+                   INNER JOIN users u ON e.teacher_id = u.user_id
+                   LEFT JOIN teacher_assignments ta ON e.teacher_assignment_id = ta.id
+                   LEFT JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                   LEFT JOIN streams s ON ss.stream_id = s.id
+                   WHERE e.id = ? AND (e.is_published = 1 OR e.teacher_id = ?) AND e.status = 'active'";
+} else {
+    $exam_query = "SELECT e.*, sub.name as subject_name, u.first_name, u.second_name,
+                          NULL as stream_name, NULL as academic_year, NULL as batch_name
+                   FROM exams e
+                   INNER JOIN subjects sub ON e.subject_id = sub.id
+                   INNER JOIN users u ON e.teacher_id = u.user_id
+                   WHERE e.id = ? AND (e.is_published = 1 OR e.teacher_id = ?) AND e.status = 'active'";
+}
+$exam_stmt = $conn->prepare($exam_query);
 $exam_stmt->bind_param("is", $exam_id, $user_id);
 $exam_stmt->execute();
 $exam_result = $exam_stmt->get_result();
@@ -34,6 +53,27 @@ if ($exam_result->num_rows === 0) {
 
 $exam = $exam_result->fetch_assoc();
 $exam_stmt->close();
+
+// Check if student is actively enrolled in this class/offering
+if ($role === 'student' && !empty($exam['teacher_assignment_id'])) {
+    $check_enroll = $conn->prepare("
+        SELECT se.id 
+        FROM student_enrollment se
+        INNER JOIN teacher_assignments ta ON se.stream_subject_id = ta.stream_subject_id 
+                                         AND se.academic_year = ta.academic_year
+                                         AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL)
+        WHERE ta.id = ? AND se.student_id = ? AND se.status = 'active'
+        LIMIT 1
+    ");
+    $check_enroll->bind_param("is", $exam['teacher_assignment_id'], $user_id);
+    $check_enroll->execute();
+    if ($check_enroll->get_result()->num_rows === 0) {
+        $check_enroll->close();
+        header('Location: exam_center.php?error=' . urlencode('You are not enrolled in the class conducting this exam.'));
+        exit;
+    }
+    $check_enroll->close();
+}
 
 // Check if deadline passed (Only for students)
 if ($role === 'student' && strtotime($exam['deadline']) < time()) {
@@ -425,7 +465,12 @@ if ($bg_stmt) {
                                     <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">Admin Preview</span>
                                 <?php endif; ?>
                             </div>
-                            <p class="text-xs sm:text-sm text-gray-500"><?php echo htmlspecialchars($exam['subject_name']); ?></p>
+                            <p class="text-xs sm:text-sm text-gray-500">
+                                <?php echo htmlspecialchars($exam['subject_name']); ?>
+                                <?php if (!empty($exam['stream_name'])): ?>
+                                    <span class="text-gray-400">•</span> <?php echo htmlspecialchars($exam['stream_name'] . ' (' . $exam['academic_year'] . (!empty($exam['batch_name']) ? ' - ' . $exam['batch_name'] : '') . ')'); ?>
+                                <?php endif; ?>
+                            </p>
                         </div>
                     </div>
                     <div class="flex items-center gap-4">

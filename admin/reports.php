@@ -415,7 +415,7 @@ for ($m = 1; $m <= 12; $m++) {
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 no-print">
             <div>
                 <h1 class="text-2xl font-extrabold text-gray-900">Budget Reports</h1>
-                <p class="text-sm text-gray-500 mt-0.5">Monthly financial overview for LearnerX Institute</p>
+                <p class="text-sm text-gray-500 mt-0.5">Monthly financial overview for Lernerr.LK Institute</p>
             </div>
 
             <!-- Filters + Actions -->

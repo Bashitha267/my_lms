@@ -19,6 +19,13 @@ if ($role === 'student') {
     require_once __DIR__ . '/../check_al_redirection.php';
 }
 
+// Flash Toast Messages
+$toast_data = null;
+if (isset($_SESSION['toast'])) {
+    $toast_data = $_SESSION['toast'];
+    unset($_SESSION['toast']);
+}
+
 // Get user info
 $stmt = $conn->prepare("SELECT profile_picture, first_name, second_name, email, district, mobile_number FROM users WHERE user_id = ? LIMIT 1");
 if ($stmt) {
@@ -144,6 +151,19 @@ if ($role === 'student') {
     $res3 = $st3->get_result();
     while($row = $res3->fetch_assoc()) $ongoing_classes[] = $row;
     $st3->close();
+}
+
+// Check if teacher has any active assignments (enrollments)
+$teacher_has_no_assignments = false;
+if ($role === 'teacher') {
+    $chk = $conn->prepare("SELECT COUNT(*) as cnt FROM teacher_assignments WHERE teacher_id = ? AND status = 'active'");
+    if ($chk) {
+        $chk->bind_param("s", $user_id);
+        $chk->execute();
+        $chk_row = $chk->get_result()->fetch_assoc();
+        $teacher_has_no_assignments = (intval($chk_row['cnt']) === 0);
+        $chk->close();
+    }
 }
 
 // Get top 3 upcoming classes (Scheduled)
@@ -476,7 +496,7 @@ if ($role === 'student') {
 
                 <?php if ($role === 'teacher'): ?>
                 <!-- Teacher Quick Action Buttons -->
-                <div class="animate-fade-in grid grid-cols-1 sm:grid-cols-4 gap-4" style="animation-delay: 0.08s">
+                <div class="animate-fade-in grid grid-cols-2 sm:grid-cols-5 gap-4" style="animation-delay: 0.08s">
                     <a href="live_classes" class="flex items-center gap-4 p-5 bg-white hover:bg-slate-50 border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
                         <div class="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
                             <i class="fas fa-video"></i>
@@ -514,6 +534,16 @@ if ($role === 'student') {
                         <div>
                             <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Earnings</span>
                             <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">Manage Payments</span>
+                        </div>
+                    </a>
+
+                    <a href="reports" class="flex items-center gap-4 p-5 bg-white hover:bg-violet-50 border border-violet-100 rounded-2xl shadow-sm hover:shadow-md transition-all group hover:scale-[1.02] active:scale-[0.98]">
+                        <div class="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform flex-shrink-0">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <div>
+                            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Attendance</span>
+                            <span class="block text-xs font-black text-[#1e293b] uppercase tracking-wide">View Reports</span>
                         </div>
                     </a>
                 </div>
@@ -724,5 +754,103 @@ if ($role === 'student') {
             }
         });
     </script>
+<?php if ($teacher_has_no_assignments): ?>
+<!-- Teacher No-Assignment Popup -->
+<div id="noAssignmentPopup"
+     style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);
+            align-items:center;justify-content:center;padding:16px;">
+    <div id="noAssignmentCard"
+         style="background:#fff;border-radius:24px;max-width:420px;width:100%;padding:40px 32px;text-align:center;
+                box-shadow:0 25px 60px rgba(0,0,0,0.2);position:relative;
+                animation:slideUpPopup 0.45s cubic-bezier(0.16,1,0.3,1) forwards;">
+
+        <!-- Close btn -->
+        <button onclick="dismissTeacherPopup()"
+                style="position:absolute;top:14px;right:16px;background:none;border:none;cursor:pointer;color:#9ca3af;font-size:20px;line-height:1;"
+                style="position:absolute;top:12px;right:14px;background:none;border:none;
+                       cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;"
+                aria-label="Close">&#x2715;</button>
+
+        <!-- Text -->
+        <p style="font-size:13px;font-weight:700;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em;">
+            Getting Started
+        </p>
+        <h2 style="font-size:18px;font-weight:700;color:#111827;margin:0 0 10px;">
+            Welcome, <?php echo htmlspecialchars($user_data['first_name'] ?? 'Teacher'); ?>!
+        </h2>
+        <p style="font-size:14px;color:#6b7280;margin:0 0 24px;line-height:1.6;">
+            You haven't created any classes yet.
+        </p>
+
+        <hr style="border:none;border-top:1px solid #f3f4f6;margin-bottom:20px;">
+
+        <!-- CTA -->
+        <a href="recordings?open_modal=1"
+           style="display:block;background:#1a73e8;color:#fff;font-weight:600;
+                  font-size:14px;padding:10px 20px;border-radius:6px;text-decoration:none;
+                  text-align:center;">
+            Create Your First Class
+        </a>
+        <button onclick="dismissTeacherPopup()"
+                style="display:block;width:100%;margin-top:10px;background:none;border:none;
+                       cursor:pointer;color:#9ca3af;font-size:13px;text-align:center;">
+            Maybe later
+        </button>
+    </div>
+</div>
+
+<script>
+    (function() {
+        if (!sessionStorage.getItem('teacher_popup_dismissed')) {
+            const popup = document.getElementById('noAssignmentPopup');
+            if (popup) popup.style.display = 'flex';
+        }
+    })();
+
+    function dismissTeacherPopup() {
+        const popup = document.getElementById('noAssignmentPopup');
+        if (popup) popup.style.display = 'none';
+        sessionStorage.setItem('teacher_popup_dismissed', '1');
+    }
+
+    document.getElementById('noAssignmentPopup')?.addEventListener('click', function(e) {
+        if (e.target === this) dismissTeacherPopup();
+    });
+</script>
+<?php endif; ?>
+
+<!-- Toast Notification -->
+<div id="statusToast" class="fixed bottom-6 right-6 z-50 transform translate-y-16 opacity-0 transition-all duration-300 bg-gray-900 text-white shadow-2xl rounded-xl px-4 py-3 flex items-center gap-3 text-xs font-semibold pointer-events-none">
+    <i id="toastIcon" class="fas fa-check-circle text-emerald-400 text-base"></i>
+    <span id="toastMessage"></span>
+</div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('statusToast');
+    const toastMsg = document.getElementById('toastMessage');
+    const toastIcon = document.getElementById('toastIcon');
+    if (!toast || !toastMsg) return;
+    
+    toastMsg.textContent = message;
+    if (type === 'success') {
+        toastIcon.className = 'fas fa-check-circle text-emerald-400 text-base';
+    } else {
+        toastIcon.className = 'fas fa-exclamation-triangle text-rose-400 text-base';
+    }
+
+    toast.classList.remove('translate-y-16', 'opacity-0');
+    setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0');
+    }, 4500);
+}
+
+<?php if (!empty($toast_data)): ?>
+document.addEventListener('DOMContentLoaded', () => {
+    showToast(<?php echo json_encode($toast_data['message']); ?>, <?php echo json_encode($toast_data['type'] ?? 'success'); ?>);
+});
+<?php endif; ?>
+</script>
+
 </body>
 </html>

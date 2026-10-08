@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                   "මාතෘකාව: {$title}\n\n" .
                                   "සම්බන්ධ වීමට දැන්ම Dashboard වෙත පිවිසෙන්න.\n\n" .
                                   "Thank you!\n" .
-                                  "*Team Learner.LK*";
+                                  "*Team Lernerr.LK*";
                         notifyEnrolledStudents($conn, $ss_id, $acad_year, $live_msg);
                     }
                     $info_stmt->close();
@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                  "--------------------------\n\n" .
                                  "{$subj_name} සඳහා නව පටිගත කිරීමක් එක් කර ඇත.\n" .
                                  "මාතෘකාව: {$rec_title}\n\n" .
-                                 "බැලීම සඳහා Dashboard එකට පිවිසෙන්න. ස්තුතියි! - Learner.LK";
+                                 "බැලීම සඳහා Dashboard එකට පිවිසෙන්න. ස්තුතියි! - Lernerr.LK";
                         notifyEnrolledStudents($conn, $ss_id, $acad_year, $rec_msg);
                     }
                     $info_stmt->close();

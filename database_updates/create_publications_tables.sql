@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS `publications` (
   `description` TEXT,
   `price` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   `discount` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `is_free` TINYINT(1) NOT NULL DEFAULT 0,
   `image_path` VARCHAR(255),
+  `pdf_path` VARCHAR(255) DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`category_id`) REFERENCES `publication_categories`(`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

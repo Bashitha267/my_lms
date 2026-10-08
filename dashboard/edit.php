@@ -158,7 +158,7 @@ $districts = ["Ampara", "Anuradhapura", "Badulla", "Batticaloa", "Colombo", "Gal
     <link rel="manifest" href="../assests/site.webmanifest">
     <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Profile - Learner.LK</title>
+    <title>Edit Profile - Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">

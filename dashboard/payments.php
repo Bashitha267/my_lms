@@ -1,6 +1,6 @@
-﻿<?php
-require_once '../check_session.php';
-require_once '../config.php';
+<?php
+require_once __DIR__ . '/../check_session.php';
+require_once __DIR__ . '/../config.php';
 
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
@@ -463,7 +463,7 @@ if ($role === 'student') {
     </style>
 </head>
 <body class="bg-gray-100">
-    <?php include 'navbar.php'; ?>
+    <?php include __DIR__ . '/navbar.php'; ?>
     
     <div class="max-w-7xl mx-auto pt-24 pb-6 sm:px-6 lg:px-8">
         <div class="px-4 py-6 sm:px-0">

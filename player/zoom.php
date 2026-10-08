@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -1088,6 +1088,26 @@ if ($current_zoom_class && $can_access) {
                 };
                 return text.replace(/[&<>"']/g, m => map[m]);
             }
+            <?php if (!empty($user_id)): ?>
+            // Automatic live session checker for Zoom player
+            const checkZoomSessionUrl = '<?php echo BASE_PATH; ?>check_active_session.php';
+            function verifyZoomLiveSession() {
+                fetch(checkZoomSessionUrl, { cache: 'no-store' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.logged_in === false && data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        }
+                    })
+                    .catch(() => {});
+            }
+            setInterval(verifyZoomLiveSession, 4000);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    verifyZoomLiveSession();
+                }
+            });
+            <?php endif; ?>
         </script>
     <?php endif; ?>
 </body>

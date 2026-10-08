@@ -37,14 +37,14 @@ $classes_count = 0;
 
 if ($user['role'] === 'teacher') {
     // Fetch stats
-    $s_res = $conn->query("SELECT COUNT(DISTINCT se.student_id) FROM student_enrollment se JOIN teacher_assignments ta ON se.stream_subject_id = ta.stream_subject_id AND se.academic_year = ta.academic_year WHERE ta.teacher_id = '$user_id' AND se.status = 'active'");
+    $s_res = $conn->query("SELECT COUNT(DISTINCT se.student_id) FROM student_enrollment se JOIN teacher_assignments ta ON se.stream_subject_id = ta.stream_subject_id AND se.academic_year = ta.academic_year AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL) WHERE ta.teacher_id = '$user_id' AND se.status = 'active'");
     $students_count = ($s_res) ? intval($s_res->fetch_row()[0]) : 0;
     
     $c_res = $conn->query("SELECT COUNT(*) FROM teacher_assignments WHERE teacher_id = '$user_id' AND status = 'active'");
     $classes_count = ($c_res) ? intval($c_res->fetch_row()[0]) : 0;
 
     // Fetch education details
-    $stmt = $conn->prepare("SELECT qualification, institution, year_obtained, grade_or_class FROM teacher_education WHERE teacher_id = ? ORDER BY year_obtained DESC");
+    $stmt = $conn->prepare("SELECT qualification, institution, year_obtained FROM teacher_education WHERE teacher_id = ? ORDER BY year_obtained DESC");
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();

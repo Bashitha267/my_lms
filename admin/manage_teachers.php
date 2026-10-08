@@ -37,8 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("UPDATE users SET approved = 1 WHERE user_id = ?");
                 $stmt->bind_param("s", $teacher_id);
                 if ($stmt->execute()) {
-                    // Also update all their assignments with the approved rate as default
-                    $conn->query("UPDATE teacher_assignments SET commission_rate = $new_rate WHERE teacher_id = '$teacher_id'");
+                    // Also update all their assignments with the approved rate as default and set status to active
+                    $conn->query("UPDATE teacher_assignments SET commission_rate = $new_rate, status = 'active' WHERE teacher_id = '$teacher_id'");
                     $success_message = "Teacher approved successfully.";
                 } else {
                     $error_message = "Error: " . $conn->error;
@@ -404,7 +404,6 @@ $teachers = ($active_tab === 'pending') ? $pending_teachers : $active_teachers;
                                     <th class="px-4 py-2 text-left font-semibold text-gray-500 uppercase">Qualification</th>
                                     <th class="px-4 py-2 text-left font-semibold text-gray-500 uppercase">Institution</th>
                                     <th class="px-4 py-2 text-left font-semibold text-gray-500 uppercase">Year</th>
-                                    <th class="px-4 py-2 text-left font-semibold text-gray-500 uppercase">Grade/Class</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -415,7 +414,6 @@ $teachers = ($active_tab === 'pending') ? $pending_teachers : $active_teachers;
                             <td class="px-4 py-2 text-gray-900 font-semibold">${edu.qualification}</td>
                             <td class="px-4 py-2 text-gray-500">${edu.institution || 'N/A'}</td>
                             <td class="px-4 py-2 text-gray-500">${edu.year_obtained || 'N/A'}</td>
-                            <td class="px-4 py-2 text-gray-500">${edu.grade_or_class || 'N/A'}</td>
                         </tr>
                     `;
                 });

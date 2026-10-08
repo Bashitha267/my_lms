@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once '../config.php';
 
@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin', 'supe
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_section_color_ajax') {
     header('Content-Type: application/json');
     $section_key = $_POST['section_key'] ?? '';
-    $field = $_POST['field'] ?? ''; // 'bg_color' or 'card_colors'
+    $field = $_POST['field'] ?? '';
     $value = trim($_POST['value'] ?? '');
 
     if (!in_array($section_key, ['al_results', 'classes', 'extra_courses'])) {
@@ -26,7 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 
     if ($field === 'card_colors') {
-        // Clean card colors list
         $value = implode(',', array_filter(array_map('trim', explode(',', $value))));
     }
 
@@ -42,17 +41,266 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 $success_message = '';
 $error_message = '';
 $user_id = $_SESSION['user_id'];
-$active_tab = 'dashboard';
+$active_tab = 'manage_homepage';
 
-// Handle form submission
+// Handle Homepage Video Uploads & Removal
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_homepage_video'])) {
+    $active_tab = 'manage_homepage';
+    $video_type = $_POST['video_type'] ?? ''; // 'desktop' or 'mobile'
+    
+    if (in_array($video_type, ['desktop', 'mobile'])) {
+        if (isset($_POST['remove_video']) && $_POST['remove_video'] === '1') {
+            $stmt = $conn->prepare("SELECT video_path FROM homepage_videos WHERE video_type = ? LIMIT 1");
+            $stmt->bind_param("s", $video_type);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res->num_rows > 0) {
+                $old = $res->fetch_assoc()['video_path'];
+                if ($old && strpos($old, 'uploads/videos/') !== false && file_exists('../' . $old)) {
+                    @unlink('../' . $old);
+                }
+            }
+            $stmt->close();
+
+            $del_stmt = $conn->prepare("DELETE FROM homepage_videos WHERE video_type = ?");
+            $del_stmt->bind_param("s", $video_type);
+            $del_stmt->execute();
+            $del_stmt->close();
+
+            $success_message = ucfirst($video_type) . ' background video removed successfully!';
+        } elseif (isset($_FILES['video_file']) && $_FILES['video_file']['error'] === UPLOAD_ERR_OK) {
+            $u_dir = '../uploads/videos/';
+            if (!file_exists($u_dir)) {
+                mkdir($u_dir, 0777, true);
+            }
+            
+            $file = $_FILES['video_file'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_exts = ['mp4', 'webm', 'ogg', 'mov'];
+            
+            if (!in_array($ext, $allowed_exts)) {
+                $error_message = 'Invalid video file type. Only MP4, WEBM, OGG, and MOV are allowed.';
+            } elseif ($file['size'] > 100 * 1024 * 1024) { // 100MB limit
+                $error_message = 'Video file size too large. Maximum size is 100MB.';
+            } else {
+                // Delete old video if exists
+                $stmt = $conn->prepare("SELECT video_path FROM homepage_videos WHERE video_type = ? LIMIT 1");
+                $stmt->bind_param("s", $video_type);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res->num_rows > 0) {
+                    $old = $res->fetch_assoc()['video_path'];
+                    if ($old && strpos($old, 'uploads/videos/') !== false && file_exists('../' . $old)) {
+                        @unlink('../' . $old);
+                    }
+                }
+                $stmt->close();
+
+                $new_filename = $video_type . '_bg_' . time() . '.' . $ext;
+                $upload_path = $u_dir . $new_filename;
+                
+                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    $db_path = 'uploads/videos/' . $new_filename;
+                    $stmt = $conn->prepare("INSERT INTO homepage_videos (video_type, video_path) VALUES (?, ?) ON DUPLICATE KEY UPDATE video_path = ?");
+                    $stmt->bind_param("sss", $video_type, $db_path, $db_path);
+                    if ($stmt->execute()) {
+                        $success_message = ucfirst($video_type) . ' background video updated successfully!';
+                    } else {
+                        $error_message = 'Database error saving video path.';
+                    }
+                    $stmt->close();
+                } else {
+                    $error_message = 'Failed to save uploaded video file.';
+                }
+            }
+        } else {
+            $error_message = 'Please select a valid video file to upload.';
+        }
+    }
+}
+
+// Handle Result Poster Uploads & Removal
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_result_poster'])) {
+    $active_tab = 'manage_homepage';
+    $poster_type = $_POST['poster_type'] ?? ''; // 'desktop' or 'mobile'
+    $setting_key = ($poster_type === 'mobile') ? 'result_poster_mobile' : 'result_poster_desktop';
+    
+    if (in_array($poster_type, ['desktop', 'mobile'])) {
+        if (isset($_POST['remove_poster']) && $_POST['remove_poster'] === '1') {
+            $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+            $stmt->bind_param("s", $setting_key);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows > 0) {
+                $old = $res->fetch_assoc()['setting_value'];
+                if ($old && strpos($old, 'uploads/posters/') !== false && file_exists('../' . $old)) {
+                    @unlink('../' . $old);
+                }
+            }
+            $stmt->close();
+
+            $desc = ucfirst($poster_type) . ' Result Poster Image';
+            $del_stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value, setting_type, description) VALUES (?, NULL, 'image', ?) ON DUPLICATE KEY UPDATE setting_value = NULL");
+            $del_stmt->bind_param("ss", $setting_key, $desc);
+            $del_stmt->execute();
+            $del_stmt->close();
+
+            $success_message = ucfirst($poster_type) . ' result poster removed successfully!';
+        } elseif (isset($_FILES['poster_file']) && $_FILES['poster_file']['error'] === UPLOAD_ERR_OK) {
+            $u_dir = '../uploads/posters/';
+            if (!file_exists($u_dir)) {
+                mkdir($u_dir, 0777, true);
+            }
+            
+            $file = $_FILES['poster_file'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_exts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            if (!in_array($ext, $allowed_exts)) {
+                $error_message = 'Invalid image file type. Only JPG, PNG, GIF, and WEBP are allowed.';
+            } elseif ($file['size'] > 15 * 1024 * 1024) { // 15MB limit
+                $error_message = 'Image file size too large. Maximum size is 15MB.';
+            } else {
+                // Delete old poster if exists
+                $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+                $stmt->bind_param("s", $setting_key);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res && $res->num_rows > 0) {
+                    $old = $res->fetch_assoc()['setting_value'];
+                    if ($old && strpos($old, 'uploads/posters/') !== false && file_exists('../' . $old)) {
+                        @unlink('../' . $old);
+                    }
+                }
+                $stmt->close();
+
+                $new_filename = 'result_poster_' . $poster_type . '_' . time() . '.' . $ext;
+                $upload_path = $u_dir . $new_filename;
+                
+                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    $db_path = 'uploads/posters/' . $new_filename;
+                    $desc = ucfirst($poster_type) . ' Result Poster Image';
+                    $stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value, setting_type, description) VALUES (?, ?, 'image', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    $stmt->bind_param("ssss", $setting_key, $db_path, $desc, $db_path);
+                    if ($stmt->execute()) {
+                        $success_message = ucfirst($poster_type) . ' result poster updated successfully!';
+                    } else {
+                        $error_message = 'Database error saving poster path.';
+                    }
+                    $stmt->close();
+                } else {
+                    $error_message = 'Failed to save uploaded image file.';
+                }
+            }
+        } else {
+            $error_message = 'Please select a valid image file to upload.';
+        }
+    }
+}
+
+// Handle Student Showcase Images Uploads & Removal
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action_showcase_image'])) {
+    $active_tab = 'manage_homepage';
+    $slot = $_POST['image_slot'] ?? ''; // 'img1_desktop', 'img1_mobile', 'img2_desktop', 'img2_mobile'
+    
+    $valid_slots = [
+        'img1_desktop' => ['key' => 'showcase_img1_desktop', 'label' => 'Showcase Image 1 (Desktop)'],
+        'img1_mobile'  => ['key' => 'showcase_img1_mobile',  'label' => 'Showcase Image 1 (Mobile)'],
+        'img2_desktop' => ['key' => 'showcase_img2_desktop', 'label' => 'Showcase Image 2 (Desktop)'],
+        'img2_mobile'  => ['key' => 'showcase_img2_mobile',  'label' => 'Showcase Image 2 (Mobile)'],
+    ];
+    
+    if (isset($valid_slots[$slot])) {
+        $setting_key = $valid_slots[$slot]['key'];
+        $setting_label = $valid_slots[$slot]['label'];
+        
+        if (isset($_POST['remove_showcase_image']) && $_POST['remove_showcase_image'] === '1') {
+            $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param("s", $setting_key);
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res && $res->num_rows > 0) {
+                    $old = $res->fetch_assoc()['setting_value'];
+                    if ($old && strpos($old, 'uploads/showcase/') !== false && file_exists('../' . $old)) {
+                        @unlink('../' . $old);
+                    }
+                }
+                $stmt->close();
+            }
+
+            $del_stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value, setting_type, description) VALUES (?, NULL, 'image', ?) ON DUPLICATE KEY UPDATE setting_value = NULL");
+            if ($del_stmt) {
+                $del_stmt->bind_param("ss", $setting_key, $setting_label);
+                $del_stmt->execute();
+                $del_stmt->close();
+            }
+
+            $success_message = $setting_label . ' removed successfully!';
+        } elseif (isset($_FILES['showcase_file']) && $_FILES['showcase_file']['error'] === UPLOAD_ERR_OK) {
+            $u_dir = '../uploads/showcase/';
+            if (!file_exists($u_dir)) {
+                mkdir($u_dir, 0777, true);
+            }
+            
+            $file = $_FILES['showcase_file'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_exts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            
+            if (!in_array($ext, $allowed_exts)) {
+                $error_message = 'Invalid image file type. Only JPG, PNG, GIF, and WEBP are allowed.';
+            } elseif ($file['size'] > 15 * 1024 * 1024) { // 15MB limit
+                $error_message = 'Image file size too large. Maximum size is 15MB.';
+            } else {
+                // Delete old file if exists
+                $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+                if ($stmt) {
+                    $stmt->bind_param("s", $setting_key);
+                    $stmt->execute();
+                    $res = $stmt->get_result();
+                    if ($res && $res->num_rows > 0) {
+                        $old = $res->fetch_assoc()['setting_value'];
+                        if ($old && strpos($old, 'uploads/showcase/') !== false && file_exists('../' . $old)) {
+                            @unlink('../' . $old);
+                        }
+                    }
+                    $stmt->close();
+                }
+
+                $new_filename = 'showcase_' . $slot . '_' . time() . '.' . $ext;
+                $upload_path = $u_dir . $new_filename;
+                
+                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+                    $db_path = 'uploads/showcase/' . $new_filename;
+                    $stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value, setting_type, description) VALUES (?, ?, 'image', ?) ON DUPLICATE KEY UPDATE setting_value = ?");
+                    if ($stmt) {
+                        $stmt->bind_param("ssss", $setting_key, $db_path, $setting_label, $db_path);
+                        if ($stmt->execute()) {
+                            $success_message = $setting_label . ' updated successfully!';
+                        } else {
+                            $error_message = 'Database error saving image path.';
+                        }
+                        $stmt->close();
+                    } else {
+                        $error_message = 'Database prepare error.';
+                    }
+                } else {
+                    $error_message = 'Failed to save uploaded image file.';
+                }
+            }
+        } else {
+            $error_message = 'Please select a valid image file to upload.';
+        }
+    }
+}
+
+// Handle Theme Colors Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_colors'])) {
     $active_tab = 'dashboard_colors';
     $colors_updated = true;
     foreach (['al_results', 'classes', 'extra_courses'] as $section_key) {
         $bg_color = trim($_POST[$section_key . '_bg_color'] ?? '');
         $card_colors = trim($_POST[$section_key . '_card_colors'] ?? '');
-        
-        // Clean card colors list
         $card_colors = implode(',', array_filter(array_map('trim', explode(',', $card_colors))));
         
         $stmt = $conn->prepare("UPDATE dashboard_colors SET bg_color = ?, card_colors = ? WHERE section_key = ?");
@@ -70,126 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_colors'])) {
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_settings'])) {
-    $page_type = $_POST['page_type'] ?? 'dashboard';
-    $active_tab = $page_type;
-    $upload_background = isset($_POST['upload_background']) && $_POST['upload_background'] === '1';
-    $remove_background = isset($_POST['remove_background']) && $_POST['remove_background'] === '1';
-    
-    // Determine setting key based on page type
-    $setting_key_map = [
-        'dashboard' => 'dashboard_background',
-        'recordings' => 'recordings_background',
-        'live_classes' => 'live_classes_background',
-        'online_courses' => 'online_courses_background'
-    ];
-    
-    $setting_key = $setting_key_map[$page_type] ?? 'dashboard_background';
-    $page_description_map = [
-        'dashboard' => 'Background image for student dashboard',
-        'recordings' => 'Background image for recordings page',
-        'live_classes' => 'Background image for live classes page',
-        'online_courses' => 'Background image for online courses page'
-    ];
-    $description = $page_description_map[$page_type] ?? 'Background image';
-    
-    if ($remove_background) {
-        // Remove existing background
-        $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
-        $stmt->bind_param("s", $setting_key);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        
-        if ($result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            $old_image = $row['setting_value'];
-            
-            // Delete old file if exists
-            if ($old_image && file_exists('../' . $old_image)) {
-                unlink('../' . $old_image);
-            }
-        }
-        $stmt->close();
-        
-        // Update database
-        $stmt = $conn->prepare("UPDATE system_settings SET setting_value = NULL, updated_by = ? WHERE setting_key = ?");
-        $stmt->bind_param("ss", $user_id, $setting_key);
-        
-        if ($stmt->execute()) {
-            $success_message = 'Background image removed successfully!';
-        } else {
-            $error_message = 'Failed to remove background image.';
-        }
-        $stmt->close();
-        
-    } elseif ($upload_background && isset($_FILES['background_image']) && $_FILES['background_image']['error'] === UPLOAD_ERR_OK) {
-        // Process upload
-        $upload_dir = '../uploads/backgrounds/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        
-        $file = $_FILES['background_image'];
-        $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        
-        // Validate file type
-        if (!in_array($file_ext, $allowed_extensions)) {
-            $error_message = 'Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.';
-        } elseif ($file['size'] > 10 * 1024 * 1024) { // 10MB limit
-            $error_message = 'File size too large. Maximum size is 10MB.';
-        } else {
-            // Get old image to delete
-            $stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
-            $stmt->bind_param("s", $setting_key);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            
-            $old_image = null;
-            if ($result->num_rows > 0) {
-                $row = $result->fetch_assoc();
-                $old_image = $row['setting_value'];
-            }
-            $stmt->close();
-            
-            // Generate unique filename
-            $new_filename = $page_type . '_bg_' . time() . '.' . $file_ext;
-            $upload_path = $upload_dir . $new_filename;
-            
-            if (move_uploaded_file($file['tmp_name'], $upload_path)) {
-                $background_path = 'uploads/backgrounds/' . $new_filename;
-                
-                // Update database
-                $stmt = $conn->prepare("INSERT INTO system_settings (setting_key, setting_value, setting_type, description, updated_by) 
-                                       VALUES (?, ?, 'image', ?, ?)
-                                       ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
-                $stmt->bind_param("ssssss", $setting_key, $background_path, $description, $user_id, $background_path, $user_id);
-                
-                if ($stmt->execute()) {
-                    // Delete old image if exists
-                    if ($old_image && file_exists('../' . $old_image)) {
-                        unlink('../' . $old_image);
-                    }
-                    
-                    $success_message = 'Background image updated successfully!';
-                } else {
-                    $error_message = 'Failed to update background image in database.';
-                    // Delete uploaded file if database update fails
-                    if (file_exists($upload_path)) {
-                        unlink($upload_path);
-                    }
-                }
-                $stmt->close();
-            } else {
-                $error_message = 'Failed to upload background image.';
-            }
-        }
-    } else {
-        $error_message = 'Please select an image file to upload.';
-    }
-}
-
-// Handle Home Posts (Gallery)
+// Handle Marketing Posts Gallery
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['upload_home_post']) || isset($_POST['delete_home_post'])) {
         $active_tab = 'home_posts';
@@ -205,71 +334,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             
-            if (!in_array($file_ext, $allowed_extensions)) {
-                $error_message = 'Invalid file type for post.';
-            } else {
-                $new_filename = 'post_' . time() . '_' . rand(100, 999) . '.' . $file_ext;
-                if (move_uploaded_file($file['tmp_name'], $upload_dir . $new_filename)) {
+            if (in_array($file_ext, $allowed_extensions)) {
+                $new_filename = 'post_' . time() . '.' . $file_ext;
+                $upload_path = $upload_dir . $new_filename;
+                
+                if (move_uploaded_file($file['tmp_name'], $upload_path)) {
                     $image_path = 'uploads/posts/' . $new_filename;
-                    $title = $_POST['post_title'] ?? '';
-                    $stmt = $conn->prepare("INSERT INTO home_posts (image_path, title) VALUES (?, ?)");
-                    $stmt->bind_param("ss", $image_path, $title);
+                    $title = trim($_POST['post_title'] ?? '');
+                    
+                    $stmt = $conn->prepare("INSERT INTO home_posts (image_path, title, created_by) VALUES (?, ?, ?)");
+                    $stmt->bind_param("sss", $image_path, $title, $user_id);
                     if ($stmt->execute()) {
-                        $success_message = 'Post uploaded successfully!';
+                        $success_message = 'Marketing post added successfully!';
                     } else {
-                        $error_message = 'Database error: ' . $conn->error;
+                        $error_message = 'Failed to add post to database.';
                     }
                     $stmt->close();
+                } else {
+                    $error_message = 'Failed to upload image.';
                 }
+            } else {
+                $error_message = 'Invalid image type.';
             }
         }
-    } elseif (isset($_POST['delete_home_post'])) {
-        $post_id = $_POST['post_id'];
+    }
+
+    if (isset($_POST['delete_home_post'])) {
+        $post_id = intval($_POST['post_id']);
         $stmt = $conn->prepare("SELECT image_path FROM home_posts WHERE id = ?");
         $stmt->bind_param("i", $post_id);
         $stmt->execute();
-        $result = $stmt->get_result();
-        if ($row = $result->fetch_assoc()) {
+        $res = $stmt->get_result();
+        if ($res->num_rows > 0) {
+            $row = $res->fetch_assoc();
             if (file_exists('../' . $row['image_path'])) {
                 unlink('../' . $row['image_path']);
             }
-            $stmt = $conn->prepare("DELETE FROM home_posts WHERE id = ?");
-            $stmt->bind_param("i", $post_id);
-            $stmt->execute();
-            $success_message = 'Post deleted successfully!';
+            $del_stmt = $conn->prepare("DELETE FROM home_posts WHERE id = ?");
+            $del_stmt->bind_param("i", $post_id);
+            $del_stmt->execute();
+            $del_stmt->close();
+            $success_message = 'Marketing post deleted successfully!';
         }
         $stmt->close();
     }
 }
 
-// Get current background images for all pages
-$backgrounds = [
-    'dashboard' => null,
-    'recordings' => null,
-    'live_classes' => null,
-    'online_courses' => null
-];
-
-$stmt = $conn->prepare("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('dashboard_background', 'recordings_background', 'live_classes_background', 'online_courses_background')");
-$stmt->execute();
-$result = $stmt->get_result();
-
-while ($row = $result->fetch_assoc()) {
-    $key = str_replace('_background', '', $row['setting_key']);
-    $backgrounds[$key] = $row['setting_value'];
+// Fetch Homepage Videos
+$homepage_videos = ['desktop' => null, 'mobile' => null];
+$v_res = $conn->query("SELECT video_type, video_path FROM homepage_videos");
+if ($v_res) {
+    while ($row = $v_res->fetch_assoc()) {
+        $homepage_videos[$row['video_type']] = $row['video_path'];
+    }
 }
-$stmt->close();
 
-// Get home posts
+// Fetch Marketing Posts
 $home_posts = [];
-$result = $conn->query("SELECT * FROM home_posts ORDER BY created_at DESC");
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
+$res_posts = $conn->query("SELECT * FROM home_posts ORDER BY created_at DESC");
+if ($res_posts) {
+    while ($row = $res_posts->fetch_assoc()) {
         $home_posts[] = $row;
     }
 }
 
-// Get dashboard theme colors
+// Fetch Dashboard Theme Colors
 $dashboard_colors = [];
 $result_colors = $conn->query("SELECT * FROM dashboard_colors");
 if ($result_colors) {
@@ -278,105 +407,40 @@ if ($result_colors) {
     }
 }
 
-// For backward compatibility
-$current_background = $backgrounds['dashboard'];
+// Fetch Result Posters
+$result_posters = ['desktop' => null, 'mobile' => null];
+$p_res = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('result_poster_desktop', 'result_poster_mobile')");
+if ($p_res) {
+    while ($row = $p_res->fetch_assoc()) {
+        if ($row['setting_key'] === 'result_poster_desktop') {
+            $result_posters['desktop'] = $row['setting_value'];
+        } elseif ($row['setting_key'] === 'result_poster_mobile') {
+            $result_posters['mobile'] = $row['setting_value'];
+        }
+    }
+}
 
-// Function to render background section
-function renderBackgroundSection($page_type, $page_title, $current_background) {
-    ob_start();
-    ?>
-    <!-- Current Background Preview -->
-    <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Current Background for <?php echo htmlspecialchars($page_title); ?></label>
-        <?php if ($current_background): ?>
-            <div class="relative inline-block">
-                <img src="../<?php echo htmlspecialchars($current_background); ?>" 
-                     alt="Current Background" 
-                     class="w-full max-w-2xl h-64 object-cover rounded-lg border-2 border-gray-300 shadow-md">
-                <div class="mt-2 text-sm text-gray-600">
-                    <strong>File:</strong> <?php echo htmlspecialchars(basename($current_background)); ?>
-                </div>
-            </div>
-        <?php else: ?>
-            <div class="w-full max-w-2xl h-64 bg-gray-200 rounded-lg border-2 border-dashed border-gray-400 flex items-center justify-center">
-                <div class="text-center">
-                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <p class="text-gray-500">No background image set</p>
-                </div>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- Upload New Background -->
-    <form method="POST" action="" enctype="multipart/form-data" class="space-y-6">
-        <input type="hidden" name="page_type" value="<?php echo htmlspecialchars($page_type); ?>">
-        
-        <div>
-            <label for="background_image_<?php echo $page_type; ?>" class="block text-sm font-medium text-gray-700 mb-2">
-                Upload New Background Image for <?php echo htmlspecialchars($page_title); ?>
-            </label>
-            <div class="flex items-center space-x-4">
-                <input type="file" 
-                       name="background_image" 
-                       id="background_image_<?php echo $page_type; ?>" 
-                       accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                       class="block w-full text-sm text-gray-500
-                              file:mr-4 file:py-2 file:px-4
-                              file:rounded-md file:border-0
-                              file:text-sm file:font-semibold
-                              file:bg-red-50 file:text-red-700
-                              hover:file:bg-red-100
-                              cursor-pointer"
-                       onchange="previewImage(this, '<?php echo $page_type; ?>')">
-            </div>
-            <p class="mt-2 text-sm text-gray-500">
-                Accepted formats: JPG, JPEG, PNG, GIF, WEBP (Max size: 10MB)
-            </p>
-            <p class="mt-1 text-sm text-gray-500">
-                Recommended dimensions: 1920x1080 pixels or higher for best quality
-            </p>
-        </div>
-
-        <!-- Image Preview -->
-        <div id="imagePreview_<?php echo $page_type; ?>" class="hidden">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Preview</label>
-            <img id="previewImg_<?php echo $page_type; ?>" src="" alt="Preview" class="w-full max-w-2xl h-64 object-cover rounded-lg border-2 border-gray-300 shadow-md">
-        </div>
-
-        <div class="flex space-x-4">
-            <input type="hidden" name="upload_background" value="1">
-            <button type="submit" 
-                    name="update_settings"
-                    class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors font-medium shadow-md">
-                Upload Background
-            </button>
-            
-            <?php if ($current_background): ?>
-                <button type="submit" 
-                        name="update_settings"
-                        onclick="return confirm('Are you sure you want to remove the current background image?')"
-                        class="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors font-medium shadow-md">
-                    Remove Background
-                </button>
-                <input type="hidden" name="remove_background" value="1">
-            <?php endif; ?>
-        </div>
-    </form>
-    <?php
-    return ob_get_clean();
+// Fetch Student Showcase Images
+$showcase_images = [
+    'img1_desktop' => null,
+    'img1_mobile'  => null,
+    'img2_desktop' => null,
+    'img2_mobile'  => null
+];
+$sc_res = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('showcase_img1_desktop', 'showcase_img1_mobile', 'showcase_img2_desktop', 'showcase_img2_mobile')");
+if ($sc_res) {
+    while ($row = $sc_res->fetch_assoc()) {
+        if ($row['setting_key'] === 'showcase_img1_desktop') $showcase_images['img1_desktop'] = $row['setting_value'];
+        if ($row['setting_key'] === 'showcase_img1_mobile')  $showcase_images['img1_mobile']  = $row['setting_value'];
+        if ($row['setting_key'] === 'showcase_img2_desktop') $showcase_images['img2_desktop'] = $row['setting_value'];
+        if ($row['setting_key'] === 'showcase_img2_mobile')  $showcase_images['img2_mobile']  = $row['setting_value'];
+    }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <link rel="apple-touch-icon" sizes="180x180" href="../assests/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="../assests/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="../assests/favicon-16x16.png">
-    <link rel="manifest" href="../assests/site.webmanifest">
-    <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Settings - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -391,8 +455,8 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
             border-color: #d1d5db;
         }
         .tab-button.active {
-            color: #dc2626;
-            border-color: #dc2626;
+            color: #2563eb;
+            border-color: #2563eb;
         }
     </style>
 </head>
@@ -423,412 +487,684 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                     </div>
                 <?php endif; ?>
 
-                <!-- Dashboard Background Settings -->
-                <div class="mb-8">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b">Page Background Images</h3>
-                    
-                    <!-- Tab Navigation -->
-                    <div class="mb-6 border-b border-gray-200">
-                        <nav class="-mb-px flex space-x-8">
-                            <button type="button" onclick="switchTab('dashboard')" 
-                                    class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="dashboard">
-                                Dashboard
-                            </button>
-                            <button type="button" onclick="switchTab('recordings')" 
-                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="recordings">
-                                Recordings Page
-                            </button>
-                            <button type="button" onclick="switchTab('live_classes')" 
-                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="live_classes">
-                                Live Classes Page
-                            </button>
-                            <button type="button" onclick="switchTab('online_courses')" 
-                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="online_courses">
-                                Online Courses Page
-                            </button>
-                            <button type="button" onclick="switchTab('home_posts')" 
-                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="home_posts">
-                                Marketing Posts
-                            </button>
-                            <button type="button" onclick="switchTab('dashboard_colors')" 
-                                    class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                                    data-tab="dashboard_colors">
-                                Dashboard Colors
-                            </button>
-                        </nav>
+                    <!-- Tab Navigation Header -->
+                    <div class="mb-6 pb-3 border-b border-gray-200">
+                        <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-video text-blue-600"></i>
+                            <span>Manage Home Page Background Videos</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-1">Upload custom desktop and mobile background videos to display on the home landing page. Uploaded files are saved in <code class="bg-slate-100 text-blue-600 px-1.5 py-0.5 rounded font-mono">uploads/videos/</code>.</p>
                     </div>
 
-                    <!-- Dashboard Tab -->
-                    <div id="tab-dashboard" class="tab-content">
-                        <?php echo renderBackgroundSection('dashboard', 'Dashboard', $backgrounds['dashboard']); ?>
-                    </div>
+                    <!-- Manage Home Page Content -->
+                    <div id="tab-manage_homepage" class="tab-content">
 
-                    <!-- Recordings Tab -->
-                    <div id="tab-recordings" class="tab-content hidden">
-                        <?php echo renderBackgroundSection('recordings', 'Recordings Page', $backgrounds['recordings']); ?>
-                    </div>
-
-                    <!-- Live Classes Tab -->
-                    <div id="tab-live_classes" class="tab-content hidden">
-                        <?php echo renderBackgroundSection('live_classes', 'Live Classes Page', $backgrounds['live_classes']); ?>
-                    </div>
-                    
-                    <!-- Online Courses Tab -->
-                    <div id="tab-online_courses" class="tab-content hidden">
-                        <?php echo renderBackgroundSection('online_courses', 'Online Courses Page', $backgrounds['online_courses']); ?>
-                    </div>
-
-                    <!-- Home Posts Tab -->
-                    <div id="tab-home_posts" class="tab-content hidden">
-                        <div class="bg-gray-50 p-6 rounded-lg border mb-8">
-                            <h4 class="text-lg font-bold mb-4">Add New Post</h4>
-                            <form method="POST" enctype="multipart/form-data" class="space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Image</label>
-                                    <input type="file" name="post_image" accept="image/*" required class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Title (Optional)</label>
-                                    <input type="text" name="post_title" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm p-2 border">
-                                </div>
-                                <button type="submit" name="upload_home_post" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Upload Post</button>
-                            </form>
-                        </div>
-
-                        <h4 class="text-lg font-bold mb-4">Current Posts</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <?php foreach ($home_posts as $post): ?>
-                                <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden relative group">
-                                    <div class="h-64 w-full bg-gray-100 relative">
-                                        <img src="../<?php echo htmlspecialchars($post['image_path']); ?>" 
-                                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                             alt="<?php echo htmlspecialchars($post['title'] ?? 'Post'); ?>">
-                                        
-                                        <!-- Removal Icon Overlay -->
-                                        <form method="POST" onsubmit="return confirm('Delete this marketing post?')" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-[-10px] group-hover:translate-y-0">
-                                            <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
-                                            <button type="submit" name="delete_home_post" class="w-10 h-10 bg-white/90 backdrop-blur-sm text-red-600 rounded-full flex items-center justify-center hover:bg-red-600 hover:text-white shadow-xl transition-all duration-200 border border-red-100" title="Remove Post">
-                                                <i class="fas fa-trash-can"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                    <div class="p-3 bg-white border-t">
-                                        <p class="text-sm font-bold text-gray-800 truncate"><?php echo htmlspecialchars($post['title'] ?: 'Untitled Post'); ?></p>
-                                        <p class="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                                            <i class="far fa-calendar-alt"></i> <?php echo date('M j, Y', strtotime($post['created_at'])); ?>
-                                        </p>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                            <?php if (empty($home_posts)): ?>
-                                <p class="col-span-full text-center text-gray-500 py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                                    <i class="fas fa-images text-4xl mb-3 block text-gray-300"></i>
-                                    No posts uploaded yet.
-                                </p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Dashboard Colors Tab -->
-                    <div id="tab-dashboard_colors" class="tab-content hidden">
-                        <div class="bg-gray-50 p-6 rounded-lg border mb-8">
-                            <h4 class="text-lg font-bold mb-2">Dashboard Section & Card Colors</h4>
-                            <p class="text-xs text-gray-500 mb-6">Use the color pickers to choose colors visually — values are saved as HTML hex codes (e.g. <code>#e0f2fe</code>). For the section background, pick a color or type a hex value. For card colors, pick a color and click <strong>Add</strong>; each color will appear as a chip below.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             
-                            <form method="POST" action="" class="space-y-8">
-                                <input type="hidden" name="update_colors" value="1">
-                                
-                                <?php foreach (['al_results' => 'A/L Results Section', 'classes' => 'Available Classes Section', 'extra_courses' => 'Extra Courses Section'] as $key => $title): 
-                                    $info = $dashboard_colors[$key] ?? ['bg_color' => '', 'card_colors' => ''];
-                                ?>
-                                    <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-                                        <h5 class="text-md font-bold text-gray-800 border-b pb-2 mb-4 flex justify-between items-center">
-                                            <span><?php echo htmlspecialchars($title); ?></span>
-                                            <span id="save_status_<?php echo $key; ?>" class="text-xs font-normal text-gray-500 hidden flex items-center gap-1"></span>
-                                        </h5>
-                                        
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Section Background Color</label>
-                                                <div class="flex gap-2 items-center">
-                                                    <?php 
-                                                    $bg_color_disp = trim($info['bg_color']);
-                                                    if (preg_match('/^[a-fA-F0-9]{3,8}$/', $bg_color_disp)) $bg_color_disp = '#' . $bg_color_disp;
-                                                    // Default hex color value for picker
-                                                    $picker_val = (preg_match('/^#[a-fA-F0-9]{3,6}$/', $bg_color_disp)) ? $bg_color_disp : '#ffffff';
-                                                    ?>
-                                                    <div class="relative flex-1">
-                                                        <input type="text" id="<?php echo $key; ?>_bg_color" name="<?php echo $key; ?>_bg_color" 
-                                                               value="<?php echo htmlspecialchars($info['bg_color']); ?>" 
-                                                               class="w-full border border-gray-300 rounded-md shadow-sm p-2 pr-10 text-sm focus:ring-red-500 focus:border-red-500" 
-                                                               placeholder="#ffffff"
-                                                               onchange="saveBgColor('<?php echo $key; ?>', this.value)">
-                                                        <!-- Color picker for background color -->
-                                                        <div class="absolute inset-y-0 right-0 pr-2 flex items-center">
-                                                            <input type="color" id="<?php echo $key; ?>_bg_color_picker" 
-                                                                   value="<?php echo htmlspecialchars($picker_val); ?>"
-                                                                   class="w-6 h-6 border border-gray-300 rounded cursor-pointer p-0 bg-transparent"
-                                                                   onchange="document.getElementById('<?php echo $key; ?>_bg_color').value = this.value; saveBgColor('<?php echo $key; ?>', this.value);">
-                                                        </div>
-                                                    </div>
-                                                </div>
+                            <!-- Desktop Video Card -->
+                            <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i class="fas fa-desktop text-blue-600"></i>
+                                            <span>Desktop Background Video</span>
+                                        </h4>
+                                        <span class="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">Desktop View</span>
+                                    </div>
+
+                                    <!-- Preview Player -->
+                                    <div class="mb-4">
+                                        <?php if (!empty($homepage_videos['desktop'])): ?>
+                                            <div class="relative rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-black w-full">
+                                                <video controls class="w-full h-64 sm:h-80 object-contain">
+                                                    <source src="../<?php echo htmlspecialchars($homepage_videos['desktop']); ?>" type="video/mp4">
+                                                    Your browser does not support video playback.
+                                                </video>
                                             </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate">
+                                                <strong>Current File:</strong> <?php echo htmlspecialchars(basename($homepage_videos['desktop'])); ?>
+                                            </p>
+                                        <?php else: ?>
+                                            <div class="w-full h-64 bg-slate-200/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                                                <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                                <p class="text-sm font-bold text-slate-600">No Custom Desktop Video Uploaded</p>
+                                                <p class="text-xs text-slate-400">Using default Cloudinary desktop hero video</p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Upload Form -->
+                                    <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                        <input type="hidden" name="action_homepage_video" value="1">
+                                        <input type="hidden" name="video_type" value="desktop">
+                                        
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Desktop Video (MP4 / WEBM)</label>
+                                            <input type="file" name="video_file" accept="video/mp4,video/webm,video/ogg,video/quicktime" required
+                                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer">
+                                            <p class="text-[11px] text-slate-400 mt-1">Recommended: MP4 format, 16:9 ratio, max 100MB.</p>
+                                        </div>
+
+                                        <div class="flex items-center gap-3 pt-2">
+                                            <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                <i class="fas fa-upload"></i> Save Desktop Video
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <?php if (!empty($homepage_videos['desktop'])): ?>
+                                    <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                        <input type="hidden" name="action_homepage_video" value="1">
+                                        <input type="hidden" name="video_type" value="desktop">
+                                        <input type="hidden" name="remove_video" value="1">
+                                        <button type="submit" onclick="return confirm('Remove custom desktop background video?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                            <i class="fas fa-trash-alt"></i> Remove Custom Desktop Video
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Mobile Video Card -->
+                            <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i class="fas fa-mobile-alt text-emerald-600"></i>
+                                            <span>Mobile Background Video</span>
+                                        </h4>
+                                        <span class="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">Mobile View</span>
+                                    </div>
+
+                                    <!-- Preview Player (Portrait Frame) -->
+                                    <div class="mb-4 flex flex-col items-center">
+                                        <?php if (!empty($homepage_videos['mobile'])): ?>
+                                            <div class="relative w-60 h-[420px] rounded-3xl overflow-hidden border-4 border-slate-800 shadow-xl bg-black flex items-center justify-center">
+                                                <video controls class="w-full h-full object-cover">
+                                                    <source src="../<?php echo htmlspecialchars($homepage_videos['mobile']); ?>" type="video/mp4">
+                                                    Your browser does not support video playback.
+                                                </video>
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate max-w-xs text-center">
+                                                <strong>Current File:</strong> <?php echo htmlspecialchars(basename($homepage_videos['mobile'])); ?>
+                                            </p>
+                                        <?php else: ?>
+                                            <div class="w-60 h-[420px] bg-slate-200/70 rounded-3xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                                                <i class="fas fa-video-slash text-4xl mb-2"></i>
+                                                <p class="text-sm font-bold text-slate-600">No Custom Mobile Video Uploaded</p>
+                                                <p class="text-xs text-slate-400">Using default Cloudinary mobile hero video</p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Upload Form -->
+                                    <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                        <input type="hidden" name="action_homepage_video" value="1">
+                                        <input type="hidden" name="video_type" value="mobile">
+                                        
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Mobile Video (MP4 / WEBM)</label>
+                                            <input type="file" name="video_file" accept="video/mp4,video/webm,video/ogg,video/quicktime" required
+                                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
+                                            <p class="text-[11px] text-slate-400 mt-1">Recommended: MP4 format, 9:16 portrait ratio, max 100MB.</p>
+                                        </div>
+
+                                        <div class="flex items-center gap-3 pt-2">
+                                            <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                <i class="fas fa-upload"></i> Save Mobile Video
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <?php if (!empty($homepage_videos['mobile'])): ?>
+                                    <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                        <input type="hidden" name="action_homepage_video" value="1">
+                                        <input type="hidden" name="video_type" value="mobile">
+                                        <input type="hidden" name="remove_video" value="1">
+                                        <button type="submit" onclick="return confirm('Remove custom mobile background video?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                            <i class="fas fa-trash-alt"></i> Remove Custom Mobile Video
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+
+                        </div>
+
+                        <!-- Result Posters Section Header -->
+                        <div class="mt-12 mb-6 pb-3 border-b border-gray-200">
+                            <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-image text-amber-500"></i>
+                                <span>Manage Home Page Result Posters</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-1">Upload custom desktop and mobile result posters to display on the home landing page instead of the default student feedback section. Uploaded files are saved in <code class="bg-slate-100 text-amber-600 px-1.5 py-0.5 rounded font-mono">uploads/posters/</code>.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <!-- Desktop Result Poster Card -->
+                            <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i class="fas fa-desktop text-amber-500"></i>
+                                            <span>Desktop Result Poster</span>
+                                        </h4>
+                                        <span class="text-[10px] font-extrabold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">Desktop View</span>
+                                    </div>
+
+                                    <!-- Preview Image -->
+                                    <div class="mb-4">
+                                        <?php if (!empty($result_posters['desktop']) && file_exists('../' . $result_posters['desktop'])): ?>
+                                            <div class="relative rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white w-full p-2 flex justify-center">
+                                                <img src="../<?php echo htmlspecialchars($result_posters['desktop']); ?>" alt="Desktop Result Poster" class="w-full max-h-72 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate">
+                                                <strong>Current File:</strong> <?php echo htmlspecialchars(basename($result_posters['desktop'])); ?>
+                                            </p>
+                                        <?php else: ?>
+                                            <div class="w-full h-64 bg-slate-200/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                                                <i class="fas fa-image text-4xl mb-2 text-slate-300"></i>
+                                                <p class="text-sm font-bold text-slate-600">No Desktop Result Poster Uploaded</p>
+                                                <p class="text-xs text-slate-400">If empty, the result poster section on the home page will be skipped.</p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Upload Form -->
+                                    <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                        <input type="hidden" name="action_result_poster" value="1">
+                                        <input type="hidden" name="poster_type" value="desktop">
+                                        
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Desktop Poster (JPG / PNG / WEBP)</label>
+                                            <input type="file" name="poster_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer">
+                                            <p class="text-[11px] text-slate-400 mt-1">Recommended resolution: 1400x500px or wide landscape banner, max 15MB.</p>
+                                        </div>
+
+                                        <div class="flex items-center gap-3 pt-2">
+                                            <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                <i class="fas fa-upload"></i> Save Desktop Poster
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                <?php if (!empty($result_posters['desktop'])): ?>
+                                    <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                        <input type="hidden" name="action_result_poster" value="1">
+                                        <input type="hidden" name="poster_type" value="desktop">
+                                        <input type="hidden" name="remove_poster" value="1">
+                                        <button type="submit" onclick="return confirm('Remove custom desktop result poster?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                            <i class="fas fa-trash-alt"></i> Remove Desktop Poster
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Mobile Result Poster Card -->
+                            <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                                            <i class="fas fa-mobile-alt text-orange-500"></i>
+                                            <span>Mobile Result Poster</span>
+                                        </h4>
+                                        <span class="text-[10px] font-extrabold text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">Mobile View</span>
+                                    </div>
+
+                                    <!-- Preview Image -->
+                                    <div class="mb-4 flex flex-col items-center">
+                                        <?php if (!empty($result_posters['mobile']) && file_exists('../' . $result_posters['mobile'])): ?>
+                                            <div class="relative w-64 max-h-80 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white p-2 flex justify-center">
+                                                <img src="../<?php echo htmlspecialchars($result_posters['mobile']); ?>" alt="Mobile Result Poster" class="w-full max-h-72 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate max-w-xs text-center">
+                                                <strong>Current File:</strong> <?php echo htmlspecialchars(basename($result_posters['mobile'])); ?>
+                                            </p>
+                                        <?php else: ?>
+                                            <div class="w-60 h-64 bg-slate-200/70 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                                                <i class="fas fa-mobile-alt text-4xl mb-2 text-slate-300"></i>
+                                                <p class="text-sm font-bold text-slate-600">No Mobile Result Poster Uploaded</p>
+                                                <p class="text-xs text-slate-400">If empty, mobile view will fall back to desktop poster or skip if none.</p>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <!-- Upload Form -->
+                                    <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                        <input type="hidden" name="action_result_poster" value="1">
+                                        <input type="hidden" name="poster_type" value="mobile">
+                                        
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Mobile Poster (JPG / PNG / WEBP)</label>
+                                            <input type="file" name="poster_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-orange-600 file:text-white hover:file:bg-orange-700 cursor-pointer">
+                                            <p class="text-[11px] text-slate-400 mt-1">Recommended: Vertical or square mobile ratio, max 15MB.</p>
+                                        </div>
+
+                                        <div class="flex items-center gap-3 pt-2">
+                                            <button type="submit" class="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                <i class="fas fa-upload"></i> Save Mobile Poster
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+
+                                 <?php if (!empty($result_posters['mobile'])): ?>
+                                    <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                        <input type="hidden" name="action_result_poster" value="1">
+                                        <input type="hidden" name="poster_type" value="mobile">
+                                        <input type="hidden" name="remove_poster" value="1">
+                                        <button type="submit" onclick="return confirm('Remove custom mobile result poster?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                            <i class="fas fa-trash-alt"></i> Remove Mobile Poster
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- Student Showcase Images Section Header -->
+                        <div class="mt-12 mb-6 pb-3 border-b border-gray-200">
+                            <h3 class="text-xl font-extrabold text-slate-800 flex items-center gap-2">
+                                <i class="fas fa-images text-emerald-600"></i>
+                                <span>Manage Student Showcase Images (4 Image Slots)</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-1">Upload Facebook post size images for the 2 student showcase slots on the home landing page. Each slot supports dedicated <strong>Desktop</strong> and <strong>Mobile</strong> images. Uploaded images are stored in <code class="bg-slate-100 text-emerald-600 px-1.5 py-0.5 rounded font-mono">uploads/showcase/</code>.</p>
+                        </div>
+
+                        <!-- Showcase Image 1 (Desktop & Mobile) -->
+                        <div class="mb-8">
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="w-7 h-7 rounded-lg bg-red-100 text-red-600 font-black text-xs flex items-center justify-center">1</span>
+                                <h4 class="text-base font-extrabold text-slate-800">Showcase Slot 1 (Left Image)</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Image 1 Desktop -->
+                                <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h5 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                                <i class="fas fa-desktop text-red-500"></i>
+                                                <span>Image 1 (Desktop View)</span>
+                                            </h5>
+                                            <span class="text-[10px] font-extrabold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">Desktop</span>
+                                        </div>
+
+                                        <!-- Preview -->
+                                        <div class="mb-4">
+                                            <?php $cur_img1_d = !empty($showcase_images['img1_desktop']) ? $showcase_images['img1_desktop'] : null; ?>
+                                            <div class="relative rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white w-full p-2 flex justify-center min-h-[220px] items-center">
+                                                <img id="preview_img1_desktop" src="<?php echo $cur_img1_d ? '../' . htmlspecialchars($cur_img1_d) : '../assests/smiling_student.png'; ?>" 
+                                                     alt="Showcase 1 Desktop" class="w-full max-h-64 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate">
+                                                <strong>Current File:</strong> <?php echo $cur_img1_d ? htmlspecialchars(basename($cur_img1_d)) : 'Default (assests/smiling_student.png)'; ?>
+                                            </p>
+                                        </div>
+
+                                        <!-- Form -->
+                                        <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img1_desktop">
                                             
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-2">Card Colors (Add/Remove interactively)</label>
-                                                
-                                                <!-- Hidden input to hold the comma-separated string for form submit -->
-                                                <input type="hidden" name="<?php echo $key; ?>_card_colors" id="<?php echo $key; ?>_card_colors" value="<?php echo htmlspecialchars($info['card_colors']); ?>">
-                                                
-                                                <!-- Container for dynamic color chips -->
-                                                <div id="<?php echo $key; ?>_chips_container" class="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[50px] mb-3">
-                                                    <?php 
-                                                    $cards = explode(',', $info['card_colors']);
-                                                    $has_chips = false;
-                                                    foreach ($cards as $color):
-                                                        $color = trim($color);
-                                                        if (empty($color)) continue;
-                                                        $has_chips = true;
-                                                        $preview_color = (preg_match('/^[a-fA-F0-9]{3,8}$/', $color)) ? '#' . $color : $color;
-                                                    ?>
-                                                        <span data-color="<?php echo htmlspecialchars($color); ?>" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold border rounded-full gap-2 shadow-sm bg-white hover:bg-gray-50 transition-colors" style="border-color: rgba(0,0,0,0.08);">
-                                                            <span class="w-3.5 h-3.5 rounded-full border shadow-inner flex-shrink-0" style="background-color: <?php echo htmlspecialchars($preview_color); ?>;"></span>
-                                                            <span class="text-gray-700 font-mono text-[11px]"><?php echo htmlspecialchars($color); ?></span>
-                                                            <button type="button" onclick="removeColor('<?php echo $key; ?>', '<?php echo htmlspecialchars(addslashes($color)); ?>')" class="text-gray-400 hover:text-red-500 font-bold ml-1 transition-colors text-sm focus:outline-none" title="Remove Color">
-                                                                &times;
-                                                            </button>
-                                                        </span>
-                                                    <?php endforeach; ?>
-                                                    <?php if (!$has_chips): ?>
-                                                        <span class="no-chips-placeholder text-xs text-gray-400 italic">No colors added yet.</span>
-                                                    <?php endif; ?>
-                                                </div>
-
-                                                <!-- Controls to add a new color -->
-                                                <div class="flex items-center gap-2">
-                                                    <div class="relative flex-1">
-                                                        <input type="color" id="<?php echo $key; ?>_new_color_picker" 
-                                                               value="#e0f2fe"
-                                                               class="w-full h-10 border border-gray-300 rounded-md cursor-pointer p-1 bg-white"
-                                                               onchange="document.getElementById('<?php echo $key; ?>_new_color_input').value = this.value;">
-                                                        <!-- Hidden input to hold the value before adding -->
-                                                        <input type="hidden" id="<?php echo $key; ?>_new_color_input" value="#e0f2fe">
-                                                    </div>
-                                                    <button type="button" onclick="addColor('<?php echo $key; ?>')" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-semibold transition shadow-sm">
-                                                        Add
-                                                    </button>
-                                                </div>
+                                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Desktop Image (JPG / PNG / WEBP)</label>
+                                                <input type="file" name="showcase_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                    onchange="previewShowcaseImage(event, 'preview_img1_desktop')"
+                                                    class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer">
+                                                <p class="text-[11px] text-slate-400 mt-1">Recommended: Facebook square (1080x1080) or landscape (1200x630), max 15MB.</p>
                                             </div>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                                
-                                <div class="flex justify-end items-center gap-4 pt-4">
-                                     <span class="text-xs text-gray-500 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Settings auto-save in real-time</span>
-                                    <button type="submit" class="px-6 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-semibold text-sm transition shadow-md shadow-red-100">
-                                        Save Theme Colors
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
 
-                
+                                            <div class="flex items-center gap-3 pt-2">
+                                                <button type="submit" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                    <i class="fas fa-upload"></i> Save Image 1 Desktop
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <?php if (!empty($showcase_images['img1_desktop'])): ?>
+                                        <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img1_desktop">
+                                            <input type="hidden" name="remove_showcase_image" value="1">
+                                            <button type="submit" onclick="return confirm('Reset to default image?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                                <i class="fas fa-trash-alt"></i> Reset to Default
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Image 1 Mobile -->
+                                <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h5 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                                <i class="fas fa-mobile-alt text-rose-500"></i>
+                                                <span>Image 1 (Mobile View)</span>
+                                            </h5>
+                                            <span class="text-[10px] font-extrabold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">Mobile</span>
+                                        </div>
+
+                                        <!-- Preview -->
+                                        <div class="mb-4 flex flex-col items-center">
+                                            <?php $cur_img1_m = !empty($showcase_images['img1_mobile']) ? $showcase_images['img1_mobile'] : null; ?>
+                                            <div class="relative w-64 max-h-72 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white p-2 flex justify-center min-h-[220px] items-center">
+                                                <img id="preview_img1_mobile" src="<?php echo $cur_img1_m ? '../' . htmlspecialchars($cur_img1_m) : '../assests/smiling_student.png'; ?>" 
+                                                     alt="Showcase 1 Mobile" class="w-full max-h-64 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate max-w-xs text-center">
+                                                <strong>Current File:</strong> <?php echo $cur_img1_m ? htmlspecialchars(basename($cur_img1_m)) : 'Default (assests/smiling_student.png)'; ?>
+                                            </p>
+                                        </div>
+
+                                        <!-- Form -->
+                                        <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img1_mobile">
+                                            
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Mobile Image (JPG / PNG / WEBP)</label>
+                                                <input type="file" name="showcase_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                    onchange="previewShowcaseImage(event, 'preview_img1_mobile')"
+                                                    class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-600 file:text-white hover:file:bg-rose-700 cursor-pointer">
+                                                <p class="text-[11px] text-slate-400 mt-1">Recommended: Facebook square (1:1) or portrait (4:5), max 15MB.</p>
+                                            </div>
+
+                                            <div class="flex items-center gap-3 pt-2">
+                                                <button type="submit" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                    <i class="fas fa-upload"></i> Save Image 1 Mobile
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <?php if (!empty($showcase_images['img1_mobile'])): ?>
+                                        <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img1_mobile">
+                                            <input type="hidden" name="remove_showcase_image" value="1">
+                                            <button type="submit" onclick="return confirm('Reset to default image?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                                <i class="fas fa-trash-alt"></i> Reset to Default
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Showcase Image 2 (Desktop & Mobile) -->
+                        <div class="mb-8">
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600 font-black text-xs flex items-center justify-center">2</span>
+                                <h4 class="text-base font-extrabold text-slate-800">Showcase Slot 2 (Right Image)</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Image 2 Desktop -->
+                                <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h5 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                                <i class="fas fa-desktop text-emerald-600"></i>
+                                                <span>Image 2 (Desktop View)</span>
+                                            </h5>
+                                            <span class="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">Desktop</span>
+                                        </div>
+
+                                        <!-- Preview -->
+                                        <div class="mb-4">
+                                            <?php $cur_img2_d = !empty($showcase_images['img2_desktop']) ? $showcase_images['img2_desktop'] : null; ?>
+                                            <div class="relative rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white w-full p-2 flex justify-center min-h-[220px] items-center">
+                                                <img id="preview_img2_desktop" src="<?php echo $cur_img2_d ? '../' . htmlspecialchars($cur_img2_d) : '../assests/student.png'; ?>" 
+                                                     alt="Showcase 2 Desktop" class="w-full max-h-64 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate">
+                                                <strong>Current File:</strong> <?php echo $cur_img2_d ? htmlspecialchars(basename($cur_img2_d)) : 'Default (assests/student.png)'; ?>
+                                            </p>
+                                        </div>
+
+                                        <!-- Form -->
+                                        <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img2_desktop">
+                                            
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Desktop Image (JPG / PNG / WEBP)</label>
+                                                <input type="file" name="showcase_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                    onchange="previewShowcaseImage(event, 'preview_img2_desktop')"
+                                                    class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer">
+                                                <p class="text-[11px] text-slate-400 mt-1">Recommended: Facebook square (1080x1080) or landscape (1200x630), max 15MB.</p>
+                                            </div>
+
+                                            <div class="flex items-center gap-3 pt-2">
+                                                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                    <i class="fas fa-upload"></i> Save Image 2 Desktop
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <?php if (!empty($showcase_images['img2_desktop'])): ?>
+                                        <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img2_desktop">
+                                            <input type="hidden" name="remove_showcase_image" value="1">
+                                            <button type="submit" onclick="return confirm('Reset to default image?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                                <i class="fas fa-trash-alt"></i> Reset to Default
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Image 2 Mobile -->
+                                <div class="p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-4">
+                                            <h5 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                                                <i class="fas fa-mobile-alt text-teal-500"></i>
+                                                <span>Image 2 (Mobile View)</span>
+                                            </h5>
+                                            <span class="text-[10px] font-extrabold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">Mobile</span>
+                                        </div>
+
+                                        <!-- Preview -->
+                                        <div class="mb-4 flex flex-col items-center">
+                                            <?php $cur_img2_m = !empty($showcase_images['img2_mobile']) ? $showcase_images['img2_mobile'] : null; ?>
+                                            <div class="relative w-64 max-h-72 rounded-2xl overflow-hidden border-2 border-slate-300 shadow-md bg-white p-2 flex justify-center min-h-[220px] items-center">
+                                                <img id="preview_img2_mobile" src="<?php echo $cur_img2_m ? '../' . htmlspecialchars($cur_img2_m) : '../assests/student.png'; ?>" 
+                                                     alt="Showcase 2 Mobile" class="w-full max-h-64 object-contain rounded-xl">
+                                            </div>
+                                            <p class="text-xs text-slate-500 mt-2 font-mono truncate max-w-xs text-center">
+                                                <strong>Current File:</strong> <?php echo $cur_img2_m ? htmlspecialchars(basename($cur_img2_m)) : 'Default (assests/student.png)'; ?>
+                                            </p>
+                                        </div>
+
+                                        <!-- Form -->
+                                        <form method="POST" action="" enctype="multipart/form-data" class="space-y-4">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img2_mobile">
+                                            
+                                            <div>
+                                                <label class="block text-xs font-bold text-slate-700 mb-1.5">Upload Mobile Image (JPG / PNG / WEBP)</label>
+                                                <input type="file" name="showcase_file" accept="image/jpeg,image/png,image/gif,image/webp" required
+                                                    onchange="previewShowcaseImage(event, 'preview_img2_mobile')"
+                                                    class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer">
+                                                <p class="text-[11px] text-slate-400 mt-1">Recommended: Facebook square (1:1) or portrait (4:5), max 15MB.</p>
+                                            </div>
+
+                                            <div class="flex items-center gap-3 pt-2">
+                                                <button type="submit" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-2">
+                                                    <i class="fas fa-upload"></i> Save Image 2 Mobile
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <?php if (!empty($showcase_images['img2_mobile'])): ?>
+                                        <form method="POST" action="" class="mt-4 pt-4 border-t border-slate-200">
+                                            <input type="hidden" name="action_showcase_image" value="1">
+                                            <input type="hidden" name="image_slot" value="img2_mobile">
+                                            <input type="hidden" name="remove_showcase_image" value="1">
+                                            <button type="submit" onclick="return confirm('Reset to default image?')" class="text-xs font-bold text-red-600 hover:text-red-800 transition-colors flex items-center gap-1.5">
+                                                <i class="fas fa-trash-alt"></i> Reset to Default
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Auto-switch to active tab from PHP on load
-        window.addEventListener('DOMContentLoaded', () => {
+        function previewShowcaseImage(event, previewId) {
+            const input = event.target;
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewEl = document.getElementById(previewId);
+                    if (previewEl) {
+                        previewEl.src = e.target.result;
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Automatically upload images & videos as soon as a file is selected (no button click needed)
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInputs = document.querySelectorAll('input[type="file"]');
+            fileInputs.forEach(input => {
+                input.addEventListener('change', function(e) {
+                    if (this.files && this.files.length > 0) {
+                        const form = this.closest('form');
+                        if (form) {
+                            // Find and update submit button inside form
+                            const submitBtn = form.querySelector('button[type="submit"]');
+                            if (submitBtn) {
+                                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Uploading...';
+                                submitBtn.disabled = true;
+                                submitBtn.classList.add('opacity-75', 'cursor-wait');
+                            }
+                            
+                            // Show floating upload notification
+                            let uploadToast = document.getElementById('auto-upload-toast');
+                            if (!uploadToast) {
+                                uploadToast = document.createElement('div');
+                                uploadToast.id = 'auto-upload-toast';
+                                uploadToast.className = 'fixed bottom-6 right-6 bg-slate-900/95 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 z-50 text-sm font-bold border border-slate-700 backdrop-blur-md animate-pulse';
+                                uploadToast.innerHTML = '<i class="fas fa-cloud-upload-alt text-blue-400 text-xl animate-bounce"></i><span>Uploading file automatically, please wait...</span>';
+                                document.body.appendChild(uploadToast);
+                            }
+
+                            // Submit form immediately
+                            form.submit();
+                        }
+                    }
+                });
+            });
+
             const activeTab = <?php echo json_encode($active_tab); ?>;
             if (activeTab && document.getElementById('tab-' + activeTab)) {
                 switchTab(activeTab);
             }
         });
 
-        // Tab switching functionality
         function switchTab(tabName) {
-            // Hide all tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
-            
-            // Remove active class from all buttons
             document.querySelectorAll('.tab-button').forEach(button => {
                 button.classList.remove('active');
             });
-            
-            // Show selected tab content
-            document.getElementById('tab-' + tabName).classList.remove('hidden');
-            
-            // Add active class to selected button
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-        }
-        
-        function previewImage(input, pageType) {
-            const preview = document.getElementById('imagePreview_' + pageType);
-            const previewImg = document.getElementById('previewImg_' + pageType);
-            
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                
-                // Validate file size
-                if (file.size > 10 * 1024 * 1024) {
-                    alert('File size too large. Maximum size is 10MB.');
-                    input.value = '';
-                    preview.classList.add('hidden');
-                    return;
-                }
-                
-                // Validate file type
-                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-                if (!allowedTypes.includes(file.type)) {
-                    alert('Invalid file type. Only JPG, JPEG, PNG, GIF, and WEBP are allowed.');
-                    input.value = '';
-                    preview.classList.add('hidden');
-                    return;
-                }
-                
-                // Show preview
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    previewImg.src = e.target.result;
-                    preview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            } else {
-                preview.classList.add('hidden');
+            const selectedTabContent = document.getElementById('tab-' + tabName);
+            if (selectedTabContent) {
+                selectedTabContent.classList.remove('hidden');
+            }
+            const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
             }
         }
 
-        // Color Chips Management JavaScript
         function updateHiddenInput(sectionKey) {
             const container = document.getElementById(sectionKey + '_chips_container');
             const hiddenInput = document.getElementById(sectionKey + '_card_colors');
-            
+            if (!container || !hiddenInput) return;
             const chips = container.querySelectorAll('span[data-color]');
             const colors = Array.from(chips).map(chip => chip.getAttribute('data-color'));
-            
             hiddenInput.value = colors.join(',');
-            
-            // Show placeholder if empty
-            const placeholder = container.querySelector('.no-chips-placeholder');
-            if (colors.length === 0) {
-                if (!placeholder) {
-                    const span = document.createElement('span');
-                    span.className = 'no-chips-placeholder text-xs text-gray-400 italic';
-                    span.textContent = 'No colors added yet.';
-                    container.appendChild(span);
-                }
-            } else if (placeholder) {
-                placeholder.remove();
-            }
         }
-        
+
         function removeColor(sectionKey, colorValue) {
             const container = document.getElementById(sectionKey + '_chips_container');
-            // Escape any special characters for the querySelector
+            if (!container) return;
             const selector = `span[data-color="${CSS.escape(colorValue)}"]`;
             const chip = container.querySelector(selector);
             if (chip) {
                 chip.remove();
                 updateHiddenInput(sectionKey);
-                
-                // Auto-save cards color update
                 const hiddenInput = document.getElementById(sectionKey + '_card_colors');
                 saveColorSetting(sectionKey, 'card_colors', hiddenInput.value);
             }
         }
-        
+
         function addColor(sectionKey) {
             const input = document.getElementById(sectionKey + '_new_color_input');
+            if (!input) return;
             let color = input.value.trim();
             if (!color) return;
-            
-            // Normalize to a valid hex color
-            // If 3 or 6 hex chars without #, prepend it
+
             if (/^[a-fA-F0-9]{6}$/.test(color) || /^[a-fA-F0-9]{3}$/.test(color)) {
                 color = '#' + color;
             }
-            // If still not a valid hex, attempt to parse via canvas (only for color picker values which are always valid)
-            // Reject invalid values
-            if (!/^#[a-fA-F0-9]{3}([a-fA-F0-9]{3})?$/.test(color) && !/^rgb/i.test(color)) {
-                alert('Please enter a valid color using the color picker or type a hex value like #ff0000.');
+            if (!/^#[a-fA-F0-9]{3}([a-fA-F0-9]{3})?$/.test(color)) {
+                alert('Please enter a valid hex color code.');
                 return;
             }
-            
+
             const container = document.getElementById(sectionKey + '_chips_container');
-            
-            // Check if color already exists
             const existing = container.querySelector(`span[data-color="${CSS.escape(color)}"]`);
             if (existing) {
                 alert('This color is already in the list.');
-                input.value = '';
                 return;
             }
-            
-            // Format preview color
-            let previewColor = color;
-            if (/^[a-fA-F0-9]{3,8}$/.test(color)) {
-                previewColor = '#' + color;
-            }
-            
-            // Create chip element
+
             const chip = document.createElement('span');
             chip.setAttribute('data-color', color);
             chip.className = 'inline-flex items-center px-2.5 py-1 text-xs font-semibold border rounded-full gap-2 shadow-sm bg-white hover:bg-gray-50 transition-colors';
-            chip.style.borderColor = 'rgba(0,0,0,0.08)';
             
-            // Inner color circle
             const colorCircle = document.createElement('span');
             colorCircle.className = 'w-3.5 h-3.5 rounded-full border shadow-inner flex-shrink-0';
-            colorCircle.style.backgroundColor = previewColor;
-            
-            // Text value
+            colorCircle.style.backgroundColor = color;
+
             const textSpan = document.createElement('span');
             textSpan.className = 'text-gray-700 font-mono text-[11px]';
             textSpan.textContent = color;
-            
-            // Delete button
+
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
             deleteBtn.className = 'text-gray-400 hover:text-red-500 font-bold ml-1 transition-colors text-sm focus:outline-none';
             deleteBtn.innerHTML = '&times;';
-            deleteBtn.onclick = function() {
-                removeColor(sectionKey, color);
-            };
-            
+            deleteBtn.onclick = function() { removeColor(sectionKey, color); };
+
             chip.appendChild(colorCircle);
             chip.appendChild(textSpan);
             chip.appendChild(deleteBtn);
-            
-            // Remove placeholder if present
-            const placeholder = container.querySelector('.no-chips-placeholder');
-            if (placeholder) {
-                placeholder.remove();
-            }
-            
+
             container.appendChild(chip);
             updateHiddenInput(sectionKey);
-            
-            // Auto-save cards color update
+
             const hiddenInput = document.getElementById(sectionKey + '_card_colors');
             saveColorSetting(sectionKey, 'card_colors', hiddenInput.value);
-            
-            // Reset picker & hidden input to default so admin can pick next color
-            const picker = document.getElementById(sectionKey + '_new_color_picker');
-            if (picker) { picker.value = '#e0f2fe'; }
-            input.value = '#e0f2fe';
         }
 
-        // Auto-save settings via AJAX
         function saveColorSetting(sectionKey, field, value) {
             const formData = new FormData();
             formData.append('action', 'update_section_color_ajax');
@@ -836,7 +1172,6 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
             formData.append('field', field);
             formData.append('value', value);
 
-            // Visual feedback - show saving indicator
             const statusIndicator = document.getElementById('save_status_' + sectionKey);
             if (statusIndicator) {
                 statusIndicator.innerHTML = '<i class="fas fa-spinner fa-spin text-blue-500 mr-1"></i> Saving...';
@@ -852,16 +1187,13 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
                 if (statusIndicator) {
                     if (data.success) {
                         statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500 mr-1"></i> Saved';
-                        setTimeout(() => {
-                            statusIndicator.classList.add('hidden');
-                        }, 2000);
+                        setTimeout(() => { statusIndicator.classList.add('hidden'); }, 2000);
                     } else {
                         statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i> Save failed';
                     }
                 }
             })
-            .catch(error => {
-                console.error('Error saving setting:', error);
+            .catch(() => {
                 if (statusIndicator) {
                     statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500 mr-1"></i> Error';
                 }
@@ -870,7 +1202,6 @@ function renderBackgroundSection($page_type, $page_title, $current_background) {
 
         function saveBgColor(sectionKey, colorValue) {
             colorValue = colorValue.trim();
-            // Update visual color picker input value if valid hex
             const picker = document.getElementById(sectionKey + '_bg_color_picker');
             if (picker && /^#[a-fA-F0-9]{3,6}$/.test(colorValue)) {
                 picker.value = colorValue;

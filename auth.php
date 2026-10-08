@@ -141,10 +141,8 @@ if (isset($_POST['login'])) {
 
                 switch ($redirect_role) {
                     case 'admin':
-                        $redirect_url = BASE_PATH . 'admin/dashboard';
-                        break;
                     case 'super_admin':
-                        $redirect_url = BASE_PATH . 'admin/teacher_payments';
+                        $redirect_url = BASE_PATH . 'admin/dashboard';
                         break;
                     case 'teacher':
                         $redirect_url = BASE_PATH . 'dashboard/profile';
@@ -159,34 +157,44 @@ if (isset($_POST['login'])) {
                         $redirect_url = $login_path;
                 }
 
-                // Send the redirect header to the browser
-                header("Location: " . $redirect_url);
-
-                // ── FLUSH RESPONSE TO BROWSER ────────────────────────────────
-                // This closes the FastCGI connection on Nginx+PHP-FPM so the
-                // browser gets the redirect instantly. PHP keeps running below.
-                flush_response_to_browser();
-
-                // ── BACKGROUND: SEND WHATSAPP NOTIFICATION ──────────────────
-                // This now runs AFTER the browser has already been redirected.
-                // Even if it takes 10-30s, the user never notices.
+                // ── SEND WHATSAPP NOTIFICATION ─────────────────────────────
                 $whatsapp_target = !empty($user['whatsapp_number']) ? $user['whatsapp_number'] : ($user['mobile_number'] ?? '');
 
-                if (WHATSAPP_ENABLED && !empty($whatsapp_target)) {
+                if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_target)) {
                     try {
                         $current_time = date('Y-m-d h:i A');
                         $u_name = !empty($user['first_name']) ? $user['first_name'] : $user_id;
-                        $login_message = "👋 *Welcome back, {$u_name}! / සාදරයෙන් පිළිගනිමු!*\n\n" .
-                                         "You have successfully logged into your Learner.LK account.\n" .
-                                         "ඔබ සාර්ථකව Learner.LK ගිණුමට ප්‍රවිෂ්ට විය.\n\n" .
-                                         "⏰ *Time:* {$current_time}";
+                        if (in_array($user['role'], ['admin', 'super_admin'])) {
+                            $login_message = "*සුබ දවසක්, {$u_name}!* (Administrator)\n\n" .
+                                             "ඔබ Lernerr.LK පරිපාලක පද්ධතිය වෙත සාර්ථකව පිවිසී ඇත.\n\n" .
+                                             "*පිවිසූ වේලාව:* {$current_time}\n\n" .
+                                             "--------------------------\n\n" .
+                                             "*Good Day, {$u_name}!* (Administrator)\n\n" .
+                                             "You have successfully logged into the Lernerr.LK Admin Panel.\n\n" .
+                                             "*Login Time:* {$current_time}";
+                        } else {
+                            $login_message = "*සුබ දවසක්, {$u_name}!*\n\n" .
+                                             "ඔබ Lernerr.LK වෙත සාර්ථකව පිවිසී ඇත.\n" .
+                                             "ඔබගේ අධ්‍යාපන කටයුතු සාර්ථක කරගැනීමට Lernerr.LK වෙතින් උණුසුම් සුබ පැතුම්.\n\n" .
+                                             "*පිවිසූ වේලාව:* {$current_time}\n\n" .
+                                             "--------------------------\n\n" .
+                                             "*Welcome back, {$u_name}!*\n\n" .
+                                             "You have successfully logged into Lernerr.LK.\n" .
+                                             "Lernerr.LK wishes you all the best in your educational journey.\n\n" .
+                                             "*Login Time:* {$current_time}";
+                        }
 
-                        sendWhatsAppMessage($whatsapp_target, $login_message);
+                        $send_res = sendWhatsAppMessage($whatsapp_target, $login_message);
+                        if (isset($send_res['success']) && !$send_res['success']) {
+                            error_log("WhatsApp login message delivery failed for $whatsapp_target: " . ($send_res['message'] ?? ''));
+                        }
                     } catch (Exception $e) {
-                        error_log("WhatsApp login message failed: " . $e->getMessage());
+                        error_log("WhatsApp login message exception: " . $e->getMessage());
                     }
                 }
 
+                // Send the redirect header to the browser
+                header("Location: " . $redirect_url);
                 exit();
 
             } else {

@@ -1,6 +1,6 @@
 <?php
 // about_us.php - Publicly accessible About Us page
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -125,7 +125,7 @@ $stmt->close();
             font-family: 'Poppins', sans-serif;
             scroll-behavior: smooth;
             <?php if ($dashboard_background): ?>
-            background-image: url('../<?php echo htmlspecialchars($dashboard_background); ?>');
+            background-image: url('<?php echo (isset($root_url) ? $root_url : '../') . htmlspecialchars($dashboard_background); ?>');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -142,11 +142,11 @@ $stmt->close();
             background: #f9fafb;
             <?php endif; ?>
             min-height: 100vh;
-            padding-top: 5rem;
+            padding-top: 3.5rem;
         }
         @media (min-width: 640px) {
             .content-overlay {
-                padding-top: 6rem;
+                padding-top: 4rem;
             }
         }
 
@@ -175,29 +175,41 @@ $stmt->close();
     </style>
 </head>
 <body class="bg-gray-50">
-    <?php include 'navbar.php'; ?>
+    <?php include __DIR__ . '/navbar.php'; ?>
 
     <div class="content-overlay">
         <!-- Hero Slideshow Section -->
         <section class="relative h-[500px] overflow-hidden">
             <div id="hero-carousel" class="h-full">
                 <?php 
-                $carousel_images = [
-                    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80' => 'Learning together for a brighter future',
-                    'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1951&q=80' => 'Expert instructors guiding your path',
-                    'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80' => 'Modern digital learning environments'
+                $carousel_slides = [
+                    [
+                        'image' => 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+                        'title' => "Sri Lanka's Premier Digital Academy",
+                        'subtitle' => 'ශ්‍රී ලංකාවේ ප්‍රමුඛතම ඩිජිටල් අධ්‍යාපනික පීඨය - Shaping Future Leaders'
+                    ],
+                    [
+                        'image' => 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?ixlib=rb-1.2.1&auto=format&fit=crop&w=1951&q=80',
+                        'title' => "Empowering Sri Lankan Students Island-wide",
+                        'subtitle' => 'දිවයින පුරා සිසුන්ගේ අධ්‍යාපන සිහින සැබෑ කරවන විශ්වාසනීය නාමය - Lernerr.LK'
+                    ],
+                    [
+                        'image' => 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+                        'title' => "Learn From Sri Lanka's Top Leading Educators",
+                        'subtitle' => 'විෂය ක්ෂේත්‍රයේ ප්‍රවීණතම දිවයිනේ විශිෂ්ටතම ගුරු මණ්ඩලයේ නිවැරදි මඟපෙන්වීම'
+                    ]
                 ];
                 $idx = 0;
-                foreach ($carousel_images as $img => $caption): 
+                foreach ($carousel_slides as $slide): 
                 ?>
                     <div class="carousel-item h-full w-full relative <?php echo $idx === 0 ? 'active' : ''; ?>">
-                        <img src="<?php echo $img; ?>" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/50 flex flex-col justify-center items-center text-center p-8">
-                            <h2 class="text-4xl md:text-6xl font-extrabold text-white mb-4 drop-shadow-lg">
-                                <?php echo htmlspecialchars($caption); ?>
+                        <img src="<?php echo $slide['image']; ?>" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/55 flex flex-col justify-center items-center text-center p-8">
+                            <h2 class="text-3xl md:text-5xl font-extrabold text-white mb-4 drop-shadow-lg tracking-tight">
+                                <?php echo htmlspecialchars($slide['title']); ?>
                             </h2>
-                            <p class="text-white text-xl md:text-2xl font-light max-w-2xl opacity-90">
-                                Empowering students across Sri Lanka with world-class education.
+                            <p class="text-white text-lg md:text-2xl font-medium max-w-3xl opacity-90 leading-relaxed">
+                                <?php echo htmlspecialchars($slide['subtitle']); ?>
                             </p>
                         </div>
                     </div>
@@ -237,25 +249,21 @@ $stmt->close();
                     <?php else: ?>
                         <?php foreach ($teachers as $teacher): ?>
                             <div class="stat-card rounded-3xl p-8 flex flex-col items-center group hover:scale-[1.02] transition-transform duration-500">
-                                <div class="relative mb-8">
+                                <div class="relative mb-6 w-full flex justify-center">
                                     <?php if ($teacher['profile_picture']): ?>
-                                         <div class="w-44 h-44 rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white group-hover:scale-105 transition-transform duration-500">
-                                            <img src="../<?php echo htmlspecialchars($teacher['profile_picture']); ?>" class="w-full h-full object-cover">
+                                         <div class="w-60 h-72 rounded-2xl overflow-hidden shadow-2xl border-4 border-white group-hover:scale-[1.03] transition-transform duration-500 bg-slate-100">
+                                            <img src="<?php echo (isset($root_url) ? $root_url : '../') . htmlspecialchars($teacher['profile_picture']); ?>" class="w-full h-full object-cover object-top">
                                         </div>
                                     <?php else: ?>
-                                        <div class="w-44 h-44 rounded-[2rem] bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center text-red-600 shadow-xl border-4 border-white">
-                                            <i class="fas fa-user-tie text-5xl"></i>
+                                        <div class="w-60 h-72 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center text-red-600 shadow-xl border-4 border-white">
+                                            <i class="fas fa-user-tie text-6xl"></i>
                                         </div>
                                     <?php endif; ?>
                                 </div>
 
-                                <h3 class="text-xl font-bold text-gray-900 mb-1">
+                                <h3 class="text-xl font-bold text-gray-900 mb-6 text-center">
                                     <?php echo htmlspecialchars(trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['second_name'] ?? ''))); ?>
                                 </h3>
-
-                                <div class="flex items-center space-x-2 mb-6">
-                                    <span class="px-3 py-1 bg-red-50 text-red-600 text-[10px] font-bold uppercase rounded-full border border-red-100 tracking-wider">Expert Teacher</span>
-                                </div>
 
                                 <div class="w-full space-y-6 mb-8">
                                     <!-- Education Section -->
@@ -292,7 +300,7 @@ $stmt->close();
                                         <div class="subjects-details">
                                             <p class="text-[10px] text-gray-400 uppercase font-black mb-3 flex items-center">
                                                 <i class="fas fa-book-open mr-2 text-red-600"></i>
-                                                Teaching Areas
+                                                Classes Conducting
                                                 <span class="h-px flex-1 bg-gray-100 ml-3"></span>
                                             </p>
                                             <div class="flex flex-wrap gap-2">

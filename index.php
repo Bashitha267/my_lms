@@ -10,18 +10,6 @@ $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
 $is_logged_in = !empty($user_id);
 
-// Super admin doesn't have a dashboard, redirect to payments
-if ($is_logged_in) {
-    if ($role === 'super_admin') {
-        header('Location: admin/teacher_payments.php');
-        exit;
-    }
-    if ($role === 'admin') {
-        header('Location: admin/dashboard.php');
-        exit;
-    }
-}
-
 // Helpers for fallbacks
 if (!function_exists('get_initials')) {
     function get_initials($title) {
@@ -54,6 +42,10 @@ if (!function_exists('get_fallback_gradient')) {
 // Get error/success messages from URL
 $error_message = isset($_GET['error']) ? urldecode($_GET['error']) : '';
 $success_message = isset($_GET['success']) ? urldecode($_GET['success']) : '';
+$teacher_registered = isset($_GET['teacher_registered']) || !empty($_SESSION['pending_teacher_notice']);
+if (isset($_SESSION['pending_teacher_notice'])) {
+    unset($_SESSION['pending_teacher_notice']);
+}
 
 // Get all available courses
 $courses_query = "SELECT c.id, c.teacher_id, c.title, c.description, c.price, c.cover_image, c.duration,
@@ -89,6 +81,7 @@ $assignments_query = "SELECT ta.*, s.name as stream_name, s.id as stream_id, sub
                       ORDER BY s.name, sub.name";
 $assignments_result = $conn->query($assignments_query);
 $assignments_by_stream = [];
+$available_academic_years = [];
 if ($assignments_result) {
     while ($row = $assignments_result->fetch_assoc()) {
         $stream_id = $row['stream_id'];
@@ -99,8 +92,12 @@ if ($assignments_result) {
             ];
         }
         $row['teacher_name'] = trim(($row['first_name'] ?? '') . ' ' . ($row['second_name'] ?? ''));
+        if (!empty($row['academic_year']) && !in_array($row['academic_year'], $available_academic_years)) {
+            $available_academic_years[] = (int)$row['academic_year'];
+        }
         $assignments_by_stream[$stream_id]['classes'][] = $row;
     }
+    rsort($available_academic_years);
 }
 
 // Check for existing enrollments if student
@@ -188,13 +185,13 @@ if ($is_logged_in && $role === 'student') {
 
 // Global Stats for Landing Sections
 $total_students_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'student'");
-$db_student_count = $total_students_res ? $total_students_res->fetch_assoc()['count'] : 0;
+$db_student_count = $total_students_res ? (int)$total_students_res->fetch_assoc()['count'] : 0;
 
 $total_teachers_res = $conn->query("SELECT COUNT(*) as count FROM users WHERE role = 'teacher'");
-$db_teacher_count = $total_teachers_res ? $total_teachers_res->fetch_assoc()['count'] : 0;
+$db_teacher_count = $total_teachers_res ? (int)$total_teachers_res->fetch_assoc()['count'] : 0;
 
-$total_courses_res = $conn->query("SELECT COUNT(*) as count FROM courses");
-$db_course_count = $total_courses_res ? $total_courses_res->fetch_assoc()['count'] : 0;
+$total_courses_res = $conn->query("SELECT COUNT(*) as count FROM teacher_assignments WHERE status = 'active'");
+$db_course_count = $total_courses_res ? (int)$total_courses_res->fetch_assoc()['count'] : 0;
 
 // Fetch section and card theme colors
 $dashboard_colors = [];
@@ -202,6 +199,22 @@ $colors_res = $conn->query("SELECT * FROM dashboard_colors");
 if ($colors_res) {
     while ($row = $colors_res->fetch_assoc()) {
         $dashboard_colors[$row['section_key']] = $row;
+    }
+}
+
+// Fetch Homepage Videos
+$desktop_video_url = "https://res.cloudinary.com/dnfbik3if/video/upload/v1785301466/Untitled_design_9_apin9z.mp4";
+$mobile_video_url = "https://res.cloudinary.com/dnfbik3if/video/upload/v1785301593/Untitled_design_10_dxgmqw.mp4";
+
+$v_res = $conn->query("SELECT video_type, video_path FROM homepage_videos");
+if ($v_res) {
+    while ($v_row = $v_res->fetch_assoc()) {
+        if ($v_row['video_type'] === 'desktop' && !empty($v_row['video_path'])) {
+            $desktop_video_url = $v_row['video_path'];
+        }
+        if ($v_row['video_type'] === 'mobile' && !empty($v_row['video_path'])) {
+            $mobile_video_url = $v_row['video_path'];
+        }
     }
 }
 
@@ -213,6 +226,41 @@ if (!function_exists('format_html_color')) {
             return '#' . $color;
         }
         return $color;
+    }
+}
+
+// Get Result Poster settings
+$result_poster_desktop = null;
+$result_poster_mobile = null;
+$poster_res = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('result_poster_desktop', 'result_poster_mobile')");
+if ($poster_res) {
+    while ($p_row = $poster_res->fetch_assoc()) {
+        if ($p_row['setting_key'] === 'result_poster_desktop' && !empty($p_row['setting_value'])) {
+            $result_poster_desktop = $p_row['setting_value'];
+        } elseif ($p_row['setting_key'] === 'result_poster_mobile' && !empty($p_row['setting_value'])) {
+            $result_poster_mobile = $p_row['setting_value'];
+        }
+    }
+}
+
+// Get Student Showcase Images settings (Image 1 & Image 2 for Desktop & Mobile)
+$showcase_img1_desktop = 'assests/smiling_student.png';
+$showcase_img1_mobile  = 'assests/smiling_student.png';
+$showcase_img2_desktop = 'assests/student.png';
+$showcase_img2_mobile  = 'assests/student.png';
+
+$showcase_res = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('showcase_img1_desktop', 'showcase_img1_mobile', 'showcase_img2_desktop', 'showcase_img2_mobile')");
+if ($showcase_res) {
+    while ($sc_row = $showcase_res->fetch_assoc()) {
+        if ($sc_row['setting_key'] === 'showcase_img1_desktop' && !empty($sc_row['setting_value'])) {
+            $showcase_img1_desktop = $sc_row['setting_value'];
+        } elseif ($sc_row['setting_key'] === 'showcase_img1_mobile' && !empty($sc_row['setting_value'])) {
+            $showcase_img1_mobile = $sc_row['setting_value'];
+        } elseif ($sc_row['setting_key'] === 'showcase_img2_desktop' && !empty($sc_row['setting_value'])) {
+            $showcase_img2_desktop = $sc_row['setting_value'];
+        } elseif ($sc_row['setting_key'] === 'showcase_img2_mobile' && !empty($sc_row['setting_value'])) {
+            $showcase_img2_mobile = $sc_row['setting_value'];
+        }
     }
 }
 ?>
@@ -264,15 +312,16 @@ if (!function_exists('format_html_color')) {
       "logo": "<?php echo (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/assests/logo.jpeg'; ?>",
       "description": "Lernerr.LK is Sri Lanka's premier online learning management system, providing high-quality courses and learning resources for students.",
       "sameAs": [
-        "https://www.facebook.com/Lernerr.LK",
-        "https://www.youtube.com/Lernerr.LK"
+        "https://web.facebook.com/lernerrlk",
+        "https://www.youtube.com/@sameerapereraofficial",
+        "https://www.tiktok.com/@sameerapereraofficial?_r=1&_t=ZS-9A1xZeJEmM0"
       ]
     }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400;500;600;700;800&family=Gemunu+Libre:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         /* Modern Design System Tokens */
@@ -284,7 +333,7 @@ if (!function_exists('format_html_color')) {
         }
 
         body {
-            font-family: 'Inter', 'Noto Sans Sinhala', sans-serif;
+            font-family: 'Inter', 'Abhaya Libre', 'Gemunu Libre', 'Noto Sans Tamil', sans-serif;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -292,12 +341,26 @@ if (!function_exists('format_html_color')) {
         }
 
         h1, h2, h3, h4, h5, h6, .font-black {
-            font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', sans-serif;
+            font-family: 'Plus Jakarta Sans', 'Abhaya Libre', 'Gemunu Libre', 'Noto Sans Tamil', sans-serif;
         }
 
         .font-black {
             font-weight: 800;
             letter-spacing: -0.01em;
+        }
+
+        /* Sri Lankan Flag Gradient (Orange, Green, Maroon/Red) */
+        .sl-flag-gradient {
+            background: linear-gradient(115deg, #ea580c 0%, #16a34a 40%, #881337 75%, #991b1b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+            padding-top: 0.15em;
+            padding-bottom: 0.35em;
+            line-height: 1.35;
+            overflow: visible;
         }
 
         /* Hero Animations */
@@ -388,41 +451,61 @@ if (!function_exists('format_html_color')) {
 
         <?php if (!$is_logged_in): ?>
             <!-- Redesigned Hero Section with Background Video -->
-            <section class="relative w-full h-screen flex flex-col justify-start items-center overflow-hidden pt-16 sm:pt-20 lg:pt-28 pb-4 px-4 text-center bg-white">
+            <section class="relative w-full h-screen flex flex-col justify-start items-center overflow-hidden pt-16 sm:pt-18 lg:pt-20 pb-4 px-4 text-center bg-white">
                 <!-- Desktop Background Video -->
                 <video autoplay loop muted playsinline class="hidden lg:block absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none">
-                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783682874/Animated_face_with_changing_expr__202607101654_c32ud3.mp4" type="video/mp4">
+                    <source src="<?php echo htmlspecialchars($desktop_video_url); ?>" type="video/mp4">
                 </video>
                 <!-- Mobile Background Video -->
                 <video autoplay loop muted playsinline class="block lg:hidden absolute top-0 left-0 w-full h-full object-cover z-0 pointer-events-none">
-                    <source src="https://res.cloudinary.com/dnfbik3if/video/upload/v1783682874/Animated_blinking_smiling_face_202607101656_iooai6.mp4" type="video/mp4">
+                    <source src="<?php echo htmlspecialchars($mobile_video_url); ?>" type="video/mp4">
                 </video>
  
                 <!-- Content Container (Top Aligned) -->
                 <div class="max-w-4xl mx-auto relative z-20 w-full flex flex-col items-center animate-fade-in-up">
-                    <div class="mb-4">
-                        <img src="assests/logo.jpeg" alt="LMS Logo" class="h-16 w-auto object-contain rounded-lg shadow-sm">
-                    </div>
+                    <!--<div class="mb-2 sm:mb-3">-->
+                    <!--    <img src="assests/logo.jpeg" alt="LMS Logo" class="h-10 sm:h-12 w-auto object-contain mix-blend-multiply">-->
+                    <!--</div>-->
 
-                    <h1 class="text-2xl sm:text-4xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight mb-2 sm:mb-4">
-                        ආයුබෝවන්!!
+                    <h1 id="hero-greeting" class="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight mb-1.5 sm:mb-3 transition-all duration-300 transform inline-block sl-flag-gradient">
+                        ආයුබෝවන්!
                     </h1>
 
-                    <p class="text-[11px] sm:text-base lg:text-lg text-slate-800 max-w-3xl mx-auto mb-4 sm:mb-8 font-semibold leading-relaxed">
-                        ලංකාවේ සාර්ථකම online ඇකඩමියට ඔබව සාදරයෙන් පිළිගන්නවා. ඔබ දැනටමත් කුමන හෝ පාඨමාලාවක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password නිවැරදිව ලබා දී Login වෙන්න.
-                    </p>
+                    <div class="text-[11px] sm:text-sm lg:text-[15px] text-slate-800 max-w-2xl mx-auto mb-2.5 sm:mb-4 leading-normal sm:leading-relaxed space-y-1 sm:space-y-1.5 font-semibold px-2">
+                        <p>
+                            ලංකාවේ සාර්ථකම Online ඇකඩමිය, Lernerr.LK වෙත ඔබව සාදරයෙන් පිළිගන්නවා.<br> 
+                            ඔබ දැනටමත් අපගේ කුමන හෝ පාඨමාලාවක්/විෂයක් සඳහා ලියාපදිංචි වී ඇත්නම් ඔබගේ දුරකතන අංකය හා Password එක නිවැරදිව ලබා දී Login වෙන්න.
+                        </p>
+                        <p class="text-[10px] sm:text-xs text-slate-600 font-medium">
+                            If you are a registered student, Please use your Mobile Number and Password.<br>
+                            If you are New to here, Please Click 'Register Now'.
+                        </p>
+                    </div>
  
                     <!-- Sleek Form with Pill Inputs and Buttons -->
-                    <form action="auth.php" method="POST" class="w-full max-w-2xl mx-auto px-4 flex flex-col items-center gap-2 sm:gap-4">
+                    <form action="auth.php" method="POST" class="w-full max-w-2xl mx-auto px-4 flex flex-col items-center gap-2 sm:gap-3">
+                        <!-- Teacher Registration Pending Notice -->
+                        <?php if ($teacher_registered): ?>
+                            <div class="w-full max-w-md bg-emerald-50 text-emerald-900 px-4 py-3 border border-emerald-200 rounded-2xl flex items-start gap-3 text-left shadow-sm">
+                                <i class="fab fa-whatsapp text-emerald-600 text-lg mt-0.5 shrink-0"></i>
+                                <div class="text-xs">
+                                    <div class="font-extrabold text-emerald-950">Registration Pending Review</div>
+                                    <div class="text-emerald-800 text-[11px] mt-0.5 leading-snug">
+                                        Your registration is pending approval. Once our team accepts your registration, we will notify you via WhatsApp.
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                         <!-- Error/Success Messages -->
                         <?php if (!empty($error_message)): ?>
-                            <div class="w-full max-w-md bg-red-50 text-red-700 px-4 py-2.5 border border-red-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
+                            <div class="w-full max-w-md bg-red-50 text-red-700 px-4 py-2 border border-red-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
                                 <i class="fas fa-exclamation-circle text-red-500"></i>
                                 <span><?php echo htmlspecialchars($error_message); ?></span>
                             </div>
                         <?php endif; ?>
                         <?php if (!empty($success_message)): ?>
-                            <div class="w-full max-w-md bg-emerald-50 text-emerald-700 px-4 py-2.5 border border-emerald-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
+                            <div class="w-full max-w-md bg-emerald-50 text-emerald-700 px-4 py-2 border border-emerald-200 rounded-full flex items-center justify-center gap-2 text-xs font-bold shadow-sm">
                                 <i class="fas fa-check-circle text-emerald-500"></i>
                                 <span><?php echo htmlspecialchars($success_message); ?></span>
                             </div>
@@ -431,28 +514,28 @@ if (!function_exists('format_html_color')) {
                         <!-- Inputs Row -->
                         <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full justify-center">
                             <!-- Phone Number Input Styled as a Pill -->
-                            <div class="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-2.5 sm:px-5 sm:py-3 w-full sm:w-64 hover:border-slate-300 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all shadow-sm">
-                                <i class="fas fa-phone-alt text-slate-400 mr-3 text-sm"></i>
-                                <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-semibold text-xs sm:text-sm placeholder-slate-400">
+                            <div class="relative flex items-center bg-slate-50/90 hover:bg-white border-2 border-slate-300 hover:border-slate-400 rounded-full px-4 py-2 sm:px-4 sm:py-2.5 w-full sm:w-60 focus-within:border-red-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-red-100 transition-all shadow-sm">
+                                <i class="fas fa-phone-alt text-slate-500 mr-2.5 text-xs sm:text-sm"></i>
+                                <input type="text" name="identifier" required placeholder="Mobile Number" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-900 font-semibold text-xs sm:text-sm placeholder-slate-500">
                             </div>
                             
                             <!-- Password Input Styled as a Pill -->
-                            <div class="relative flex items-center bg-white border border-slate-200 rounded-full px-4 py-2.5 sm:px-5 sm:py-3 w-full sm:w-64 hover:border-slate-300 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-100 transition-all shadow-sm">
-                                <i class="fas fa-lock text-slate-400 mr-3 text-sm"></i>
-                                <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 font-semibold text-xs sm:text-sm placeholder-slate-400">
+                            <div class="relative flex items-center bg-slate-50/90 hover:bg-white border-2 border-slate-300 hover:border-slate-400 rounded-full px-4 py-2 sm:px-4 sm:py-2.5 w-full sm:w-60 focus-within:border-red-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-red-100 transition-all shadow-sm">
+                                <i class="fas fa-lock text-slate-500 mr-2.5 text-xs sm:text-sm"></i>
+                                <input type="password" name="password" required placeholder="Password" class="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-slate-900 font-semibold text-xs sm:text-sm placeholder-slate-500">
                             </div>
                         </div>
 
                         <!-- Actions Row -->
-                        <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full justify-center mt-1 sm:mt-2">
+                        <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full justify-center mt-1">
                             <!-- Login Button (Primary Pill) -->
-                            <button type="submit" name="login" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
+                            <button type="submit" name="login" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs sm:text-sm px-6 py-2 sm:px-7 sm:py-2.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
                                 <span>Login Now</span>
                                 <i class="fas fa-arrow-right text-xs"></i>
                             </button>
                             
                             <!-- Register Button (Secondary Pill) -->
-                            <a href="student_registration" class="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs sm:text-sm px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]">
+                            <a href="student_registration" class="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-6 py-2 sm:px-7 sm:py-2.5 rounded-full transition-all flex items-center justify-center gap-2 w-full sm:w-auto shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]">
                                 <span>Register Now</span>
                             </a>
                         </div>
@@ -461,25 +544,25 @@ if (!function_exists('format_html_color')) {
             </section>
 
             <!-- Stats Section -->
-            <section class="min-h-[40vh] flex flex-col justify-center bg-slate-100 relative z-20">
+            <section class="py-10 sm:py-14 md:py-20 flex flex-col justify-center bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-800 relative z-20">
                 <div class="w-full mx-auto px-4 sm:px-6 lg:px-8">
-                    <div class="grid grid-cols-3 gap-4 md:gap-8 text-center">
-                        <div class="stat-item p-4">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
-                                id="student-count">1000+</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Total
+                    <div class="grid grid-cols-3 gap-2 sm:gap-4 md:gap-8 text-center">
+                        <div class="stat-item p-3 sm:p-4">
+                            <h2 class="text-3xl sm:text-5xl md:text-8xl font-black text-white tracking-tighter mb-1.5 sm:mb-2"
+                                id="student-count">0</h2>
+                            <p class="text-[9px] sm:text-[10px] md:text-xs font-black text-emerald-100 uppercase tracking-[0.2em] sm:tracking-[0.3em]">Total
                                 Students</p>
                         </div>
-                        <div class="stat-item p-4 border-x border-slate-200">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
-                                id="teacher-count">10</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Expert
+                        <div class="stat-item p-3 sm:p-4 border-x border-white/20">
+                            <h2 class="text-3xl sm:text-5xl md:text-8xl font-black text-white tracking-tighter mb-1.5 sm:mb-2"
+                                id="teacher-count">0</h2>
+                            <p class="text-[9px] sm:text-[10px] md:text-xs font-black text-emerald-100 uppercase tracking-[0.2em] sm:tracking-[0.3em]">Expert
                                 Teachers</p>
                         </div>
-                        <div class="stat-item p-4">
-                            <h2 class="text-4xl md:text-8xl font-black text-slate-900 tracking-tighter mb-2"
-                                id="course-count">10</h2>
-                            <p class="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Active
+                        <div class="stat-item p-3 sm:p-4">
+                            <h2 class="text-3xl sm:text-5xl md:text-8xl font-black text-white tracking-tighter mb-1.5 sm:mb-2"
+                                id="course-count">0</h2>
+                            <p class="text-[9px] sm:text-[10px] md:text-xs font-black text-emerald-100 uppercase tracking-[0.2em] sm:tracking-[0.3em]">Active
                                 Courses</p>
                         </div>
                     </div>
@@ -487,18 +570,47 @@ if (!function_exists('format_html_color')) {
             </section>
 
             <script>
+                // Multilingual Rotating Greeting (Ayubowan, Welcome, Wanakkam)
+                document.addEventListener('DOMContentLoaded', () => {
+                    const greetings = ["ආයුබෝවන්!", "Welcome!", "வணக்கம்!"];
+                    let greetingIndex = 0;
+                    const greetingEl = document.getElementById("hero-greeting");
+
+                    if (greetingEl) {
+                        setInterval(() => {
+                            greetingEl.style.opacity = '0';
+                            greetingEl.style.transform = 'translateY(-6px)';
+                            
+                            setTimeout(() => {
+                                greetingIndex = (greetingIndex + 1) % greetings.length;
+                                greetingEl.textContent = greetings[greetingIndex];
+                                greetingEl.style.transform = 'translateY(6px)';
+                                
+                                setTimeout(() => {
+                                    greetingEl.style.opacity = '1';
+                                    greetingEl.style.transform = 'translateY(0)';
+                                }, 50);
+                            }, 250);
+                        }, 2000);
+                    }
+                });
+
                 function animateValue(id, start, end, duration) {
                     const obj = document.getElementById(id);
                     if (!obj) return;
+                    if (end === 0) {
+                        obj.innerHTML = '0';
+                        return;
+                    }
                     const startTimestamp = performance.now();
                     const animate = (timestamp) => {
                         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                         const current = Math.floor(progress * (end - start) + start);
-                        obj.innerHTML = current + (id === 'student-count' ? '+' : '');
+                        obj.innerHTML = current;
                         if (progress < 1) {
                             window.requestAnimationFrame(animate);
                         } else {
-                            obj.innerHTML = end + (id === 'student-count' ? '+' : '');
+                            obj.innerHTML = end;
                         }
                     };
                     window.requestAnimationFrame(animate);
@@ -508,9 +620,9 @@ if (!function_exists('format_html_color')) {
                     const observer = new IntersectionObserver((entries) => {
                         entries.forEach(entry => {
                             if (entry.isIntersecting) {
-                                animateValue("student-count", 1000, 1000 + <?php echo $db_student_count; ?>, 600);
-                                animateValue("teacher-count", 10, 20 + <?php echo $db_teacher_count; ?>, 600);
-                                animateValue("course-count", 10, <?php echo $db_course_count; ?>, 600);
+                                animateValue("student-count", 0, <?php echo $db_student_count; ?>, 600);
+                                animateValue("teacher-count", 0, <?php echo $db_teacher_count; ?>, 600);
+                                animateValue("course-count", 0, <?php echo $db_course_count; ?>, 600);
                                 observer.unobserve(entry.target);
                             }
                         });
@@ -519,182 +631,249 @@ if (!function_exists('format_html_color')) {
                     observer.observe(document.querySelector('.stat-item'));
                 });
             </script>
-
-            <!-- Gold Testimonial/Feedback Section -->
-            <section class="relative bg-amber-500 overflow-hidden py-16 lg:py-24 z-20">
-                <!-- Abstract Decorative Elements to Match reference design -->
-                <div class="absolute bottom-0 left-0 w-64 h-64 bg-orange-600/20 rounded-full blur-2xl -translate-x-12 translate-y-12"></div>
-                <div class="absolute top-0 right-0 w-80 h-80 bg-yellow-400/30 rounded-full blur-3xl -translate-y-24 translate-x-24"></div>
-                
-                <div class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                        
-                        <!-- Left Side: Feedback Text & Action -->
-                        <div class="lg:col-span-7 text-left text-white animate-fade-in-up">
-                            <span class="inline-block bg-slate-900 text-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] mb-4">
-                                Student Feedback
-                            </span>
-                            
-                            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-semibold text-slate-900 leading-tight mb-6 uppercase tracking-tight">
-                                "මගේ A/L සිහිනය සැබෑ කරගන්න මේ පන්තිය සහ සර්ගේ නිවැරදි මඟපෙන්වීම මහත් රුකුලක් වුණා!"
-                            </h2>
-                            
-                            <div class="h-1 w-20 bg-slate-900 mb-6 rounded-full"></div>
-                            
-                            <p class="text-slate-900/90 text-sm sm:text-base font-semibold leading-relaxed mb-8 max-w-2xl">
-                                Lernerr.LK හරහා ක්‍රමානුකූලව සහ සරලව විෂය කරුණු ඉගෙනීමෙන්, පසුගිය උසස් පෙළ විභාගයෙන් දිස්ත්‍රික් මට්ටමේ මෙන්ම දිවයිනේ ඉහළම ප්‍රතිඵල ලබා ගැනීමට අපගේ සිසුන් විශාල පිරිසක් සමත් වී ඇත. ඔවුන්ගේ සාර්ථකත්වයේ හඬ ඔබත් අත්දකින්න.
-                            </p>
-                            
-                            <!-- Navigate to ALDetails.php button -->
-                            <a href="dashboard/ALDetails" class="inline-flex items-center gap-3 bg-slate-900 text-white px-8 py-4 font-medium text-xs uppercase tracking-widest hover:bg-slate-800 hover:scale-105 active:scale-95 transition-all shadow-lg shadow-slate-900/20 group">
-                                <span>සියලුම ප්‍රතිඵල බලන්න / View More Results</span>
-                                <i class="fas fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
-                            </a>
-                        </div>
-
-                        <!-- Right Side: Student Photo -->
-                        <div class="lg:col-span-5 flex justify-center lg:justify-end animate-fade-in-up" style="animation-delay: 0.15s;">
-                            <div class="relative w-full max-w-sm sm:max-w-md">
-                                <!-- Background Decorative Frame to mimic reference -->
-                                <div class="absolute inset-0 bg-yellow-400 rounded-2xl transform rotate-3 shadow-lg"></div>
-                                
-                                <!-- Student Image -->
-                                <div class="relative bg-amber-100 rounded-2xl overflow-hidden border-4 border-white shadow-2xl aspect-[4/5] sm:aspect-[3/4]">
-                                    <img src="assests/smiling_student.png" alt="Smiling Student" class="w-full h-full object-cover">
-                                </div>
-                                
-                                <!-- Bubble Message "Hello" (like reference image) -->
-                                <div class="absolute -top-6 -right-6 bg-white text-slate-800 px-6 py-3 rounded-full shadow-2xl border border-amber-200 transform rotate-12 flex items-center gap-2">
-                                    <span class="text-sm font-black text-red-600">A/L A3!</span>
-                                    <i class="fas fa-graduation-cap text-slate-800 text-xs"></i>
-                                </div>
-                                
-                                <!-- Success tag -->
-                                <div class="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span>District Rank 02</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
-
         <?php else: ?>
-            <!-- Enhanced Welcome & Stats Section for Logged In Users -->
-            <div class="section-welcome pt-28 pb-12">
-                <div class="max-w-[1400px] mx-auto px-4 animate-fade-in-up">
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        <!-- Welcome Card -->
-                        <div
-                            class="<?php echo $role === 'teacher' ? 'lg:col-span-12' : 'lg:col-span-4'; ?> bg-white rounded-none shadow-xl p-8 border border-slate-100 relative overflow-hidden h-full flex flex-col justify-between group">
-                            <!-- Premium Background Blobs -->
-                            <div class="absolute -top-12 -right-12 w-36 h-36 bg-red-50 rounded-none blur-3xl opacity-60 group-hover:scale-125 transition-transform duration-700"></div>
-                            
-                            <div class="relative z-10">
-                                <!-- User Avatar Initials Circle -->
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div class="w-14 h-14 bg-gradient-to-tr from-red-500 to-red-600 rounded-none flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-red-500/25">
+            <!-- Clean White Welcome Banner for Logged In Users -->
+            <div class="section-welcome pt-24 sm:pt-28 pb-4 sm:pb-6">
+                <div class="max-w-[1400px] mx-auto px-3 sm:px-4 animate-fade-in-up">
+                    <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-sm sm:shadow-md border border-slate-200 relative overflow-hidden text-slate-900">
+                        
+                        <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
+                            <!-- Left: User Avatar & Greeting -->
+                            <div class="flex items-start sm:items-center gap-3 sm:gap-5 w-full md:w-auto">
+                                <div class="relative shrink-0 mt-0.5 sm:mt-0">
+                                    <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-white border-2 border-red-600 flex items-center justify-center text-red-600 font-extrabold text-lg sm:text-2xl uppercase shadow-xs">
                                         <?php 
                                             $user_fullname = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['second_name'] ?? ''));
                                             echo get_initials($user_fullname ?: 'User'); 
                                         ?>
                                     </div>
-                                    <div>
-                                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block"><?php echo $role === 'teacher' ? 'Teacher Account' : 'Student Account'; ?></span>
-                                        <span class="block text-xs font-bold text-slate-500 mt-0.5"><?php echo $role === 'teacher' ? 'Teacher ID' : 'Student ID'; ?>: <?php echo $user_id; ?></span>
+                                    <span class="absolute bottom-0 right-0 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-emerald-500 border-2 border-white rounded-full"></span>
+                                </div>
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-1.5 sm:gap-2.5 mb-1 flex-wrap">
+                                        <span class="bg-red-600 text-white text-[10px] sm:text-xs font-extrabold uppercase tracking-wide px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg shadow-xs">
+                                            <?php 
+                                                if (in_array($role, ['admin', 'super_admin'])) {
+                                                    echo 'Administrator';
+                                                } elseif ($role === 'teacher') {
+                                                    echo 'Teacher Account';
+                                                } elseif ($role === 'instructor') {
+                                                    echo 'Instructor Account';
+                                                } else {
+                                                    echo 'Student Account';
+                                                }
+                                            ?>
+                                        </span>
+                                        <span class="text-slate-700 text-[10px] sm:text-xs font-bold bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-md sm:rounded-lg border border-slate-200">ID: <?php echo htmlspecialchars($user_id); ?></span>
                                     </div>
+                                    <h1 class="text-base sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 leading-snug break-words">
+                                        සුබ දවසක්, <span class="text-red-600"><?php echo htmlspecialchars($user_fullname ?: 'User'); ?>!</span> 👋
+                                    </h1>
+                                    <p class="text-slate-600 text-xs sm:text-sm mt-0.5 sm:mt-1 font-medium">
+                                        <?php if (in_array($role, ['admin', 'super_admin'])): ?>
+                                            Lernerr.LK පරිපාලන පද්ධතිය වෙත සාදරයෙන් පිළිගනිමු.
+                                        <?php else: ?>
+                                            Lernerr.LK වෙත නැවත සාදරයෙන් පිළිගනිමු
+                                        <?php endif; ?>
+                                    </p>
                                 </div>
-
-                                <h1 class="text-3xl font-black text-slate-900 leading-tight tracking-tight">
-                                    ආයුබෝවන්, <br>
-                                    <span class="text-red-600 font-black">
-                                        <?php echo htmlspecialchars($user_fullname ?: 'User'); ?>!
-                                    </span>
-                                </h1>
                             </div>
 
-                            <div class="relative z-10 mt-8">
-                                <a href="dashboard/profile"
-                                    class="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-none shadow-lg shadow-red-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                                    <span>Go to Profile</span>
-                                    <i class="fas fa-chevron-right text-[10px]"></i>
-                                </a>
+                            <!-- Right: Action Buttons (Red Border, 2-column on mobile, flex on desktop) -->
+                            <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full md:w-auto shrink-0 pt-2 sm:pt-0 border-t border-slate-100 md:border-t-0">
+                                <?php if (in_array($role, ['admin', 'super_admin'])): ?>
+                                    <a href="admin/dashboard.php"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-gauge-high text-xs sm:text-sm"></i>
+                                        <span class="truncate">Admin Dashboard</span>
+                                    </a>
+                                    <a href="dashboard/profile"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-user-circle text-xs sm:text-sm"></i>
+                                        <span class="truncate">My Profile</span>
+                                    </a>
+                                <?php elseif ($role === 'teacher'): ?>
+                                    <a href="dashboard/profile"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-user-circle text-xs sm:text-sm"></i>
+                                        <span class="truncate">Go to Profile</span>
+                                    </a>
+                                    <a href="dashboard/live_classes"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-chalkboard-teacher text-xs sm:text-sm"></i>
+                                        <span class="truncate">Live Classes</span>
+                                    </a>
+                                <?php else: ?>
+                                    <a href="dashboard/profile"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-user-circle text-xs sm:text-sm"></i>
+                                        <span class="truncate">Go to Profile</span>
+                                    </a>
+                                    <a href="dashboard/recordings"
+                                       class="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 font-extrabold text-[11px] sm:text-xs uppercase tracking-wider rounded-xl border-2 border-red-600 shadow-xs transition-all active:scale-95 text-center">
+                                        <i class="fas fa-book-reader text-xs sm:text-sm"></i>
+                                        <span class="truncate">My Lessons</span>
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         </div>
-
-                        <?php if ($role !== 'teacher'): ?>
-                        <!-- Stats Grid -->
-                        <div class="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <!-- Enrolled Classes -->
-                            <div
-                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div
-                                    class="w-10 h-10 bg-blue-50 text-blue-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-book-reader"></i>
-                                </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Enrolled
-                                    Classes</p>
-                                <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_count; ?></h3>
-                                <a href="dashboard/recordings"
-                                    class="inline-block mt-4 text-[9px] font-black text-blue-600 uppercase tracking-wider hover:underline">View
-                                    Lessons</a>
-                            </div>
-
-                            <!-- Pending Payments -->
-                            <div
-                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div
-                                    class="w-10 h-10 bg-red-50 text-red-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-wallet"></i>
-                                </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Due Payments
-                                </p>
-                                <h3 class="text-2xl font-black text-slate-900"><?php echo $pending_payments_count; ?></h3>
-                                <a href="dashboard/payments"
-                                    class="inline-block mt-4 text-[9px] font-black text-red-600 uppercase tracking-wider hover:underline">Pay
-                                    Now</a>
-                            </div>
-
-                            <!-- Upcoming Exams -->
-                            <div
-                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div
-                                    class="w-10 h-10 bg-amber-50 text-amber-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-file-signature"></i>
-                                </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available
-                                    Exams</p>
-                                <h3 class="text-2xl font-black text-slate-900"><?php echo $upcoming_exams_count; ?></h3>
-                                <a href="dashboard/exam_center"
-                                    class="inline-block mt-4 text-[9px] font-black text-amber-600 uppercase tracking-wider hover:underline">Go
-                                    to Center</a>
-                            </div>
-
-                            <!-- Extra Courses -->
-                            <div
-                                class="bg-white rounded-none p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div
-                                    class="w-10 h-10 bg-purple-50 text-purple-600 rounded-none flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                    <i class="fas fa-graduation-cap"></i>
-                                </div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">My Courses
-                                </p>
-                                <h3 class="text-2xl font-black text-slate-900"><?php echo $enrolled_courses_count; ?></h3>
-                                <a href="dashboard/online_courses"
-                                    class="inline-block mt-4 text-[9px] font-black text-purple-600 uppercase tracking-wider hover:underline">Explore
-                                    More</a>
-                            </div>
-                        </div>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>
         <?php endif; ?>
 
+        <!-- Result Poster / Marketing Banner Section (16:9 Full Width Edge-to-Edge) -->
+        <?php if (!empty($result_poster_desktop) || !empty($result_poster_mobile)): ?>
+            <?php 
+                $desktop_img = !empty($result_poster_desktop) ? $result_poster_desktop : $result_poster_mobile;
+                $mobile_img  = !empty($result_poster_mobile)  ? $result_poster_mobile  : $result_poster_desktop;
+            ?>
+            <section class="relative w-full overflow-hidden bg-slate-950 z-20 p-0 m-0">
+                <a href="dashboard/ALDetails" class="block w-full group relative overflow-hidden">
+                    <!-- Desktop Poster Image (16:9 full width) -->
+                    <img src="<?php echo htmlspecialchars($desktop_img); ?>" 
+                         alt="Marketing Banner" 
+                         class="hidden md:block w-full aspect-[16/9] object-cover mx-auto group-hover:scale-[1.005] transition-transform duration-300">
+                    <!-- Mobile Poster Image (Facebook Portrait Full Width) -->
+                    <img src="<?php echo htmlspecialchars($mobile_img); ?>" 
+                         alt="Marketing Banner" 
+                         class="block md:hidden w-full h-auto object-cover mx-auto">
+                </a>
+            </section>
+        <?php endif; ?>
 
+    <!-- Social Media Community & Student Showcase Section -->
+    <section class="py-8 sm:py-14 md:py-20 bg-gradient-to-b from-slate-50 via-white to-slate-50 text-slate-900 relative overflow-hidden border-t border-slate-200">
+        <!-- Desktop Background Image (Children Peeking) -->
+        <div class="hidden md:block absolute inset-0 w-full h-full bg-no-repeat pointer-events-none z-0" 
+             style="background-image: url('https://res.cloudinary.com/dnfbik3if/image/upload/v1791439520/Children_peeking_from_image_corners_20261008113509_xgmhtl.jpg'); background-size: 100% 100%; background-position: center top;">
+        </div>
 
+        <!-- Mobile Background Image (Children Peeking) -->
+        <div class="block md:hidden absolute top-0 left-0 right-0 h-64 bg-no-repeat pointer-events-none z-0" 
+             style="background-image: url('https://res.cloudinary.com/dnfbik3if/image/upload/v1791439559/Children_peeking_from_image_corners_20261008113552_shjrev.jpg'); background-size: 100% auto; background-position: top center;">
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <!-- Section Header: Social Channels -->
+            <div class="text-center max-w-3xl mx-auto mb-6 sm:mb-10 px-4 pt-32 sm:pt-20 md:pt-0">
+                <h2 class="text-xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-snug px-4 sm:px-0">
+                    අපගේ සමාජ මාධ්‍ය ජාලයන් හා එක්වන්න
+                </h2>
+                <p class="text-slate-600 text-xs sm:text-base font-medium mt-2 leading-relaxed max-w-xl mx-auto">
+                    නවතම පන්ති තොරතුරු, නොමිලේ සම්මන්ත්‍රණ, කෙටි සටහන් සහ විභාග මගපෙන්වීම් ලබාගැනීමට අපගේ නිල පිටු සමඟ එක්වන්න.
+                </p>
+            </div>
+
+            <!-- Social Media Cards Grid (4 Clean Cards) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-0">
+                <!-- YouTube Card -->
+                <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 hover:border-red-500 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between items-center text-center group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                            <i class="fab fa-youtube text-2xl sm:text-3xl"></i>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-0.5">YouTube</h3>
+                        <div class="text-xs sm:text-sm font-extrabold text-red-600 mb-1.5">10,000+ Subscribers</div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed mb-4 sm:mb-6 font-medium">
+                            Sameera Perera Official<br>නොමිලේ සම්මන්ත්‍රණ සහ වීඩියෝ පාඩම්
+                        </p>
+                    </div>
+                    <a href="https://www.youtube.com/@sameerapereraofficial" target="_blank" rel="noopener noreferrer" 
+                       class="inline-flex items-center justify-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-red-600/20">
+                        <i class="fab fa-youtube text-sm"></i>
+                        <span>Subscribe</span>
+                    </a>
+                </div>
+
+                <!-- Facebook Card -->
+                <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 hover:border-blue-500 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between items-center text-center group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                            <i class="fab fa-facebook-f text-2xl sm:text-3xl"></i>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-0.5">Facebook</h3>
+                        <div class="text-xs sm:text-sm font-extrabold text-blue-600 mb-1.5">Lernerr.LK Official</div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed mb-4 sm:mb-6 font-medium">
+                            නිල ෆේස්බුක් පිටුව<br>නවතම පන්ති නිවේදන සහ කාලසටහන්
+                        </p>
+                    </div>
+                    <a href="https://web.facebook.com/lernerrlk" target="_blank" rel="noopener noreferrer" 
+                       class="inline-flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 sm:py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-blue-600/20">
+                        <i class="fab fa-facebook-f text-sm"></i>
+                        <span>Follow Page</span>
+                    </a>
+                </div>
+
+                <!-- TikTok Card -->
+                <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 hover:border-slate-800 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between items-center text-center group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-900 mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                            <i class="fab fa-tiktok text-2xl sm:text-3xl"></i>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-0.5">TikTok</h3>
+                        <div class="text-xs sm:text-sm font-extrabold text-slate-800 mb-1.5">Shorts & Study Tips</div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed mb-4 sm:mb-6 font-medium">
+                            @sameerapereraofficial<br>විභාග කෙටි ක්‍රම සහ Motivation
+                        </p>
+                    </div>
+                    <a href="https://www.tiktok.com/@sameerapereraofficial?_r=1&_t=ZS-9A1xZeJEmM0" target="_blank" rel="noopener noreferrer" 
+                       class="inline-flex items-center justify-center gap-2 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 sm:py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-slate-900/20">
+                        <i class="fab fa-tiktok text-sm"></i>
+                        <span>Follow TikTok</span>
+                    </a>
+                </div>
+
+                <!-- WhatsApp Card -->
+                <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 hover:border-emerald-500 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between items-center text-center group">
+                    <div class="flex flex-col items-center">
+                        <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 mb-3 sm:mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                            <i class="fab fa-whatsapp text-2xl sm:text-3xl"></i>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-0.5">WhatsApp</h3>
+                        <div class="text-xs sm:text-sm font-extrabold text-emerald-600 mb-1.5">+94 70 460 7707</div>
+                        <p class="text-[11px] sm:text-xs text-slate-500 leading-relaxed mb-4 sm:mb-6 font-medium">
+                            ක්ෂණික සහය හා විමසීම්<br>පන්ති සම්බන්ධීකරණය
+                        </p>
+                    </div>
+                    <a href="https://wa.me/94704607707" target="_blank" rel="noopener noreferrer" 
+                       class="inline-flex items-center justify-center gap-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 sm:py-2.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-emerald-600/20">
+                        <i class="fab fa-whatsapp text-sm"></i>
+                        <span>Chat on WhatsApp</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Student Images Showcase Section -->
+    <section class="py-2 sm:py-6 md:py-10 bg-white relative overflow-hidden">
+        <div class="w-full max-w-[1400px] mx-auto px-0 sm:px-4 md:px-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6 w-full">
+                <!-- Showcase Image 1 -->
+                <div class="w-full overflow-hidden sm:rounded-2xl shadow-sm sm:shadow-md">
+                    <!-- Desktop Version -->
+                    <img src="<?php echo htmlspecialchars($showcase_img1_desktop); ?>" alt="Student Showcase" 
+                         class="hidden md:block w-full h-auto object-cover hover:scale-[1.02] transition-transform duration-300">
+                    <!-- Mobile Version -->
+                    <img src="<?php echo htmlspecialchars($showcase_img1_mobile); ?>" alt="Student Showcase" 
+                         class="block md:hidden w-full h-auto object-cover hover:scale-[1.02] transition-transform duration-300">
+                </div>
+                <!-- Showcase Image 2 -->
+                <div class="w-full overflow-hidden sm:rounded-2xl shadow-sm sm:shadow-md">
+                    <!-- Desktop Version -->
+                    <img src="<?php echo htmlspecialchars($showcase_img2_desktop); ?>" alt="Student Showcase" 
+                         class="hidden md:block w-full h-auto object-cover hover:scale-[1.02] transition-transform duration-300">
+                    <!-- Mobile Version -->
+                    <img src="<?php echo htmlspecialchars($showcase_img2_mobile); ?>" alt="Student Showcase" 
+                         class="block md:hidden w-full h-auto object-cover hover:scale-[1.02] transition-transform duration-300">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <?php if (false): // Sections hidden as requested ?>
     <!-- Available Classes Section -->
     <?php 
     $classes_bg_color = format_html_color($dashboard_colors['classes']['bg_color'] ?? 'bg-amber-200/80');
@@ -722,11 +901,22 @@ if (!function_exists('format_html_color')) {
                     <p class="text-white/80 text-[10px] md:text-xs font-semibold mt-4">ලියාපදිංචි වීමට Enroll Now click කරන්න</p>
                 </div>
 
-                <div class="flex items-center w-full md:w-auto">
+                <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full md:w-auto">
+                    <!-- Exam Year (Academic Year) Filter -->
+                    <div class="relative flex items-center bg-white rounded-full shadow-sm border border-slate-300 hover:border-slate-400 px-3.5 py-2 transition-all duration-300">
+                        <i class="fas fa-calendar-alt text-slate-500 text-xs mr-2"></i>
+                        <select id="examYearFilter" onchange="searchAndFilter()" class="bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-xs font-extrabold text-slate-800 p-0 cursor-pointer">
+                            <option value="all">All Exam Years</option>
+                            <?php foreach ($available_academic_years as $yr): ?>
+                                <option value="<?php echo $yr; ?>"><?php echo $yr; ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
                     <!-- Cohesive Search Input -->
                     <div class="relative flex items-center bg-white rounded-full shadow-sm border border-slate-300 hover:border-slate-400 px-3.5 py-2 w-full sm:w-64 transition-all duration-300">
                         <i class="fas fa-search text-slate-500 text-xs mr-2"></i>
-                        <input type="text" id="classSearch" oninput="searchAndFilter()" placeholder="Search subject or teacher..." 
+                        <input type="text" id="classSearch" oninput="searchAndFilter()" placeholder="Search class, subject, teacher..." 
                             class="bg-transparent border-none outline-none focus:outline-none focus:ring-0 w-full text-xs font-semibold text-slate-800 placeholder-slate-500 p-0">
                     </div>
                 </div>
@@ -808,48 +998,57 @@ if (!function_exists('format_html_color')) {
                             <div <?php echo $style_attr; ?> 
                                 data-subject="<?php echo htmlspecialchars($class['subject_name'], ENT_QUOTES); ?>" 
                                 data-teacher="<?php echo htmlspecialchars($class['teacher_name'], ENT_QUOTES); ?>" 
+                                data-batch="<?php echo htmlspecialchars($class['batch_name'] ?? '', ENT_QUOTES); ?>"
+                                data-year="<?php echo htmlspecialchars($class['academic_year'] ?? '', ENT_QUOTES); ?>"
                                 class="bg-white rounded-none shadow-md hover:shadow-2xl hover:z-20 transform hover:scale-[1.03] transition-all duration-300 overflow-hidden border border-slate-900/5 flex flex-col class-card stream-<?php echo $stream_id; ?> <?php echo $isHidden ? 'hidden-card' : ''; ?> <?php echo $isMobileHidden ? 'mobile-hidden' : ''; ?>">
                                 <!-- Cover Image with Facebook Post Aspect Ratio (1.91:1) -->
                                 <div class="relative aspect-[1.91/1] w-full overflow-hidden border-b border-slate-900/5 bg-white">
                                     <?php if ($class['cover_image']): ?>
                                         <img src="<?php echo htmlspecialchars($class['cover_image']); ?>"
-                                            alt="<?php echo htmlspecialchars($class['subject_name']); ?>"
+                                            alt="<?php echo htmlspecialchars($class['batch_name'] ?: $class['subject_name']); ?>"
                                             class="w-full h-full object-cover">
                                     <?php else: ?>
                                         <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br <?php echo get_fallback_gradient($class['subject_name']); ?> px-4 text-center">
-                                            <span class="text-sm md:text-base font-black text-white leading-tight drop-shadow-md select-none"><?php echo htmlspecialchars($class['subject_name']); ?></span>
+                                            <span class="text-sm md:text-base font-black text-white leading-tight drop-shadow-md select-none"><?php echo htmlspecialchars($class['batch_name'] ?: $class['subject_name']); ?></span>
                                         </div>
                                     <?php endif; ?>
                                     <div
-                                        class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1 text-[9px] font-extrabold text-white uppercase tracking-wider">
+                                        class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 text-[10px] font-extrabold text-white uppercase tracking-wider rounded-md shadow-sm">
                                         <?php echo htmlspecialchars($stream_data['stream_name']); ?>
                                     </div>
                                 </div>
 
                                 <div class="p-5 flex-1 flex flex-col justify-between">
                                     <div>
-                                        <!-- Subject Name -->
-                                        <h3 class="text-lg font-semibold text-slate-900 mb-3 leading-tight truncate"
-                                            title="<?php echo htmlspecialchars($class['subject_name']); ?>">
-                                            <?php echo htmlspecialchars($class['subject_name']); ?>
+                                        <!-- Name of the Class / Enroll Name -->
+                                        <h3 class="text-base md:text-lg font-black text-slate-900 mb-1.5 leading-snug truncate"
+                                            title="<?php echo htmlspecialchars($class['batch_name'] ?: $class['subject_name']); ?>">
+                                            <?php echo htmlspecialchars($class['batch_name'] ?: $class['subject_name']); ?>
                                         </h3>
 
-                                        <!-- Instructor Row -->
-                                        <div class="flex items-center mb-4">
+                                        <!-- Subject Name - Year -->
+                                        <div class="mb-3">
+                                            <span class="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100/80 inline-block truncate max-w-full">
+                                                <i class="fas fa-book text-[10px] mr-1 text-blue-500"></i>
+                                                <?php echo htmlspecialchars($class['subject_name']); ?><?php echo !empty($class['academic_year']) ? ' - ' . htmlspecialchars($class['academic_year']) : ''; ?>
+                                            </span>
+                                        </div>
+
+                                        <!-- Instructor Row (Highlighted) -->
+                                        <div class="flex items-center p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/60 mb-4 shadow-xs">
                                             <?php if ($class['teacher_image']): ?>
                                                 <img src="<?php echo htmlspecialchars($class['teacher_image']); ?>"
-                                                    class="w-9 h-9 rounded-none border border-slate-900/10 object-cover mr-3">
+                                                    class="w-10 h-10 rounded-full ring-2 ring-blue-500/30 object-cover mr-3 shrink-0 shadow-sm">
                                             <?php else: ?>
-                                                <div
-                                                    class="w-9 h-9 rounded-none bg-slate-900/5 flex items-center justify-center border border-slate-900/10 mr-3">
-                                                    <i class="fas fa-user text-[10px] text-slate-400"></i>
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-slate-800 to-slate-700 text-white flex items-center justify-center mr-3 shrink-0 shadow-sm">
+                                                    <i class="fas fa-user-tie text-xs"></i>
                                                 </div>
                                             <?php endif; ?>
-                                            <div class="flex flex-col">
-                                                <p class="text-xs font-bold text-slate-900 leading-none">
+                                            <div class="flex flex-col justify-center min-w-0">
+                                                <span class="text-[9px] font-extrabold text-blue-600 uppercase tracking-wider block leading-none mb-0.5">Teacher</span>
+                                                <p class="text-sm font-black text-slate-900 leading-tight truncate">
                                                     <?php echo htmlspecialchars($class['teacher_name']); ?>
                                                 </p>
-                                                <p class="text-[8px] text-slate-400 font-extrabold mt-1 uppercase tracking-widest">Lead Instructor</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1047,6 +1246,8 @@ if (!function_exists('format_html_color')) {
         function searchAndFilter() {
             const searchQuery = document.getElementById('classSearch').value.toLowerCase().trim();
             const streamClass = activeStream;
+            const yearElem = document.getElementById('examYearFilter');
+            const selectedYear = yearElem ? yearElem.value : 'all';
             const cards = document.querySelectorAll('.class-card');
             const viewMoreBtn = document.getElementById('viewMoreContainer');
             const isMobile = window.innerWidth < 768;
@@ -1054,12 +1255,15 @@ if (!function_exists('format_html_color')) {
             cards.forEach(card => {
                 const subject = (card.getAttribute('data-subject') || '').toLowerCase();
                 const teacher = (card.getAttribute('data-teacher') || '').toLowerCase();
+                const batch = (card.getAttribute('data-batch') || '').toLowerCase();
+                const cardYear = card.getAttribute('data-year') || '';
                 
                 const matchesStream = (streamClass === 'all') || card.classList.contains(streamClass);
-                const matchesSearch = !searchQuery || subject.includes(searchQuery) || teacher.includes(searchQuery);
+                const matchesYear = (selectedYear === 'all') || (cardYear === selectedYear);
+                const matchesSearch = !searchQuery || subject.includes(searchQuery) || teacher.includes(searchQuery) || batch.includes(searchQuery);
 
-                if (matchesStream && matchesSearch) {
-                    if (searchQuery === '' && streamClass === 'all') {
+                if (matchesStream && matchesSearch && matchesYear) {
+                    if (searchQuery === '' && streamClass === 'all' && selectedYear === 'all') {
                         if (card.classList.contains('hidden-card') || (isMobile && card.classList.contains('mobile-hidden'))) {
                             card.style.setProperty('display', 'none', 'important');
                         } else {
@@ -1075,7 +1279,7 @@ if (!function_exists('format_html_color')) {
             });
 
             if (viewMoreBtn) {
-                if (searchQuery === '' && streamClass === 'all') {
+                if (searchQuery === '' && streamClass === 'all' && selectedYear === 'all') {
                     let hasHidden = false;
                     cards.forEach(card => {
                         if ((card.classList.contains('hidden-card') || (isMobile && card.classList.contains('mobile-hidden'))) && card.style.display === 'none') {
@@ -1239,33 +1443,53 @@ if (!function_exists('format_html_color')) {
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; // End of hidden sections ?>
 
     <!-- Footer Section -->
     <footer class="bg-red-600 py-10 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="mb-6">
-                <img src="assests/logo.jpeg" alt="LMS Logo" class="h-16 w-auto object-contain mx-auto rounded-lg shadow-md mb-3">
+                <div class="inline-block bg-white rounded-xl px-6 py-3 shadow-sm mb-4">
+                    <img src="assests/logo.jpeg" alt="LMS Logo" class="h-14 w-auto object-contain">
+                </div>
                 <div class="h-0.5 w-16 bg-white/30 mx-auto rounded-full"></div>
             </div>
 
-            <div class="space-y-2">
-                <p class="text-base md:text-lg font-bold text-white">Lernerr.LK යනු ශ්‍රී ලංකාවේ හොඳම අන්තර්ජාල අධ්‍යාපන
-                    ආයතනයයි.</p>
-                <p class="text-red-100 font-semibold text-xs md:text-sm tracking-wide">Lernerr.LK is the best online
-                    academy in Sri Lanka.</p>
+            <div class="space-y-2 max-w-3xl mx-auto">
+                <p class="text-base md:text-lg font-bold text-white leading-relaxed">
+                    Lernerr.LK යනු ඔබට ගුණාත්මක Online අධ්‍යාපනයක් ලබාගත හැකි හොඳම ආයතනයයි.<br>
+                    සෑම මොහොතකම ඉගෙනීමට යමක් සම්පාදනය කිරීමට අපි කැපවීමෙන් කටයුතු කරන්නෙමු. ❤️
+                </p>
+                <p class="text-xs md:text-sm font-semibold text-red-100 tracking-wide">
+                    Lernerr.LK is the Finest Online Academy in Sri Lanka. Enjoy ❤️
+                </p>
             </div>
 
             <div
-                class="mt-10 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-4">
-                <p class="text-xs font-bold text-red-100 uppercase tracking-widest">&copy; <?php echo date('Y'); ?>
-                    Lernerr.LK. All rights reserved.</p>
-                <div class="flex space-x-6">
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
-                            class="fab fa-facebook-f"></i></a>
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
-                            class="fab fa-youtube"></i></a>
-                    <a href="#" class="text-white hover:text-red-200 transition-colors"><i
-                            class="fab fa-whatsapp"></i></a>
+                class="mt-8 pt-8 border-t border-red-500/30 flex flex-col md:flex-row justify-between items-center gap-6">
+                <p class="text-xs font-bold text-red-100 uppercase tracking-widest order-2 md:order-1">
+                    &copy; <?php echo date('Y'); ?> Lernerr.LK. All rights reserved.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center gap-3.5 order-1 md:order-2">
+                    <span class="text-xs font-extrabold uppercase tracking-widest text-red-100">Follow Us On:</span>
+                    <div class="flex items-center space-x-3">
+                        <a href="https://web.facebook.com/lernerrlk" target="_blank" rel="noopener noreferrer" 
+                           class="w-10 h-10 rounded-full bg-white/15 hover:bg-white text-white hover:text-blue-600 flex items-center justify-center transition-all duration-300 shadow-sm hover:scale-110" title="Facebook">
+                            <i class="fab fa-facebook-f text-base"></i>
+                        </a>
+                        <a href="https://www.youtube.com/@sameerapereraofficial" target="_blank" rel="noopener noreferrer" 
+                           class="w-10 h-10 rounded-full bg-white/15 hover:bg-white text-white hover:text-red-600 flex items-center justify-center transition-all duration-300 shadow-sm hover:scale-110" title="YouTube">
+                            <i class="fab fa-youtube text-base"></i>
+                        </a>
+                        <a href="https://www.tiktok.com/@sameerapereraofficial?_r=1&_t=ZS-9A1xZeJEmM0" target="_blank" rel="noopener noreferrer" 
+                           class="w-10 h-10 rounded-full bg-white/15 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center transition-all duration-300 shadow-sm hover:scale-110" title="TikTok">
+                            <i class="fab fa-tiktok text-base"></i>
+                        </a>
+                        <a href="https://wa.me/94704607707" target="_blank" rel="noopener noreferrer" 
+                           class="w-10 h-10 rounded-full bg-white/15 hover:bg-white text-white hover:text-emerald-600 flex items-center justify-center transition-all duration-300 shadow-sm hover:scale-110" title="WhatsApp">
+                            <i class="fab fa-whatsapp text-base"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1397,6 +1621,27 @@ if (!function_exists('format_html_color')) {
                     btn.innerHTML = originalText;
                 });
         }
+
+        <?php if ($is_logged_in): ?>
+        // Automatic live session checker for homepage
+        const checkHomeSessionUrl = 'check_active_session.php';
+        function verifyHomeLiveSession() {
+            fetch(checkHomeSessionUrl, { cache: 'no-store' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.logged_in === false && data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    }
+                })
+                .catch(() => {});
+        }
+        setInterval(verifyHomeLiveSession, 4000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                verifyHomeLiveSession();
+            }
+        });
+        <?php endif; ?>
     </script>
 </body>
 

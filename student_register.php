@@ -4,6 +4,7 @@
 
 
 require_once 'config.php';
+require_once 'whatsapp_config.php';
 
 $success_message = '';
 $error_message = '';

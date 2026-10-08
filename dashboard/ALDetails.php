@@ -18,7 +18,9 @@ $has_exam_year = has_column($conn, 'al_exam_submissions', 'exam_year');
 
 $district_rank_select = $has_district_rank ? 'district_rank' : 'NULL AS district_rank';
 $island_rank_select = $has_island_rank ? 'island_rank' : 'NULL AS island_rank';
-$exam_year_select = $has_exam_year ? 'als.exam_year AS display_exam_year' : 'YEAR(als.created_at) AS display_exam_year';
+$exam_year_select = $has_exam_year 
+    ? 'COALESCE(NULLIF(als.exam_year, 0), YEAR(als.results_submitted_at), YEAR(als.created_at)) AS display_exam_year' 
+    : 'COALESCE(YEAR(als.results_submitted_at), YEAR(als.created_at)) AS display_exam_year';
 
 // If logged in as student, fetch own submission state for CTA
 $student_submission = null;
@@ -34,22 +36,38 @@ if (!empty($_SESSION['user_id']) && (($_SESSION['role'] ?? '') === 'student')) {
     }
 }
 
-// Fetch all published results (only when results have been submitted and grades are present)
-$query = "SELECT als.*, {$district_rank_select}, {$island_rank_select}, {$exam_year_select}, u.first_name, u.second_name, u.profile_picture
+// Pre-fetch all teachers for fast lookup
+$all_teachers_lookup = [];
+$t_query_res = $conn->query("SELECT user_id, first_name, second_name, profile_picture FROM users WHERE role = 'teacher'");
+if ($t_query_res) {
+    while ($t_row = $t_query_res->fetch_assoc()) {
+        $all_teachers_lookup[$t_row['user_id']] = [
+            'name' => trim($t_row['first_name'] . ' ' . ($t_row['second_name'] ?? '')),
+            'picture' => $t_row['profile_picture'] ?? ''
+        ];
+    }
+}
+
+// Fetch all published results
+$query = "SELECT als.*, {$district_rank_select}, {$island_rank_select}, {$exam_year_select},
+                    u.first_name, u.second_name, u.profile_picture
                     FROM al_exam_submissions als
-                    INNER JOIN users u ON u.user_id = als.student_id
+                    LEFT JOIN users u ON u.user_id = als.student_id
                     WHERE als.agreed_to_publish = 1
-                        AND als.results_submitted_at IS NOT NULL
                         AND COALESCE(als.result_1, '') <> ''
                         AND COALESCE(als.result_2, '') <> ''
                         AND COALESCE(als.result_3, '') <> ''
-                    ORDER BY display_exam_year DESC, als.stream ASC, als.created_at DESC";
+                    ORDER BY display_exam_year DESC, als.stream ASC,
+                             CASE WHEN {$district_rank_select} IS NULL THEN 1 ELSE 0 END ASC,
+                             {$district_rank_select} ASC";
 $result = $conn->query($query);
 
 $results_by_stream = [];
 $all_results = [];
 $streams = [];
 $exam_years = [];
+$teachers_map = [];
+$subjects_map = [];
 
 if ($result && $result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
@@ -59,6 +77,26 @@ if ($result && $result->num_rows > 0) {
 
         $year_value = !empty($row['display_exam_year']) ? (int)$row['display_exam_year'] : null;
         $row['display_exam_year'] = $year_value;
+
+        // Parse teacher IDs (can be single ID or comma-separated list)
+        $t_ids = array_filter(array_map('trim', explode(',', $row['teacher_id'] ?? '')));
+        $assigned_teachers = [];
+        foreach ($t_ids as $tid) {
+            if (isset($all_teachers_lookup[$tid])) {
+                $assigned_teachers[] = array_merge(['id' => $tid], $all_teachers_lookup[$tid]);
+                $teachers_map[$tid] = $all_teachers_lookup[$tid]['name'];
+            }
+        }
+        $row['assigned_teachers'] = $assigned_teachers;
+        $row['teacher_ids_list'] = $t_ids;
+
+        // Parse subjects
+        foreach (['subject_1', 'subject_2', 'subject_3'] as $subj_key) {
+            $s_val = trim((string)($row[$subj_key] ?? ''));
+            if ($s_val !== '') {
+                $subjects_map[$s_val] = $s_val;
+            }
+        }
 
         $all_results[] = $row;
         $streams[$stream] = true;
@@ -75,24 +113,48 @@ sort($streams, SORT_NATURAL | SORT_FLAG_CASE);
 $exam_years = array_keys($exam_years);
 rsort($exam_years, SORT_NUMERIC);
 
+ksort($subjects_map, SORT_NATURAL | SORT_FLAG_CASE);
+
 $default_exam_year = 'all';
 
 // Get filters from URL
-$filter_stream = isset($_GET['stream']) ? trim($_GET['stream']) : 'all';
+$filter_stream    = isset($_GET['stream'])    ? trim($_GET['stream'])    : 'all';
 $filter_exam_year = isset($_GET['exam_year']) ? trim($_GET['exam_year']) : $default_exam_year;
+$filter_teacher   = isset($_GET['teacher'])   ? trim($_GET['teacher'])   : 'all';
+$filter_subject   = isset($_GET['subject'])   ? trim($_GET['subject'])   : 'all';
+
+asort($teachers_map);
 
 // Apply filters and group by stream
 foreach ($all_results as $row) {
-    if ($filter_stream !== 'all' && $row['stream_label'] !== $filter_stream) {
-        continue;
-    }
-    if ($filter_exam_year !== 'all' && (string)($row['display_exam_year'] ?? '') !== $filter_exam_year) {
-        continue;
+    if ($filter_stream !== 'all' && strcasecmp(trim($row['stream_label']), trim($filter_stream)) !== 0) continue;
+    if ($filter_exam_year !== 'all' && (string)($row['display_exam_year'] ?? '') !== (string)$filter_exam_year) continue;
+    if ($filter_teacher !== 'all' && !in_array($filter_teacher, $row['teacher_ids_list'])) continue;
+    if ($filter_subject !== 'all') {
+        $s1 = trim((string)($row['subject_1'] ?? ''));
+        $s2 = trim((string)($row['subject_2'] ?? ''));
+        $s3 = trim((string)($row['subject_3'] ?? ''));
+        if (strcasecmp($s1, $filter_subject) !== 0 &&
+            strcasecmp($s2, $filter_subject) !== 0 &&
+            strcasecmp($s3, $filter_subject) !== 0) {
+            continue;
+        }
     }
     $results_by_stream[$row['stream_label']][] = $row;
 }
 
 ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
+
+// Sort students within each stream group by district_rank ASC (nulls last)
+foreach ($results_by_stream as $stream_key => $students) {
+    usort($students, function($a, $b) {
+        $ra = isset($a['district_rank']) && $a['district_rank'] !== null && $a['district_rank'] !== '' ? (int)$a['district_rank'] : PHP_INT_MAX;
+        $rb = isset($b['district_rank']) && $b['district_rank'] !== null && $b['district_rank'] !== '' ? (int)$b['district_rank'] : PHP_INT_MAX;
+        return $ra <=> $rb;
+    });
+    $results_by_stream[$stream_key] = $students;
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -100,7 +162,7 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A/L Results Portal | Lernerr.LK</title>
+    <title>Our Results | Lernerr.LK</title>
     <meta name="description" content="View and submit Advanced Level results on Lernerr.LK. Celebrate outstanding academic achievements with our student community.">
     <meta name="keywords" content="Lernerr.LK A/L results, exam results portal, Sri Lanka A/L achievements">
     <meta name="author" content="Lernerr.LK">
@@ -142,14 +204,14 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <?php include 'navbar.php'; ?>
+    <?php include __DIR__ . '/navbar.php'; ?>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-10">
         <!-- Header & Filters Section -->
         <div class="flex flex-col lg:flex-row lg:items-end justify-between mb-10 gap-8 border-b border-gray-200 pb-10">
             <div>
                 <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight">
-                    A/L Results <span class="text-red-600">Portal</span>
+                    Our <span class="text-red-600">Results</span>
                 </h1>
                 <p class="text-gray-600 mt-3 text-lg font-medium italic">අපගේ පසුගිය උසස් පෙළ ප්‍රතිඵල</p>
             </div>
@@ -159,31 +221,55 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                 <form method="GET" class="flex flex-col md:flex-row items-center gap-6 w-full">
                     <div class="flex flex-col gap-1.5 w-full md:w-auto">
                         <label for="exam_year" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Exam Year</label>
-                        <select id="exam_year" name="exam_year" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[160px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all" onchange="this.form.submit()">
-                            <?php if (empty($exam_years)): ?>
-                                <option value="all" selected>All Years</option>
-                            <?php else: ?>
-                                <option value="all" <?php echo $filter_exam_year === 'all' ? 'selected' : ''; ?>>All Years</option>
-                                <?php foreach ($exam_years as $year): ?>
-                                    <option value="<?php echo htmlspecialchars($year); ?>" <?php echo $filter_exam_year === $year ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($year); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                        <select id="exam_year" name="exam_year" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[160px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all cursor-pointer" onchange="this.form.submit()">
+                            <option value="all" <?php echo $filter_exam_year === 'all' ? 'selected' : ''; ?>>All Years</option>
+                            <?php foreach ($exam_years as $year): ?>
+                                <option value="<?php echo htmlspecialchars($year); ?>" <?php echo (string)$filter_exam_year === (string)$year ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($year); ?> Exam
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
                     <div class="flex flex-col gap-1.5 w-full md:w-auto">
                         <label for="stream" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Study Stream</label>
-                        <select id="stream" name="stream" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[240px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all" onchange="this.form.submit()">
+                        <select id="stream" name="stream" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[240px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all cursor-pointer" onchange="this.form.submit()">
                             <option value="all" <?php echo $filter_stream === 'all' ? 'selected' : ''; ?>>All Streams</option>
                             <?php foreach ($streams as $stream): ?>
-                                <option value="<?php echo htmlspecialchars($stream); ?>" <?php echo $filter_stream === $stream ? 'selected' : ''; ?>>
+                                <option value="<?php echo htmlspecialchars($stream); ?>" <?php echo strcasecmp($filter_stream, $stream) === 0 ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($stream); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
+
+                    <?php if (!empty($teachers_map)): ?>
+                    <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                        <label for="teacher" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Teacher / Sir</label>
+                        <select id="teacher" name="teacher" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[200px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all cursor-pointer" onchange="this.form.submit()">
+                            <option value="all" <?php echo $filter_teacher === 'all' ? 'selected' : ''; ?>>All Teachers</option>
+                            <?php foreach ($teachers_map as $t_id => $t_name): ?>
+                                <option value="<?php echo htmlspecialchars($t_id); ?>" <?php echo $filter_teacher === $t_id ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($t_name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($subjects_map)): ?>
+                    <div class="flex flex-col gap-1.5 w-full md:w-auto">
+                        <label for="subject" class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Subject</label>
+                        <select id="subject" name="subject" class="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 min-w-[200px] focus:ring-2 focus:ring-red-500/20 focus:border-red-600 outline-none transition-all cursor-pointer" onchange="this.form.submit()">
+                            <option value="all" <?php echo $filter_subject === 'all' ? 'selected' : ''; ?>>All Subjects</option>
+                            <?php foreach ($subjects_map as $subj_name): ?>
+                                <option value="<?php echo htmlspecialchars($subj_name); ?>" <?php echo strcasecmp($filter_subject, $subj_name) === 0 ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($subj_name); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
                 </form>
             </div>
         </div>
@@ -213,11 +299,7 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
 
                         <div class="flex flex-col md:flex-row items-center gap-6">
                             <?php if (!empty($student_submission) && !empty($student_submission['results_submitted_at'])): ?>
-                                <div class="grid grid-cols-3 gap-8 px-8 border-x border-gray-100">
-                                    <div class="text-center">
-                                        <p class="text-[10px] font-black text-gray-400 uppercase">District</p>
-                                        <p class="text-sm font-bold text-gray-900"><?php echo !empty($student_submission['district']) ? htmlspecialchars($student_submission['district']) : 'N/A'; ?></p>
-                                    </div>
+                                <div class="grid grid-cols-2 gap-8 px-8 border-x border-gray-100">
                                     <div class="text-center">
                                         <p class="text-[10px] font-black text-gray-400 uppercase">D-Rank</p>
                                         <p class="text-sm font-bold text-red-600">#<?php echo !empty($student_submission['district_rank']) ? htmlspecialchars($student_submission['district_rank']) : 'N/A'; ?></p>
@@ -255,12 +337,80 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                 <p class="text-gray-500 mt-2">Results will be displayed here once students submit and agree to publish.</p>
             </div>
         <?php else: ?>
-            <?php foreach ($results_by_stream as $stream_name => $students): ?>
+            <?php foreach ($results_by_stream as $stream_name => $students): 
+                $display_years = [];
+                if ($filter_exam_year !== 'all') {
+                    $display_years[] = $filter_exam_year;
+                } else {
+                    foreach ($students as $s) {
+                        if (!empty($s['display_exam_year'])) {
+                            $display_years[(string)$s['display_exam_year']] = true;
+                        }
+                    }
+                    $display_years = array_keys($display_years);
+                    rsort($display_years, SORT_NUMERIC);
+                }
+                $year_suffix = !empty($display_years) ? ' - ' . implode(' / ', $display_years) : '';
+            ?>
+                <?php
+                    // Build compact year range for mobile (e.g. 2021 – 2026)
+                    $year_range_short = '';
+                    if (!empty($display_years)) {
+                        $min_y = min($display_years);
+                        $max_y = max($display_years);
+                        $year_range_short = ($min_y === $max_y) ? $min_y : $min_y . ' – ' . $max_y;
+                    }
+                    $year_full = !empty($display_years) ? implode(' / ', $display_years) : '';
+                ?>
                 <div class="mb-12">
                     <!-- Stream Group Header -->
-                    <div class="flex items-center gap-4 mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800 uppercase tracking-wider"><?php echo htmlspecialchars($stream_name); ?></h2>
-                        <div class="h-1 flex-1 bg-gradient-to-r from-red-600 to-transparent rounded-full opacity-20"></div>
+                    <div class="mb-6">
+                        <!-- Top row: Stream name + year + teacher pill -->
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <h2 class="text-xl sm:text-2xl font-extrabold text-gray-900 uppercase tracking-wider whitespace-nowrap">
+                                    <?php echo htmlspecialchars($stream_name); ?>
+                                    <?php if ($filter_subject !== 'all'): ?>
+                                        <span class="text-blue-600 font-black"> - <?php echo htmlspecialchars($filter_subject); ?></span>
+                                    <?php endif; ?>
+                                </h2>
+                                <?php if (!empty($display_years)): ?>
+                                    <!-- Mobile: compact range -->
+                                    <span class="sm:hidden text-red-600 font-extrabold text-base whitespace-nowrap">
+                                        – <?php echo htmlspecialchars($year_range_short); ?>
+                                    </span>
+                                    <!-- Desktop: full list -->
+                                    <span class="hidden sm:inline text-red-600 font-extrabold text-xl whitespace-nowrap">
+                                        – <?php echo htmlspecialchars($year_full); ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($filter_teacher !== 'all' && !empty($teachers_map[$filter_teacher])): ?>
+                                <?php
+                                    $header_t_pic = $all_teachers_lookup[$filter_teacher]['picture'] ?? '';
+                                    $header_t_name = $teachers_map[$filter_teacher];
+                                ?>
+                                <div class="flex items-center gap-2 bg-violet-50 border border-violet-100 rounded-2xl px-3 py-1.5 flex-shrink-0">
+                                    <?php if (!empty($header_t_pic)): ?>
+                                        <img src="<?php echo $root_url . htmlspecialchars($header_t_pic); ?>"
+                                             alt="<?php echo htmlspecialchars($header_t_name); ?>"
+                                             class="w-7 h-7 rounded-full object-cover border-2 border-violet-200 flex-shrink-0"
+                                             onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($header_t_name); ?>&background=ede9fe&color=7c3aed&bold=true&size=64';">
+                                    <?php else: ?>
+                                        <div class="w-7 h-7 rounded-full bg-violet-100 border-2 border-violet-200 flex items-center justify-center flex-shrink-0">
+                                            <i class="fas fa-chalkboard-teacher text-[10px] text-violet-600"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div>
+                                        <span class="block text-[7px] font-black uppercase tracking-widest text-violet-400 leading-none">Teacher</span>
+                                        <span class="block text-xs font-black text-violet-700 leading-snug"><?php echo htmlspecialchars($header_t_name); ?></span>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+
+                            <div class="h-1 flex-1 bg-gradient-to-r from-red-600 to-transparent rounded-full opacity-20 hidden sm:block min-w-[40px]"></div>
+                        </div>
                     </div>
 
                     <!-- Students Grid (Exactly 4 columns on desktop) -->
@@ -274,7 +424,8 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                                             $display_photo = '';
                                             if (!empty($student['photo_path'])) $display_photo = $student['photo_path'];
                                             elseif (!empty($student['profile_picture'])) $display_photo = $student['profile_picture'];
-                                            $full_student_name = trim(($student['first_name'] ?? '') . ' ' . ($student['second_name'] ?? '')) ?: $student['student_id'];
+                                            $user_name = trim(($student['first_name'] ?? '') . ' ' . ($student['second_name'] ?? ''));
+                                            $full_student_name = !empty($user_name) ? $user_name : (!empty($student['student_name']) ? $student['student_name'] : $student['student_id']);
                                         ?>
                                         <?php if (!empty($display_photo)): ?>
                                             <img src="<?php echo $root_url . htmlspecialchars($display_photo); ?>" 
@@ -332,12 +483,8 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                                     </div>
                                 </div>
 
-                                <!-- 4. Ranks & Location -->
-                                <div class="mt-4 pt-3 border-t border-gray-100 grid grid-cols-2 gap-1.5 text-center text-[10px]">
-                                    <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
-                                        <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">District</span>
-                                        <span class="font-bold text-gray-800 truncate block"><?php echo !empty($student['district']) ? htmlspecialchars($student['district']) : 'N/A'; ?></span>
-                                    </div>
+                                <!-- 4. Ranks & Z-Score -->
+                                <div class="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-1.5 text-center text-[10px]">
                                     <div class="bg-gray-50 rounded-xl p-2 border border-gray-100">
                                         <span class="block text-[8px] font-black uppercase tracking-wider text-gray-400">District Rank</span>
                                         <span class="font-extrabold text-red-600"><?php echo !empty($student['district_rank']) ? '#' . htmlspecialchars($student['district_rank']) : 'N/A'; ?></span>
@@ -351,6 +498,34 @@ ksort($results_by_stream, SORT_NATURAL | SORT_FLAG_CASE);
                                         <span class="font-bold text-gray-800"><?php echo isset($student['z_score']) && $student['z_score'] !== null ? number_format((float)$student['z_score'], 4) : 'N/A'; ?></span>
                                     </div>
                                 </div>
+
+                                <!-- 5. Teacher Strip -->
+                                <?php if (!empty($student['assigned_teachers'])): ?>
+                                <div class="mt-4 pt-3 border-t border-violet-50 space-y-2">
+                                    <?php foreach ($student['assigned_teachers'] as $t_info): ?>
+                                    <div class="flex items-center gap-2.5">
+                                        <?php
+                                            $t_pic = $t_info['picture'] ?? '';
+                                            $t_name = $t_info['name'];
+                                        ?>
+                                        <?php if (!empty($t_pic)): ?>
+                                            <img src="<?php echo $root_url . htmlspecialchars($t_pic); ?>"
+                                                 alt="<?php echo htmlspecialchars($t_name); ?>"
+                                                 class="w-7 h-7 rounded-full object-cover border-2 border-violet-200 flex-shrink-0"
+                                                 onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=<?php echo urlencode($t_name); ?>&background=ede9fe&color=7c3aed&bold=true&size=64';">
+                                        <?php else: ?>
+                                            <div class="w-7 h-7 rounded-full bg-violet-100 border-2 border-violet-200 flex items-center justify-center flex-shrink-0">
+                                                <i class="fas fa-chalkboard-teacher text-[10px] text-violet-600"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="min-w-0 flex-1">
+                                            <span class="block text-[7px] font-black uppercase tracking-widest text-violet-400 leading-none">Teacher</span>
+                                            <span class="block text-[11px] font-black text-violet-700 truncate leading-snug mt-0.5"><?php echo htmlspecialchars($t_name); ?></span>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>

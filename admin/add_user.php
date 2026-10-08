@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 
 // Verify user is admin
@@ -57,6 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             // No strict validation for stream/subjects for teachers as they can add them later
         }
         
+        // Validation for super_admin role creation
+        if ($role === 'super_admin' && $_SESSION['role'] !== 'super_admin') {
+            $error_message = 'Only Super Admins can create Super Admin accounts.';
+        }
+
         // If no validation errors, proceed with user creation
         if (empty($error_message)) {
             // Generate user_id based on role
@@ -64,7 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 'student' => 'stu',
                 'teacher' => 'tea',
                 'instructor' => 'ins',
-                'admin' => 'adm'
+                'admin' => 'adm',
+                'super_admin' => 'sad'
             ];
             $prefix = $role_prefix[$role] ?? 'usr';
             
@@ -287,15 +293,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     if ($role === 'teacher') {
                         // Save education details
                         if (isset($_POST['education']) && is_array($_POST['education'])) {
-                            $edu_stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study, grade_or_class) VALUES (?, ?, ?, ?, ?, ?)");
+                            $edu_stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study) VALUES (?, ?, ?, ?, ?)");
                             foreach ($_POST['education'] as $edu) {
                                 if (!empty($edu['qualification'])) {
                                     $institution = $edu['institution'] ?? '';
                                     $year = !empty($edu['year_obtained']) ? intval($edu['year_obtained']) : null;
                                     $field = $edu['field_of_study'] ?? '';
-                                    $grade = $edu['grade_or_class'] ?? '';
                                     
-                                    $edu_stmt->bind_param("sssiss", $user_id, $edu['qualification'], $institution, $year, $field, $grade);
+                                    $edu_stmt->bind_param("sssis", $user_id, $edu['qualification'], $institution, $year, $field);
                                     $edu_stmt->execute();
                                 }
                             }
@@ -325,20 +330,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                             try {
                                 if ($role === 'teacher') {
-                                    $welcome_msg = "👨‍🏫 *Formal Welcome to LearnerX* 👨‍🏫\n\n" .
+                                    $welcome_msg = "👨‍🏫 *Formal Welcome to Lernerr.LK* 👨‍🏫\n\n" .
                                                  "Dear {$first_name},\n\n" .
-                                                 "We are pleased to inform you that your teacher account has been successfully created at LearnerX.\n\n" .
+                                                 "We are pleased to inform you that your teacher account has been successfully created at Lernerr.LK.\n\n" .
                                                  "🆔 *User ID:* {$user_id}\n\n" .
                                                  "You can now access your dashboard to manage recordings and student interactions. We are honored to have you on our team.\n\n" .
                                                  "Best Regards,\n" .
-                                                 "LearnerX Team";
+                                                 "Lernerr.LK Team";
                                 } else {
                                     // Default/Student welcome (Bilingual)
-                                    $welcome_msg = "🎓 *Welcome to LearnerX!* 🎓\n\n" .
+                                    $welcome_msg = "🎓 *Welcome to Lernerr.LK!* 🎓\n\n" .
                                                  "Hello {$first_name}, your account has been successfully created.\n" .
                                                  "🆔 *User ID:* {$user_id}\n\n" .
                                                  "--------------------------\n\n" .
-                                                 "LearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
+                                                 "Lernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
                                                  "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
                                                  "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
                                                  "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
@@ -350,7 +355,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                             }
                         }
 
-                        $success_message = "Welcome to LearnerX! 🎓\n\nUser has been successfully created.\nUser ID: $user_id.\n\nLearnerX වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
+                        $success_message = "Welcome to Lernerr.LK! 🎓\n\nUser has been successfully created.\nUser ID: $user_id.\n\nLernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
                         // Clear form data
                         $_POST = array();
                     }
@@ -444,6 +449,9 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                                 <option value="teacher" <?php echo (($_POST['role'] ?? '') === 'teacher') ? 'selected' : ''; ?>>Teacher</option>
                                 <option value="instructor" <?php echo (($_POST['role'] ?? '') === 'instructor') ? 'selected' : ''; ?>>Instructor</option>
                                 <option value="admin" <?php echo (($_POST['role'] ?? '') === 'admin') ? 'selected' : ''; ?>>Admin</option>
+                                <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'super_admin'): ?>
+                                    <option value="super_admin" <?php echo (($_POST['role'] ?? '') === 'super_admin') ? 'selected' : ''; ?>>Super Admin</option>
+                                <?php endif; ?>
                             </select>
                         </div>
                     </div>
@@ -510,7 +518,8 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                                 'student': { name: 'Student', prefix: 'stu' },
                                 'teacher': { name: 'Teacher', prefix: 'tea' },
                                 'instructor': { name: 'Instructor', prefix: 'ins' },
-                                'admin': { name: 'Admin', prefix: 'adm' }
+                                'admin': { name: 'Admin', prefix: 'adm' },
+                                'super_admin': { name: 'Super Admin', prefix: 'sad' }
                             };
                             
                             const currentRole = roleData[role];
@@ -966,12 +975,6 @@ $streams = $streams_result->fetch_all(MYSQLI_ASSOC);
                         <input type="text" name="education[${educationCount}][field_of_study]" 
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                                placeholder="e.g., Mathematics, Physics">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Grade/Class</label>
-                        <input type="text" name="education[${educationCount}][grade_or_class]" 
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                               placeholder="e.g., First Class, Distinction">
                     </div>
                     <div class="flex items-end">
                         <button type="button" onclick="removeEducationField(this)" 

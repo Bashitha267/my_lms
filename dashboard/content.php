@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 require_once '../config.php';
 
@@ -295,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_recording']) && $
                                          "විෂය: {$subj_name}\n" .
                                          "මාතෘකාව: {$title}\n\n" .
                                          "දැන් ඔබට එය අපගේ LMS Dashboard හරහා නරඹිය හැක.\n\n" .
-                                         "Thank you!\n*Team Learner.LK*";
+                                         "Thank you!\n*Team Lernerr.LK*";
                                          
                                 notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $rec_msg);
                             }
@@ -428,29 +428,8 @@ ksort($recordings_by_month);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recordings - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            position: relative;
-            min-height: 100vh;
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url('https://res.cloudinary.com/dnfbik3if/image/upload/v1768563143/11462_ytzt4d.jpg');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            filter: blur(4px);
-            z-index: -1;
-            transform: scale(1.1);
-        }
-    </style>
 </head>
-<body class="">
+<body class="bg-gray-100 min-h-screen">
     <?php include 'navbar.php'; ?>
     
     <div class="max-w-7xl mx-auto pt-24 pb-6 sm:px-6 lg:px-8">

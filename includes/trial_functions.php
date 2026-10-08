@@ -1,6 +1,6 @@
 <?php
 /**
- * Trial Functions for LearnerX LMS
+ * Trial Functions for Lernerr.LK LMS
  */
 
 /**

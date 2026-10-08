@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                            "Our staff will quickly approve your payment.\n" .
                                            "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
                                            "--------------------------\n\n" .
-                                           "Thank you, LearnerX Team";
+                                           "Thank you, Lernerr.LK Team";
                                     sendWhatsAppMessage($s_wa, $s_msg);
                                     
                                     // 2. Notify Admin
@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                    "Our staff will quickly approve your payment.\n" .
                                                    "ආයතනය මගින් ඔබගේ ගෙවීම් කඩිනමින් අනුමත කරනු ඇත.\n\n" .
                                                    "--------------------------\n\n" .
-                                                   "Thank you, LearnerX Team";
+                                                   "Thank you, Lernerr.LK Team";
                                             sendWhatsAppMessage($s_wa, $s_msg);
                                             
                                             // 2. Notify Admin

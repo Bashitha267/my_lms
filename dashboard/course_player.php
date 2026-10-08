@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require_once '../config.php';
 
@@ -309,34 +309,6 @@ while($row = $o_res->fetch_assoc()) $other_recordings[] = $row;
                                 <button onclick="toggleMute()" class="text-gray-300 hover:text-white w-6">
                                     <i id="volIcon" class="fas fa-volume-up"></i>
                                 </button>
-                                <input type="range" min="0" max="100" value="100" class="w-20 hidden group-hover/vol:block accent-red-600" oninput="setVolume(this.value)">
-                            </div>
-                            <span id="timeDisplay" class="text-xs text-gray-400 font-mono">0:00 / 0:00</span>
-                        </div>
-                        
-                        <div class="flex items-center gap-3">
-                            <button onclick="toggleFullscreen()" class="text-gray-300 hover:text-white">
-                                <i class="fas fa-expand"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            <?php else: ?>
-                <!-- Fallback for Non-YT -->
-                <video controls class="w-full h-full" controlsList="nodownload">
-                    <source src="../<?php echo htmlspecialchars($recording['video_path']); ?>" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            <?php endif; ?>
-        </div>
-
-        <!-- Scrollable Content Below Video -->
-        <div class="flex-1 overflow-y-auto bg-[#0f0f0f]">
-            <div class="p-6 max-w-4xl mx-auto w-full">
-                <!-- Description -->
-                <div class="bg-[#1a1a1a] rounded-lg p-5 border border-[#333] mb-6">
-                    <h3 class="font-bold text-gray-200 mb-2">Description</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap"><?php echo htmlspecialchars($recording['description']); ?></p>
                 </div>
 
                 <!-- Resources -->

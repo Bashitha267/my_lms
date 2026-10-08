@@ -3,7 +3,7 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
@@ -110,8 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
             
                 if ($insert_stmt->execute()) {
                     // Send WhatsApp Notification to Enrolled Students
-                    if (file_exists('../whatsapp_config.php')) {
-                        require_once '../whatsapp_config.php';
+                    $wa_path = __DIR__ . '/../whatsapp_config.php';
+                    if (file_exists($wa_path)) {
+                        require_once $wa_path;
                         if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
                             $sub_query = "SELECT s.name, st.name as stream_name 
                                           FROM subjects s 
@@ -123,34 +124,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_live_class']) 
                             $sub_stmt->execute();
                             $sub_res = $sub_stmt->get_result();
                             if ($sub_row = $sub_res->fetch_assoc()) {
-                                $subj_name = $sub_row['name'];
+                                $subj_name   = $sub_row['name'];
                                 $stream_name = $sub_row['stream_name'];
                                 $display_date = !empty($scheduled_start_time) ? date('Y-m-d', strtotime($scheduled_start_time)) : date('Y-m-d');
                                 $display_time = !empty($scheduled_start_time) ? date('h:i A', strtotime($scheduled_start_time)) : "NOW";
 
-                                $live_msg = "🎥 *නව සජීවී පන්තියක් පැවැත්වේ!*\n\n" .
-                                            "Stream: *{$stream_name}*\n" .
-                                            "📘 *විෂය:* {$subj_name}\n" .
+                                // Get teacher full name
+                                $teacher_name = $first_name . ' ' . $second_name;
+
+                                $live_msg = "📡 *නව සජීවී පන්තියක් !*\n\n" .
+                                            "👨‍🏫 *ගුරුවරයා:* {$teacher_name}\n" .
+                                            "📘 *විෂය:* {$subj_name} ({$stream_name})\n" .
                                             "📖 *මාතෘකාව:* {$title}\n" .
                                             "🗓 *දිනය:* {$display_date}\n" .
                                             "⏰ *වේලාව:* {$display_time}\n\n" .
+                                            "⚠️ {$display_date} දින ඔබට පන්තිය පැවැත්වේ.\n" .
+                                            "නියමිත වේලාවට මිනිත්තු 5කට පමණ පෙර ඔබගේ ගිණුමට log වී සූදානම්ව සිටින්න.\n\n" .
+                                            
                                             "------------------------------------\n\n" .
-                                            "{$stream_name} - {$subj_name} විෂයට අදාළ නව සජීවී පන්තියක් පැවැත්වීමට නියමිතයි.\n" .
-                                            "මෙම පන්තිය තුළ \"{$title}\" මාතෘකාව විස්තරාත්මකව ආවරණය කරනු ඇත.\n\n" .
-                                            "සජීවී පන්තියට සහභාගී වීමට කරුණාකර ඔබගේ LMS Dashboard වෙත පිවිසෙන්න.\n\n" .
-                                            "Thank you!\n" .
-                                            "*Team Learner.LK*\n\n" .
-                                            "------------------------------------\n\n" .
-                                            "🎥 *New Live Class Scheduled!*\n\n" .
-                                            "Stream: *{$stream_name}*\n" .
-                                            "📘 *Subject:* {$subj_name}\n" .
+                                            "📡 *New Live Class Scheduled!*\n\n" .
+                                            "👨‍🏫 *Teacher:* {$teacher_name}\n" .
+                                            "📘 *Subject:* {$subj_name} ({$stream_name})\n" .
                                             "📖 *Topic:* {$title}\n" .
                                             "🗓 *Date:* {$display_date}\n" .
                                             "⏰ *Time:* {$display_time}\n\n" .
-                                            "A new live class for {$stream_name} - {$subj_name} has been scheduled.\n" .
-                                            "The session will cover \"{$title}\" in detail.\n\n" .
-                                            "Please log in to your LMS Dashboard to join the live session.\n\n" .
-                                            "*Team Learner.LK*";
+                                            "Please log in to your LMS Dashboard *5 minutes before* the class starts and be ready.\n\n" .
+                                            "*Team Lernerr.LK*";
 
                                 notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
                             }
@@ -217,8 +216,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) 
         
             if ($insert_stmt->execute()) {
                 // Send WhatsApp Notification to Enrolled Students
-                if (file_exists('../whatsapp_config.php')) {
-                    require_once '../whatsapp_config.php';
+                $wa_path = dirname(__DIR__) . '/whatsapp_config.php';
+                if (file_exists($wa_path)) {
+                    require_once $wa_path;
                     if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
                         $sub_query = "SELECT s.name, st.name as stream_name 
                                       FROM subjects s 
@@ -230,22 +230,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_zoom_class']) 
                         $sub_stmt->execute();
                         $sub_res = $sub_stmt->get_result();
                         if ($sub_row = $sub_res->fetch_assoc()) {
-                            $subj_name = $sub_row['name'];
+                            $subj_name   = $sub_row['name'];
                             $stream_name = $sub_row['stream_name'];
                             $display_date = date('Y-m-d', strtotime($scheduled_start_time));
                             $display_time = date('h:i A', strtotime($scheduled_start_time));
-                            $live_msg = "💻 *New Zoom Live Class Scheduled / නව Zoom පන්තියක්*\n\n" .
-                                      "Stream: *{$stream_name}*\n" .
-                                      "Subject: *{$subj_name}*\n" .
-                                      "Topic: *{$title}*\n" .
-                                      "Date: *{$display_date}*\n" .
-                                      "Time: *{$display_time}*\n\n" .
-                                      "--------------------------\n\n" .
-                                      "ඔබ වෙනුවෙන් {$stream_name} - {$subj_name} සඳහා නව Zoom සජීවී පන්තියක් පවත්වනු ලැබේ.\n" .
-                                      "මාතෘකාව: {$title}\n" .
-                                      "දිනය: {$display_date}\n" .
-                                      "වේලාව: {$display_time}\n\n" .
-                                      "සම්බන්ධ වීමට ඔබගේ Dashboard එකට පිවිසෙන්න. ස්තුතියි! - Learner.LK";
+
+                            // Get teacher full name
+                            $teacher_name = $first_name . ' ' . $second_name;
+
+                            $live_msg = "💻 *නව Zoom සජීවී පන්තියක්!*\n\n" .
+                                        "👨‍🏫 *ගුරුවරයා:* {$teacher_name}\n" .
+                                        "📘 *විෂය:* {$subj_name} ({$stream_name})\n" .
+                                        "📖 *මාතෘකාව:* {$title}\n" .
+                                        "🗓 *දිනය:* {$display_date}\n" .
+                                        "⏰ *වේලාව:* {$display_time}\n\n" .
+                                        "⚠️ {$display_date} දින ඔබට පන්තිය පැවැත්වේ.\n" .
+                                        "නියමිත වේලාවට මිනිත්තු 5කට පමණ පෙර ඔබගේ ගිණුමට log වී සූදානම්ව සිටින්න.\n\n" .
+                                        
+                                        "------------------------------------\n\n" .
+                                        "💻 *New Zoom Live Class Scheduled!*\n\n" .
+                                        "👨‍🏫 *Teacher:* {$teacher_name}\n" .
+                                        "📘 *Subject:* {$subj_name} ({$stream_name})\n" .
+                                        "📖 *Topic:* {$title}\n" .
+                                        "🗓 *Date:* {$display_date}\n" .
+                                        "⏰ *Time:* {$display_time}\n\n" .
+                                        "Please log in to your LMS Dashboard *5 minutes before* the class starts and be ready.\n\n" .
+                                        "*Team Lernerr.LK*";
                             notifyEnrolledStudents($conn, $stream_subject_id, $academic_year, $live_msg);
                         }
                         $sub_stmt->close();
@@ -299,8 +309,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_physical_class
             
             if ($insert_stmt->execute()) {
                 // Send WhatsApp Notification to Enrolled Students
-                if (file_exists('../whatsapp_config.php')) {
-                    require_once '../whatsapp_config.php';
+                $wa_path = dirname(__DIR__) . '/whatsapp_config.php';
+                if (file_exists($wa_path)) {
+                    require_once $wa_path;
                     if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
                             $sub_query = "SELECT s.name, st.name as stream_name 
                                           FROM subjects s 
@@ -588,20 +599,39 @@ if (empty($role)) {
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            <?php if (!empty($live_classes_background)): ?>
-            background-image: url('../<?php echo htmlspecialchars($live_classes_background); ?>');
-            background-size: cover; background-position: center; background-attachment: fixed; background-repeat: no-repeat;
-            <?php endif; ?>
+            background-color: #ffffff;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .bg-design {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://res.cloudinary.com/dnfbik3if/image/upload/v1791440549/Add_mixed_characters_peering_cor__20261008115221_sdaspr.jpg');
+            background-size: 100% 100%;
+            background-position: center top;
+            background-repeat: no-repeat;
+            z-index: 0;
+            pointer-events-none;
+        }
+        @media (max-width: 768px) {
+            .bg-design {
+                background-size: 100% auto;
+                background-position: top center;
+            }
         }
         .content-overlay {
-            background: linear-gradient(to bottom, rgba(243, 244, 246, 0.4), rgba(243, 244, 246, 0.6));
-            backdrop-filter: blur(8px);
             min-height: 100vh;
-            padding-top: 5rem;
+            padding-top: 4.5rem;
+            position: relative;
+            z-index: 1;
         }
         @media (min-width: 640px) {
             .content-overlay {
-                padding-top: 6rem;
+                padding-top: 5.5rem;
             }
         }
         .premium-card {
@@ -643,12 +673,13 @@ if (empty($role)) {
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <?php include 'navbar.php'; ?>
+<body class="bg-white relative">
+    <div class="bg-design"></div>
+    <?php include __DIR__ . '/navbar.php'; ?>
     
-    <div class="content-overlay">
-    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div class="px-4 py-6 sm:px-0">
+    <div class="content-overlay relative z-10">
+    <div class="max-w-7xl mx-auto py-4 sm:px-6 lg:px-8">
+        <div class="px-4 py-4 sm:px-0">
             <!-- Welcome Section -->
             
 
@@ -679,20 +710,54 @@ if (empty($role)) {
             <!-- Public Live Classes Section (for Guests) -->
             <?php if (empty($role)): ?>
                 <div class="mb-8">
-                    <h2 class="text-3xl font-bold text-white mb-6 p-4 rounded-lg bg-red-600/90 backdrop-blur-sm shadow-lg flex items-center">
-                        <svg class="w-8 h-8 mr-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                        </svg>
-                        Available Live Classes
-                    </h2>
+
+                    <!-- Red Title Bar -->
+                    <div class="max-w-4xl mx-auto mb-3 sm:mb-4">
+                        <div class="relative rounded-2xl bg-red-600 p-4 sm:p-5 text-white shadow-lg shadow-red-600/20 flex items-center justify-between overflow-hidden">
+                            <div class="flex items-center gap-3 sm:gap-4">
+                                <div class="w-10 h-10 sm:w-11 sm:h-11 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner">
+                                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                                <h2 class="text-xl sm:text-2xl md:text-3xl font-black tracking-tight leading-tight">
+                                    Available Live Classes
+                                </h2>
+                            </div>
+                            <span class="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/30 backdrop-blur-sm">
+                                <span class="w-2 h-2 rounded-full bg-white mr-1.5 animate-ping"></span> Live
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Separate Subtext Section (Gray Color) -->
+                    <div class="max-w-4xl mx-auto mb-8 sm:mb-10">
+                        <div class="bg-white/80 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+                            <p class="text-xs sm:text-sm text-slate-700 font-semibold leading-relaxed mb-1">
+                                මෙහිදී Lernerr.LK වෙතින් නොමිලේ හෝ මුදල් ගෙවා සම්බන්ධ විය හැකි මේ මොහොතේ පවතින සජීවී පන්ති, සම්මන්ත්රණ යනාදිය නැරඹිය හැකියි.
+                            </p>
+                            <p class="text-[11px] sm:text-xs text-slate-500 font-normal leading-normal">
+                                Here, you can also watch live classes, seminars, etc. that are currently available for free or for a fee from Lernerr.LK.
+                            </p>
+                        </div>
+                    </div>
                     
                     <?php if (empty($guest_live_classes)): ?>
-                        <div class="glass-card rounded-xl p-12 text-center text-gray-500">
-                            <svg class="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                            </svg>
-                            <h3 class="text-xl font-bold text-gray-700 mb-2">No Live Classes Available</h3>
-                            <p class="text-gray-500">Check back later for upcoming sessions.</p>
+                        <!-- Premium Glassmorphic Empty State -->
+                        <div class="max-w-lg mx-auto my-6 sm:my-10 bg-white/85 backdrop-blur-xl rounded-3xl p-8 sm:p-12 text-center shadow-2xl shadow-slate-200/60 border border-white/80">
+                            <div class="w-20 h-20 bg-gradient-to-br from-red-50 to-rose-100 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-inner border border-red-100/80">
+                                <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl sm:text-2xl font-black text-slate-900 mb-2">No Live Classes Right Now</h3>
+                            <p class="text-slate-500 text-xs sm:text-sm max-w-xs mx-auto mb-6 leading-relaxed">
+                                There are currently no active or scheduled live sessions. Please check back soon or explore our recorded video lessons!
+                            </p>
+                            <a href="recordings" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-red-500/25 transition-all transform hover:-translate-y-0.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <span>Browse Recorded Lessons</span>
+                            </a>
                         </div>
                     <?php else: ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -844,7 +909,7 @@ if (empty($role)) {
                         <div class="flex items-center justify-between mb-8">
                             <div>
                                 <h1 class="text-3xl font-black text-gray-900 tracking-tight">Live Classes</h1>
-                                <p class="text-white font-medium">Ongoing and upcoming sessions from your enrollments</p>
+                                <p class="text-slate-600 font-medium">Ongoing and upcoming sessions from your enrollments</p>
                             </div>
                         </div>
 
@@ -941,7 +1006,8 @@ if (empty($role)) {
                                                     $can_watch_live = true;
                                                 } else {
                                                     // Check trial quota
-                                                    require_once '../includes/trial_functions.php';
+                                                    $tf_path = __DIR__ . '/../includes/trial_functions.php';
+                                                    if (file_exists($tf_path)) { require_once $tf_path; }
                                                     $total_live_watched = getLiveClassTrialCount($conn, $user_id);
                                                     if ($total_live_watched < 2) {
                                                         $can_watch_live = true;

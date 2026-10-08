@@ -4,6 +4,16 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once '../config.php';
 
+// Ensure is_free and pdf_path columns exist
+$chk_col1 = $conn->query("SHOW COLUMNS FROM publications LIKE 'pdf_path'");
+if ($chk_col1 && $chk_col1->num_rows == 0) {
+    $conn->query("ALTER TABLE publications ADD COLUMN pdf_path VARCHAR(255) DEFAULT NULL AFTER image_path");
+}
+$chk_col2 = $conn->query("SHOW COLUMNS FROM publications LIKE 'is_free'");
+if ($chk_col2 && $chk_col2->num_rows == 0) {
+    $conn->query("ALTER TABLE publications ADD COLUMN is_free TINYINT(1) NOT NULL DEFAULT 0 AFTER discount");
+}
+
 // Prepare user info if logged in
 $user_logged_in = isset($_SESSION['user_id']);
 $user_id = $user_logged_in ? $_SESSION['user_id'] : '';
@@ -185,6 +195,7 @@ $stmt->close();
             <?php else: ?>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                     <?php foreach($publications as $pub): 
+                        $is_free_pub = !empty($pub['is_free']) || ($pub['price'] <= 0 && !empty($pub['pdf_path']));
                         $final_price = $pub['price'] - $pub['discount'];
                     ?>
                         <div class="glass-card flex flex-col h-full rounded-3xl overflow-hidden">
@@ -205,6 +216,14 @@ $stmt->close();
                                         <?php echo htmlspecialchars($pub['category_name']); ?>
                                     </span>
                                 </div>
+
+                                <?php if($is_free_pub): ?>
+                                    <div class="absolute top-4 right-4">
+                                        <span class="px-3 py-1 bg-emerald-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1">
+                                            <i class="fas fa-gift text-[9px]"></i> FREE
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <!-- Content -->
@@ -218,28 +237,48 @@ $stmt->close();
 
                                 <div class="mt-auto">
                                     <div class="flex items-center gap-3 mb-6">
-                                        <div class="text-2xl font-black text-slate-900">
-                                            Rs. <?php echo number_format($final_price, 0); ?>
-                                        </div>
-                                        <?php if($pub['discount'] > 0): ?>
-                                            <div class="text-sm text-slate-400 line-through">
-                                                Rs. <?php echo number_format($pub['price'], 0); ?>
+                                        <?php if($is_free_pub): ?>
+                                            <div class="text-2xl font-black text-emerald-600 flex items-center gap-2">
+                                                <i class="fas fa-file-pdf"></i> FREE PDF
                                             </div>
-                                            <div class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                                SAVE Rs. <?php echo number_format($pub['discount'], 0); ?>
+                                        <?php else: ?>
+                                            <div class="text-2xl font-black text-slate-900">
+                                                Rs. <?php echo number_format($final_price, 0); ?>
                                             </div>
+                                            <?php if($pub['discount'] > 0): ?>
+                                                <div class="text-sm text-slate-400 line-through">
+                                                    Rs. <?php echo number_format($pub['price'], 0); ?>
+                                                </div>
+                                                <div class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                                    SAVE Rs. <?php echo number_format($pub['discount'], 0); ?>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     </div>
 
-                                    <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
-                                        'id' => $pub['id'],
-                                        'title' => $pub['title'],
-                                        'price' => $final_price
-                                    ])); ?>)" 
-                                            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 group transform active:scale-95">
-                                        <span>Buy Now</span>
-                                        <i class="fas fa-shopping-cart text-sm transition-transform group-hover:translate-x-1"></i>
-                                    </button>
+                                    <?php if($is_free_pub): ?>
+                                        <?php if(!empty($pub['pdf_path'])): ?>
+                                            <a href="../download_publication.php?id=<?php echo $pub['id']; ?>" 
+                                               class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 group transform active:scale-95 text-center">
+                                                <i class="fas fa-download text-sm transition-transform group-hover:translate-y-0.5"></i>
+                                                <span>Download Free PDF</span>
+                                            </a>
+                                        <?php else: ?>
+                                            <button disabled class="w-full bg-slate-200 text-slate-400 font-bold py-4 rounded-2xl cursor-not-allowed text-center">
+                                                PDF Coming Soon
+                                            </button>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <button onclick="openOrderModal(<?php echo htmlspecialchars(json_encode([
+                                            'id' => $pub['id'],
+                                            'title' => $pub['title'],
+                                            'price' => $final_price
+                                        ])); ?>)" 
+                                                class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-red-200 flex items-center justify-center gap-2 group transform active:scale-95">
+                                            <span>Buy Now</span>
+                                            <i class="fas fa-shopping-cart text-sm transition-transform group-hover:translate-x-1"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

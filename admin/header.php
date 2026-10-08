@@ -67,7 +67,7 @@ $admin_header_prefix = $admin_header_prefix ?? '';
                 <?php endif; ?>
                 <a href="<?php echo $admin_header_prefix; ?>manage_content" 
                    class="<?php echo ($current_page == 'manage_content.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
-                    Course Content
+                    Manage Subjects
                 </a>
                 <a href="<?php echo $admin_header_prefix; ?>manage_publications" 
                    class="<?php echo ($current_page == 'manage_publications.php') ? 'bg-blue-800 text-white' : 'text-blue-100 hover:bg-blue-700 hover:text-white'; ?> px-2 py-1 rounded-md text-[10px] font-bold uppercase transition duration-150 ease-in-out">
@@ -238,5 +238,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Automatic live session checker for admin pages
+    const checkSessionUrl = '<?php echo $admin_header_prefix; ?>../check_active_session.php';
+    function verifyLiveAdminSession() {
+        fetch(checkSessionUrl, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.logged_in === false && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            })
+            .catch(() => {});
+    }
+    setInterval(verifyLiveAdminSession, 4000);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            verifyLiveAdminSession();
+        }
+    });
 });
 </script>

@@ -6,6 +6,7 @@
 CREATE TABLE IF NOT EXISTS `exams` (
   `id` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary Key',
   `teacher_id` VARCHAR(20) NOT NULL COMMENT 'FK to users.user_id',
+  `teacher_assignment_id` INT(11) DEFAULT NULL COMMENT 'FK to teacher_assignments.id',
   `subject_id` INT(11) NOT NULL COMMENT 'FK to subjects.id',
   `title` VARCHAR(255) NOT NULL COMMENT 'Exam title',
   `duration_minutes` INT NOT NULL DEFAULT 60 COMMENT 'Duration in minutes',
@@ -16,9 +17,11 @@ CREATE TABLE IF NOT EXISTS `exams` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Record update timestamp',
   
   CONSTRAINT `fk_exams_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_exams_teacher_assignment` FOREIGN KEY (`teacher_assignment_id`) REFERENCES `teacher_assignments` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_exams_subject` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   
   INDEX `idx_teacher_id` (`teacher_id`),
+  INDEX `idx_teacher_assignment_id` (`teacher_assignment_id`),
   INDEX `idx_subject_id` (`subject_id`),
   INDEX `idx_is_published` (`is_published`),
   INDEX `idx_status` (`status`)

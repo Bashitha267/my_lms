@@ -8,10 +8,61 @@ if (!in_array($_SESSION['role'], ['admin', 'super_admin'])) {
     exit();
 }
 
-// Super admin doesn't have a dashboard, redirect to payments
-if ($_SESSION['role'] === 'super_admin') {
-    header('Location: teacher_payments.php');
-    exit;
+// Handle POST Actions (e.g. approve user)
+$success_message = '';
+$error_message = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'approve' && !empty($_POST['user_id'])) {
+    $user_id = $_POST['user_id'];
+    $stmt = $conn->prepare("UPDATE users SET approved = 1 WHERE user_id = ?");
+    $stmt->bind_param("s", $user_id);
+    if ($stmt->execute()) {
+        // Automatically update teacher_assignments to active for this teacher
+        $conn->query("UPDATE teacher_assignments SET status = 'active' WHERE teacher_id = '$user_id'");
+        $success_message = "User approved successfully.";
+
+        // WhatsApp notification
+        if (file_exists('../whatsapp_config.php')) {
+            require_once '../whatsapp_config.php';
+            if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
+                $info_stmt = $conn->prepare("SELECT first_name, whatsapp_number, role FROM users WHERE user_id = ?");
+                $info_stmt->bind_param("s", $user_id);
+                $info_stmt->execute();
+                $u_info = $info_stmt->get_result()->fetch_assoc();
+                
+                if ($u_info && !empty($u_info['whatsapp_number'])) {
+                    $role_name = ucfirst($u_info['role']);
+                    if ($u_info['role'] === 'teacher') {
+                        $admin_wa = defined('ADMIN_WHATSAPP') ? ADMIN_WHATSAPP : '0768368202';
+                        $msg = "✅ *Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
+                               "Hello *{$u_info['first_name']}*,\n\n" .
+                               "Congratulations! Your teacher account on Lernerr.LK has been approved.\n\n" .
+                               "--------------------------\n\n" .
+                               "🎉 අප හා ගුරුවරයෙකු ලෙස එකතු වූ ඔබට Lernerr.LK වෙතින් සුබ පැතුම්!\n\n" .
+                               "ඔබගේ අයදුම්පත අප විසින් තහවුරු කර ඇත. දැන් ඔබට ඔබගේ ගිණුම වෙත සාර්ථකව පිවිස ඔබගේ පන්ති ආරම්භ කළ හැක.\n\n" .
+                               "📌 *නව පන්තියක් ආරම්භ කිරීමට:*\n" .
+                               "Profile වෙත පිවිස *Create New Enroll* දී අදාල විෂය ධාරාව හා විෂය තෝරා අදාළ වර්ෂය ඇතුළත් කරන්න.\n\n" .
+                               "🎬 *පසුගිය රෙකෝඩින් එකතු කිරීමට:*\n" .
+                               "*Recordings* වෙත පිවිස අදාල පන්තිය තෝරා *Add New Recording* ක්ලික් කර ඇතුළත් කළ හැක.\n\n" .
+                               "📡 *සජීවී පන්තියක් පැවත්වීමට:*\n" .
+                               "*Live Class* වෙත පිවිස ආරම්භ කළ හැක.\n\n" .
+                               "📞 *සහාය අවශ්‍ය නම්:*\n" .
+                               "අපගේ WhatsApp අංකයට පණිවිඩයක් යොමු කරන්න: *{$admin_wa}*";
+                    } else {
+                        $msg = "✅ *Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
+                               "Hello {$u_info['first_name']},\n" .
+                               "Your Lernerr.LK {$role_name} account has been approved. You can now log in to the system.\n\n" .
+                               "--------------------------\n\n" .
+                               "ඔබේ Lernerr.LK {$role_name} ගිණුම තහවුරු කර ඇත. ඔබට දැන් පද්ධතියට පිවිසිය හැක.";
+                    }
+                    sendWhatsAppMessage($u_info['whatsapp_number'], $msg);
+                }
+            }
+        }
+    } else {
+        $error_message = "Error approving user: " . $conn->error;
+    }
+    $stmt->close();
 }
 
 // Get dashboard background image from system settings
@@ -20,91 +71,140 @@ $bg_stmt = $conn->prepare("SELECT setting_value FROM system_settings WHERE setti
 if ($bg_stmt) {
     $bg_stmt->execute();
     $bg_result = $bg_stmt->get_result();
-    if ($bg_result->num_rows > 0) {
-        $bg_row = $bg_result->fetch_assoc();
+    if ($bg_row = $bg_result->fetch_assoc()) {
         $dashboard_background = $bg_row['setting_value'];
     }
     $bg_stmt->close();
 }
 
-// Get all teachers with their education details
-$query = "SELECT DISTINCT u.user_id, u.email, u.first_name, u.second_name, 
-                 u.mobile_number, u.whatsapp_number, u.profile_picture, u.role
-          FROM users u
-          WHERE u.role = 'teacher'
-            AND u.status = 1
-            AND u.approved = 1
-          ORDER BY u.first_name, u.second_name";
-
-$stmt = $conn->prepare($query);
-$stmt->execute();
-$result = $stmt->get_result();
-
-$teachers = [];
-while ($row = $result->fetch_assoc()) {
-    $teacher_id = $row['user_id'];
-    
-    // Get education details for this teacher
-    $edu_query = "SELECT qualification, institution, year_obtained, field_of_study, grade_or_class 
-                  FROM teacher_education 
-                  WHERE teacher_id = ? 
-                  ORDER BY year_obtained DESC, id ASC";
-    $edu_stmt = $conn->prepare($edu_query);
-    $edu_stmt->bind_param("s", $teacher_id);
-    $edu_stmt->execute();
-    $edu_result = $edu_stmt->get_result();
-    
-    $education = [];
-    while ($edu_row = $edu_result->fetch_assoc()) {
-        $education[] = $edu_row;
-    }
-    $edu_stmt->close();
-
-    // Get assignments and enrollment counts
-    $assign_query = "SELECT sub.name as subject_name, s.name as stream_name, 
-                            (SELECT COUNT(*) 
-                             FROM student_enrollment se 
-                             WHERE se.stream_subject_id = ta.stream_subject_id 
-                               AND se.academic_year = ta.academic_year 
-                               AND se.status = 'active') as student_count
-                     FROM teacher_assignments ta
-                     INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
-                     INNER JOIN streams s ON ss.stream_id = s.id
-                     INNER JOIN subjects sub ON ss.subject_id = sub.id
-                     WHERE ta.teacher_id = ? AND ta.status = 'active'
-                     ORDER BY sub.name, s.name";
-    $assign_stmt = $conn->prepare($assign_query);
-    $assign_stmt->bind_param("s", $teacher_id);
-    $assign_stmt->execute();
-    $assign_result = $assign_stmt->get_result();
-    
-    $assignments = [];
-    while ($assign_row = $assign_result->fetch_assoc()) {
-        $assignments[] = $assign_row;
-    }
-    $assign_stmt->close();
-    
-    $teachers[] = [
-        'user_id' => $row['user_id'],
-        'email' => $row['email'],
-        'first_name' => $row['first_name'],
-        'second_name' => $row['second_name'],
-        'mobile_number' => $row['mobile_number'],
-        'whatsapp_number' => $row['whatsapp_number'],
-        'profile_picture' => $row['profile_picture'],
-        'education' => $education,
-        'assignments' => $assignments
-    ];
-}
-$stmt->close();
-
-// Fetch newly joined users
+// 1. Fetch Newly Joined Users (Limit 10 entries)
 $new_users = [];
-$new_users_res = $conn->query("SELECT user_id, first_name, second_name, role, registering_date, profile_picture FROM users ORDER BY registering_date DESC LIMIT 15");
+$new_users_res = @$conn->query("SELECT user_id, first_name, second_name, role, registering_date, profile_picture, mobile_number FROM users ORDER BY registering_date DESC LIMIT 10");
 if ($new_users_res) {
     while ($row = $new_users_res->fetch_assoc()) {
         $new_users[] = $row;
     }
+}
+
+// 2. Fetch Pending User Registration Requests (Limit 5)
+$pending_users = [];
+try {
+    $pu_q = "
+        SELECT user_id, first_name, second_name, role, registering_date, email, mobile_number, profile_picture
+        FROM users 
+        WHERE approved = 0 OR status = 0
+        ORDER BY registering_date DESC 
+        LIMIT 5
+    ";
+    $pu_res = @$conn->query($pu_q);
+    if ($pu_res) {
+        while ($row = $pu_res->fetch_assoc()) {
+            $pending_users[] = $row;
+        }
+    }
+} catch (Throwable $e) {
+    $pending_users = [];
+}
+
+// 3. Fetch Pending Student Payment Requests (Limit 5)
+$pending_payments = [];
+try {
+    $pp_q = "
+        SELECT ep.id, ep.amount, ep.payment_method, ep.payment_date, ep.payment_status,
+               u.first_name as student_fname, u.second_name as student_sname, u.user_id as student_id,
+               sub.name as subject_name, st.name as stream_name, se.academic_year
+        FROM enrollment_payments ep
+        JOIN student_enrollment se ON ep.student_enrollment_id = se.id
+        JOIN users u ON se.student_id = u.user_id
+        JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+        JOIN streams st ON ss.stream_id = st.id
+        JOIN subjects sub ON ss.subject_id = sub.id
+        WHERE ep.payment_status = 'pending'
+        ORDER BY ep.payment_date DESC, ep.id DESC
+        LIMIT 5
+    ";
+    $pp_res = @$conn->query($pp_q);
+    if ($pp_res) {
+        while ($row = $pp_res->fetch_assoc()) {
+            $pending_payments[] = $row;
+        }
+    }
+} catch (Throwable $e) {
+    $pending_payments = [];
+}
+
+// 4. Fetch System Stats (Counts for Teachers, Students, Classes)
+$count_teachers = 0;
+$count_students = 0;
+$count_classes = 0;
+
+$t_res = @$conn->query("SELECT COUNT(*) as c FROM users WHERE role = 'teacher'");
+if ($t_res) { $count_teachers = (int)($t_res->fetch_assoc()['c'] ?? 0); }
+
+$s_res = @$conn->query("SELECT COUNT(*) as c FROM users WHERE role = 'student'");
+if ($s_res) { $count_students = (int)($s_res->fetch_assoc()['c'] ?? 0); }
+
+$c_res = @$conn->query("SELECT COUNT(*) as c FROM teacher_assignments WHERE status = 'active'");
+if ($c_res) { $count_classes = (int)($c_res->fetch_assoc()['c'] ?? 0); }
+
+// 5. Fetch Ongoing Live Classes (Limit 5)
+$live_classes_list = [];
+try {
+    $zoom_q = "
+        SELECT zc.id, zc.title as subject_name, st.name as stream_name, ta.academic_year,
+               u.first_name, u.second_name, u.profile_picture, u.user_id as teacher_id,
+               (SELECT COUNT(DISTINCT se.student_id) 
+                FROM student_enrollment se 
+                WHERE se.stream_subject_id = ta.stream_subject_id 
+                  AND se.academic_year = ta.academic_year 
+                  AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL) 
+                  AND se.status = 'active') as participating_students
+        FROM zoom_classes zc
+        JOIN teacher_assignments ta ON zc.teacher_assignment_id = ta.id
+        JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+        JOIN streams st ON ss.stream_id = st.id
+        JOIN subjects sub ON ss.subject_id = sub.id
+        JOIN users u ON ta.teacher_id = u.user_id
+        WHERE zc.status = 'ongoing'
+        ORDER BY zc.created_at DESC
+        LIMIT 5
+    ";
+    $z_res = @$conn->query($zoom_q);
+    if ($z_res) {
+        while ($row = $z_res->fetch_assoc()) {
+            $live_classes_list[] = $row;
+        }
+    }
+
+    if (empty($live_classes_list)) {
+        $rec_q = "
+            SELECT r.id, sub.name as subject_name, st.name as stream_name, ta.academic_year,
+                   u.first_name, u.second_name, u.profile_picture, u.user_id as teacher_id,
+                   (SELECT COUNT(DISTINCT se.student_id) 
+                    FROM student_enrollment se 
+                    WHERE se.stream_subject_id = ta.stream_subject_id 
+                      AND se.academic_year = ta.academic_year 
+                      AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL) 
+                      AND se.status = 'active') as participating_students
+            FROM recordings r
+            JOIN stream_subjects ss ON r.stream_subject_id = ss.id
+            JOIN streams st ON ss.stream_id = st.id
+            JOIN subjects sub ON ss.subject_id = sub.id
+            JOIN users u ON r.teacher_id = u.user_id
+            JOIN teacher_assignments ta ON (ta.teacher_id = r.teacher_id AND ta.stream_subject_id = r.stream_subject_id)
+            WHERE r.is_live = 1 AND r.status = 'ongoing'
+            ORDER BY r.created_at DESC
+            LIMIT 5
+        ";
+        $r_res = @$conn->query($rec_q);
+        if ($r_res) {
+            while ($row = $r_res->fetch_assoc()) {
+                $live_classes_list[] = $row;
+            }
+        }
+    }
+} catch (Throwable $e) {
+    $live_classes_list = [];
 }
 ?>
 <!DOCTYPE html>
@@ -114,6 +214,7 @@ if ($new_users_res) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - LMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body {
             <?php if ($dashboard_background): ?>
@@ -125,14 +226,12 @@ if ($new_users_res) {
             <?php endif; ?>
         }
         
-        /* Add semi-transparent overlay for better content readability */
         <?php if ($dashboard_background): ?>
         .content-overlay {
             background-color: rgba(243, 244, 246, 0.85);
             min-height: 100vh;
         }
         
-        /* Make content cards more transparent to show background */
         .transparent-card {
             background-color: rgba(255, 255, 255, 0.90);
             backdrop-filter: blur(10px);
@@ -144,20 +243,19 @@ if ($new_users_res) {
         }
         <?php else: ?>
         .transparent-card {
-            background-color: white;
+            background-color: #ffffff;
         }
         
         .transparent-card-light {
-            background-color: white;
+            background-color: #ffffff;
         }
         <?php endif; ?>
-        
-        /* Custom scrollbar for clean design */
+
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+            background: #f1f1f1;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #cbd5e1;
@@ -178,187 +276,320 @@ if ($new_users_res) {
     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <!-- Dashboard Layout Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!-- Main Content Area (left 3 columns on lg) -->
+            
+            <!-- Main Content Area (Left 3 Columns) -->
             <div class="lg:col-span-3 space-y-6">
-                <!-- Welcome Section -->
-                <div class="transparent-card rounded-lg shadow p-6">
-                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-                    <p class="text-gray-600">
-                        Welcome, <span class="font-semibold text-red-600"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Admin'); ?></span>!
-                    </p>
-                </div>
-
-                <!-- Teachers Section -->
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-900 mb-4">All Teachers</h2>
                 
-                <?php if (empty($teachers)): ?>
-                    <div class="transparent-card rounded-lg shadow p-8 text-center">
-                        <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                        <p class="text-gray-500 text-lg">No teachers available.</p>
-                    </div>
-                <?php else: ?>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <?php foreach ($teachers as $teacher): ?>
-                            <div class="transparent-card-light border-2 border-red-500 rounded-lg p-6 hover:border-red-600 hover:shadow-xl transition-all duration-200 flex flex-col h-full">
-                                <!-- Large centered profile picture -->
-                                <div class="flex justify-center mb-6">
-                                    <?php if ($teacher['profile_picture']): ?>
-                                        <img src="../<?php echo htmlspecialchars($teacher['profile_picture']); ?>" 
-                                             alt="Profile" 
-                                             class="w-32 h-32 rounded-full object-cover border-4 border-red-200 shadow-lg">
-                                    <?php else: ?>
-                                        <div class="w-32 h-32 rounded-full bg-red-100 flex items-center justify-center border-4 border-red-200 shadow-lg">
-                                            <svg class="w-16 h-16 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                                            </svg>
-                                        </div>
-                                    <?php endif; ?>
+                <!-- 1. Top Header Banner with Stats Badges in Top Right Corner -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Admin Dashboard</h1>
+                            <p class="text-xs text-gray-500 mt-1">Welcome back, <span class="font-bold text-red-600"><?php echo htmlspecialchars($_SESSION['username'] ?? 'Admin'); ?></span>!</p>
+                        </div>
+                        
+                        <!-- Stats Badges in Top Right Corner -->
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <div class="px-3.5 py-2 bg-red-50/80 border border-red-200/60 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                <div class="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center text-xs font-bold">
+                                    <i class="fas fa-chalkboard-teacher"></i>
                                 </div>
-                                
-                                <!-- Teacher name - left aligned -->
-                                <div class="text-left mb-4">
-                                    <h4 class="font-bold text-xl text-gray-900 mb-1">
-                                        <?php echo htmlspecialchars(trim(($teacher['first_name'] ?? '') . ' ' . ($teacher['second_name'] ?? ''))); ?>
-                                    </h4>
-                                </div>
-                                
-                                <!-- WhatsApp number with icon - left aligned -->
-                                <?php if ($teacher['whatsapp_number']): ?>
-                                    <div class="text-left mb-4 flex items-center">
-                                        <svg class="w-5 h-5 text-green-600 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                                        </svg>
-                                        <span class="text-gray-700 font-medium"><?php echo htmlspecialchars($teacher['whatsapp_number']); ?></span>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <!-- Education details - left aligned -->
-                                <div class="text-left mb-4 flex-1">
-                                    <h5 class="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                        </svg>
-                                        Education Details
-                                    </h5>
-                                    <?php if (!empty($teacher['education'])): ?>
-                                        <ul class="space-y-2">
-                                            <?php foreach ($teacher['education'] as $edu): ?>
-                                                <li class="text-sm text-gray-600 flex items-start">
-                                                    <svg class="w-4 h-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                                    </svg>
-                                                    <div class="flex-1 flex flex-col">
-                                                        <span class="font-medium text-gray-800">
-                                                            <?php 
-                                                            echo htmlspecialchars($edu['qualification'] ?? ''); 
-                                                            if (!empty($edu['year_obtained'])) {
-                                                                echo ' (' . htmlspecialchars($edu['year_obtained']) . ')';
-                                                            }
-                                                            ?>
-                                                        </span>
-                                                        <?php if (!empty($edu['institution'])): ?>
-                                                            <span class="text-xs text-gray-500 font-medium mt-0.5">
-                                                                <?php echo htmlspecialchars($edu['institution']); ?>
-                                                            </span>
-                                                        <?php endif; ?>
-                                                        <?php 
-                                                        $extras = [];
-                                                        if (!empty($edu['field_of_study'])) $extras[] = $edu['field_of_study'];
-                                                        if (!empty($edu['grade_or_class'])) $extras[] = $edu['grade_or_class'];
-                                                        if (!empty($extras)):
-                                                        ?>
-                                                            <span class="text-xs text-gray-400 mt-0.5">
-                                                                <?php echo htmlspecialchars(implode(' - ', $extras)); ?>
-                                                            </span>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </li>
-                                            <?php endforeach; ?>
-                                        </ul>
-                                    <?php else: ?>
-                                        <p class="text-sm text-gray-500 italic">No education details available</p>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Current Classes / Assignments -->
-                                <div class="text-left w-full mt-4 pt-4 border-t border-gray-200">
-                                    <h5 class="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wide flex items-center">
-                                        <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                        </svg>
-                                        Current Classes
-                                    </h5>
-                                    <?php if (!empty($teacher['assignments'])): ?>
-                                        <div class="space-y-2">
-                                            <?php foreach ($teacher['assignments'] as $assign): ?>
-                                                <div class="text-sm text-gray-600 flex justify-between items-center bg-gray-50 p-2 rounded hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-200">
-                                                    <div class="flex flex-col">
-                                                        <span class="font-medium text-gray-900"><?php echo htmlspecialchars($assign['subject_name']); ?></span>
-                                                        <span class="text-xs text-gray-500"><?php echo htmlspecialchars($assign['stream_name']); ?></span>
-                                                    </div>
-                                                    <div class="flex items-center space-x-1 bg-blue-50 px-2 py-1 rounded-full border border-blue-100">
-                                                        <svg class="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                                        </svg>
-                                                        <span class="text-xs font-bold text-blue-700">
-                                                            <?php echo $assign['student_count']; ?>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php else: ?>
-                                        <p class="text-sm text-gray-500 italic">No active classes</p>
-                                    <?php endif; ?>
+                                <div>
+                                    <span class="block text-[10px] font-extrabold uppercase text-gray-400">Teachers</span>
+                                    <span class="text-sm font-black text-gray-900 font-mono"><?php echo number_format($count_teachers); ?></span>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+
+                            <div class="px-3.5 py-2 bg-blue-50/80 border border-blue-200/60 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                                    <i class="fas fa-user-graduate"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] font-extrabold uppercase text-gray-400">Students</span>
+                                    <span class="text-sm font-black text-gray-900 font-mono"><?php echo number_format($count_students); ?></span>
+                                </div>
+                            </div>
+
+                            <div class="px-3.5 py-2 bg-emerald-50/80 border border-emerald-200/60 rounded-xl flex items-center gap-2.5 shadow-sm">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] font-extrabold uppercase text-gray-400">Classes</span>
+                                    <span class="text-sm font-black text-gray-900 font-mono"><?php echo number_format($count_classes); ?></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                <?php endif; ?>
                 </div>
+
+                <!-- 2. Quick Action Shortcut Buttons (Shown Prominently First!) -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="mb-4 pb-2 border-b border-gray-100 flex items-center justify-between">
+                        <h2 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-bolt text-amber-500"></i>
+                            <span>Quick Action Shortcuts</span>
+                        </h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <!-- 1. Verify Users -->
+                        <a href="users?tab=pending" class="group flex flex-col items-center justify-center p-4 bg-indigo-50/80 hover:bg-indigo-600 rounded-xl border border-indigo-200/80 hover:border-indigo-600 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-indigo-600 group-hover:bg-white text-white group-hover:text-indigo-600 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-indigo-950 group-hover:text-white transition-colors">Verify Users</span>
+                        </a>
+
+                        <!-- 2. Verify Payments -->
+                        <a href="verify_payments" class="group flex flex-col items-center justify-center p-4 bg-emerald-50/80 hover:bg-emerald-600 rounded-xl border border-emerald-200/80 hover:border-emerald-600 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-600 group-hover:bg-white text-white group-hover:text-emerald-600 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-file-invoice-dollar"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-emerald-950 group-hover:text-white transition-colors">Verify Payments</span>
+                        </a>
+
+                        <!-- 3. Teacher Payouts -->
+                        <a href="teacher_payments" class="group flex flex-col items-center justify-center p-4 bg-amber-50/80 hover:bg-amber-500 rounded-xl border border-amber-200/80 hover:border-amber-500 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500 group-hover:bg-white text-white group-hover:text-amber-600 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-amber-950 group-hover:text-white transition-colors">Teacher Payouts</span>
+                        </a>
+
+                        <!-- 4. Manage Content -->
+                        <a href="manage_content" class="group flex flex-col items-center justify-center p-4 bg-purple-50/80 hover:bg-purple-600 rounded-xl border border-purple-200/80 hover:border-purple-600 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-purple-600 group-hover:bg-white text-white group-hover:text-purple-600 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-layer-group"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-purple-950 group-hover:text-white transition-colors">Manage Content</span>
+                        </a>
+
+                        <!-- 5. Messaging -->
+                        <a href="mass_messaging" class="group flex flex-col items-center justify-center p-4 bg-sky-50/80 hover:bg-sky-600 rounded-xl border border-sky-200/80 hover:border-sky-600 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-sky-600 group-hover:bg-white text-white group-hover:text-sky-600 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-sky-950 group-hover:text-white transition-colors">Messaging</span>
+                        </a>
+
+                        <!-- 6. Settings -->
+                        <a href="settings" class="group flex flex-col items-center justify-center p-4 bg-slate-100 hover:bg-slate-800 rounded-xl border border-slate-200 hover:border-slate-800 transition-all duration-200 shadow-sm hover:shadow-md text-center">
+                            <div class="w-10 h-10 rounded-xl bg-slate-800 group-hover:bg-white text-white group-hover:text-slate-800 flex items-center justify-center mb-2 shadow-sm transition-colors text-base">
+                                <i class="fas fa-cog"></i>
+                            </div>
+                            <span class="text-xs font-extrabold text-slate-800 group-hover:text-white transition-colors">Settings</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. Pending User Registration Requests -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
+                        <h2 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-user-clock text-amber-500"></i>
+                            <span>Pending Registration Requests</span>
+                            <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200"><?php echo count($pending_users); ?></span>
+                        </h2>
+                        <a href="users?tab=pending" class="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1">
+                            <span>See More</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <?php if (empty($pending_users)): ?>
+                        <div class="p-6 text-center text-gray-400 text-xs italic bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                            <i class="fas fa-check-circle text-gray-300 text-2xl mb-1 block"></i>
+                            No pending user registration requests.
+                        </div>
+                    <?php else: ?>
+                        <div class="divide-y divide-gray-100">
+                            <?php foreach ($pending_users as $pu): 
+                                $pu_name = trim(($pu['first_name'] ?? '') . ' ' . ($pu['second_name'] ?? '')) ?: $pu['user_id'];
+                                $role_badge = ($pu['role'] === 'teacher') ? 'bg-red-100 text-red-800 border-red-200' : 'bg-blue-100 text-blue-800 border-blue-200';
+                            ?>
+                                <div class="py-3 flex items-center justify-between gap-3 hover:bg-gray-50/80 px-2 rounded-lg transition-colors">
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <?php if (!empty($pu['profile_picture'])): ?>
+                                            <img src="../<?php echo htmlspecialchars($pu['profile_picture']); ?>" class="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0">
+                                        <?php else: ?>
+                                            <div class="w-9 h-9 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                                                <?php echo strtoupper(substr($pu_name, 0, 1)); ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-bold text-gray-900 truncate"><?php echo htmlspecialchars($pu_name); ?></p>
+                                            <p class="text-[11px] text-gray-500 truncate"><?php echo htmlspecialchars($pu['email'] ?? $pu['user_id']); ?></p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-full border <?php echo $role_badge; ?>">
+                                            <?php echo strtoupper($pu['role'] ?? 'user'); ?>
+                                        </span>
+                                        <button type="button" onclick="viewUser('<?php echo htmlspecialchars($pu['user_id'], ENT_QUOTES); ?>')" class="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] rounded-md shadow-sm transition-colors cursor-pointer">
+                                            Review
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- 4. Pending Payment Verification Requests -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
+                        <h2 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                            <i class="fas fa-file-invoice-dollar text-emerald-600"></i>
+                            <span>Pending Payment Verification Requests</span>
+                            <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200"><?php echo count($pending_payments); ?></span>
+                        </h2>
+                        <a href="verify_payments" class="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1">
+                            <span>See More</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <?php if (empty($pending_payments)): ?>
+                        <div class="p-6 text-center text-gray-400 text-xs italic bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                            <i class="fas fa-receipt text-gray-300 text-2xl mb-1 block"></i>
+                            No pending student payment requests to verify.
+                        </div>
+                    <?php else: ?>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-700">
+                                <thead class="bg-gray-50 uppercase text-[10px] font-extrabold text-gray-500 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-3 py-2.5">Student</th>
+                                        <th class="px-3 py-2.5">Subject & Stream</th>
+                                        <th class="px-3 py-2.5">Amount</th>
+                                        <th class="px-3 py-2.5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 font-medium">
+                                    <?php foreach ($pending_payments as $pp): 
+                                        $st_name = trim(($pp['student_fname'] ?? '') . ' ' . ($pp['student_sname'] ?? '')) ?: $pp['student_id'];
+                                    ?>
+                                        <tr class="hover:bg-gray-50/80 transition-colors">
+                                            <td class="px-3 py-2.5 font-bold text-gray-900">
+                                                <span><?php echo htmlspecialchars($st_name); ?></span>
+                                                <span class="block text-[10px] text-gray-400 font-mono"><?php echo htmlspecialchars($pp['student_id']); ?></span>
+                                            </td>
+                                            <td class="px-3 py-2.5 text-gray-700">
+                                                <span class="font-bold text-slate-800"><?php echo htmlspecialchars($pp['subject_name']); ?></span>
+                                                <span class="block text-[10px] text-gray-400"><?php echo htmlspecialchars($pp['stream_name']); ?></span>
+                                            </td>
+                                            <td class="px-3 py-2.5 font-extrabold text-emerald-700 font-mono">
+                                                LKR <?php echo number_format($pp['amount'], 2); ?>
+                                            </td>
+                                            <td class="px-3 py-2.5 text-right">
+                                                <a href="verify_payments" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-md shadow-sm transition-colors inline-block">
+                                                    Verify Slip
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- 5. Ongoing Live Classes Section -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
+                        <h2 class="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                            <span>Ongoing Live Classes</span>
+                            <span class="text-xs bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full border border-red-200"><?php echo count($live_classes_list); ?></span>
+                        </h2>
+                        <a href="live_classes" class="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1">
+                            <span>See More</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                        </a>
+                    </div>
+
+                    <?php if (empty($live_classes_list)): ?>
+                        <div class="p-6 text-center text-gray-400 text-xs italic bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                            <i class="fas fa-video-slash text-gray-300 text-2xl mb-1 block"></i>
+                            No live classes are currently ongoing.
+                        </div>
+                    <?php else: ?>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <?php foreach ($live_classes_list as $lc): 
+                                $t_name = trim(($lc['first_name'] ?? '') . ' ' . ($lc['second_name'] ?? '')) ?: $lc['teacher_id'];
+                            ?>
+                                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-between">
+                                    <div class="flex items-start justify-between gap-3 mb-2">
+                                        <div>
+                                            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider bg-red-50 px-2 py-0.5 rounded border border-red-100">LIVE NOW</span>
+                                            <h4 class="font-extrabold text-sm text-gray-900 mt-1"><?php echo htmlspecialchars($lc['subject_name']); ?></h4>
+                                            <p class="text-[11px] text-gray-500 font-medium"><?php echo htmlspecialchars($lc['stream_name']); ?> (<?php echo htmlspecialchars($lc['academic_year']); ?>)</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-3 border-t border-gray-200/80 mt-2">
+                                        <div class="flex items-center gap-2">
+                                            <?php if (!empty($lc['profile_picture'])): ?>
+                                                <img src="../<?php echo htmlspecialchars($lc['profile_picture']); ?>" class="w-6 h-6 rounded-full object-cover">
+                                            <?php else: ?>
+                                                <div class="w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-[10px]">
+                                                    <?php echo strtoupper(substr($t_name, 0, 1)); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <span class="text-xs font-semibold text-gray-700"><?php echo htmlspecialchars($t_name); ?></span>
+                                        </div>
+                                        <span class="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1">
+                                            <i class="fas fa-users text-[10px]"></i> <?php echo number_format($lc['participating_students']); ?> Students
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
             </div>
-            
-            <!-- Right Sidebar Area (right 1 column on lg) -->
+
+            <!-- Right Sidebar Area (Right 1 Column) -->
             <div class="lg:col-span-1">
-                <!-- Newly Joined Users Card -->
-                <div class="transparent-card rounded-lg shadow p-6 flex flex-col h-[600px] sticky top-6">
-                    <h3 class="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
+                <!-- Newly Joined Users Card (10 Entries) -->
+                <div class="transparent-card rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-[600px] sticky top-6">
+                    <h3 class="text-base font-extrabold text-gray-900 mb-4 pb-2 border-b border-gray-100 flex items-center gap-2">
                         <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                         </svg>
                         <span>Newly Joined Users</span>
                     </h3>
-                    <div class="overflow-y-auto space-y-4 flex-1 pr-1 custom-scrollbar">
+                    <div class="overflow-y-auto space-y-3 flex-1 pr-1 custom-scrollbar">
                         <?php if (empty($new_users)): ?>
-                            <p class="text-sm text-gray-500 italic text-center py-8">No recent users.</p>
+                            <p class="text-xs text-gray-500 italic text-center py-8">No recent users.</p>
                         <?php else: ?>
                             <?php foreach ($new_users as $nu): 
                                 $nu_name = trim(($nu['first_name'] ?? '') . ' ' . ($nu['second_name'] ?? '')) ?: $nu['user_id'];
                                 $nu_role = strtoupper($nu['role'] ?? 'student');
                                 $nu_date = $nu['registering_date'] ? date('M d, Y', strtotime($nu['registering_date'])) : 'N/A';
                                 
-                                // Role color
-                                $role_class = 'bg-blue-100 text-blue-800';
-                                if ($nu['role'] === 'teacher') $role_class = 'bg-red-100 text-red-800';
-                                elseif ($nu['role'] === 'instructor') $role_class = 'bg-purple-100 text-purple-800';
-                                elseif ($nu['role'] === 'admin' || $nu['role'] === 'super_admin') $role_class = 'bg-amber-100 text-amber-800';
+                                $role_class = 'bg-blue-100 text-blue-800 border-blue-200';
+                                if ($nu['role'] === 'teacher') $role_class = 'bg-red-100 text-red-800 border-red-200';
+                                elseif ($nu['role'] === 'instructor') $role_class = 'bg-purple-100 text-purple-800 border-purple-200';
+                                elseif ($nu['role'] === 'admin' || $nu['role'] === 'super_admin') $role_class = 'bg-amber-100 text-amber-800 border-amber-200';
                             ?>
                                 <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                     <?php if ($nu['profile_picture']): ?>
-                                        <img src="../<?php echo htmlspecialchars($nu['profile_picture']); ?>" class="w-10 h-10 rounded-full object-cover border border-gray-200">
+                                        <img src="../<?php echo htmlspecialchars($nu['profile_picture']); ?>" class="w-9 h-9 rounded-full object-cover border border-gray-200 flex-shrink-0">
                                     <?php else: ?>
-                                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                        <div class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-xs flex-shrink-0">
                                             <?php echo strtoupper(substr($nu_name, 0, 1)); ?>
                                         </div>
                                     <?php endif; ?>
                                     
                                     <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-semibold text-gray-900 truncate" title="<?php echo htmlspecialchars($nu_name); ?>"><?php echo htmlspecialchars($nu_name); ?></p>
-                                        <div class="flex items-center gap-2 mt-0.5">
-                                            <span class="px-1.5 py-0.5 text-[9px] font-bold rounded-full <?php echo $role_class; ?>"><?php echo $nu_role; ?></span>
+                                        <p class="text-xs font-bold text-gray-900 truncate" title="<?php echo htmlspecialchars($nu_name); ?>"><?php echo htmlspecialchars($nu_name); ?></p>
+                                        <?php if (!empty($nu['mobile_number'])): ?>
+                                            <p class="text-[10px] text-gray-500 font-mono flex items-center gap-1 mt-0.5">
+                                                <i class="fas fa-phone text-[9px] text-emerald-600"></i>
+                                                <span><?php echo htmlspecialchars($nu['mobile_number']); ?></span>
+                                            </p>
+                                        <?php endif; ?>
+                                        <div class="flex items-center gap-1.5 mt-1">
+                                            <span class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full border <?php echo $role_class; ?>"><?php echo $nu_role; ?></span>
                                             <span class="text-[10px] text-gray-400 font-medium"><?php echo $nu_date; ?></span>
                                         </div>
                                     </div>
@@ -368,11 +599,234 @@ if ($new_users_res) {
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
-    
-    <?php if ($dashboard_background): ?>
-    </div> <!-- Close content-overlay -->
-    <?php endif; ?>
+
+    <!-- User Details Modal -->
+    <div id="userDetailsModal" class="fixed inset-0 z-50 overflow-y-auto hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="relative bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-gray-100 transform transition-all">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-user-circle text-red-600"></i>
+                    <span>User Details</span>
+                </h3>
+                <button type="button" onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold p-1 rounded-lg hover:bg-gray-100 transition">&times;</button>
+            </div>
+
+            <!-- Body -->
+            <div id="modalContent" class="p-6 max-h-[70vh] overflow-y-auto">
+                <!-- Loaded dynamically via AJAX -->
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+                <div id="modalFooterActions"></div>
+                <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-bold transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function viewUser(userId) {
+            document.getElementById('userDetailsModal').classList.remove('hidden');
+            document.getElementById('modalContent').innerHTML = `
+                <div class="flex justify-center items-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            `;
+            document.getElementById('modalFooterActions').innerHTML = '';
+
+            fetch('get_user_details.php?user_id=' + encodeURIComponent(userId))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderUserDetails(data);
+                    } else {
+                        document.getElementById('modalContent').innerHTML = `
+                            <div class="text-center py-6 text-red-600 font-semibold">
+                                Error: ${data.message}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('modalContent').innerHTML = `
+                        <div class="text-center py-6 text-red-600 font-semibold">
+                            Failed to fetch user details.
+                        </div>
+                    `;
+                });
+        }
+
+        function renderUserDetails(data) {
+            const user = data.user;
+            const isTeacher = user.role === 'teacher';
+            
+            const fullName = ((user.first_name || '') + ' ' + (user.second_name || '')).trim() || 'N/A';
+            const statusText = user.status == 1 ? 'Active' : 'Inactive';
+            const statusClass = user.status == 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+            const approvedText = user.approved == 1 ? 'Approved' : 'Pending';
+            const approvedClass = user.approved == 1 ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800';
+            const registeringDate = user.registering_date ? new Date(user.registering_date).toLocaleDateString() : 'N/A';
+            
+            let photoHtml = '';
+            if (user.profile_picture) {
+                photoHtml = `<img class="h-20 w-20 object-cover rounded-full border-2 border-gray-200" src="../${user.profile_picture}" alt="Profile photo" />`;
+            } else {
+                const initial = (user.first_name || user.user_id || 'U').substring(0, 1).toUpperCase();
+                photoHtml = `
+                    <div class="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-2xl font-bold">
+                        ${initial}
+                    </div>
+                `;
+            }
+
+            let modalHtml = `
+                <div class="space-y-6">
+                    <!-- User Basic Profile -->
+                    <div class="flex items-center space-x-6 pb-6 border-b border-gray-100">
+                        <div class="shrink-0">${photoHtml}</div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">${fullName}</h3>
+                            <p class="text-sm text-gray-500">${user.email || 'No email available'}</p>
+                            <div class="mt-2 flex space-x-2">
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">${user.role.toUpperCase()}</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${statusClass}">${statusText}</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${approvedClass}">${approvedText}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">User ID</span>
+                            <span class="text-gray-900 font-medium">${user.user_id}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">Registering Date</span>
+                            <span class="text-gray-900 font-medium">${registeringDate}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">Mobile Number</span>
+                            <span class="text-gray-900 font-medium">${user.mobile_number || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500 uppercase font-semibold">WhatsApp Number</span>
+                            <span class="text-gray-900 font-medium">${user.whatsapp_number || 'N/A'}</span>
+                        </div>
+                    </div>
+            `;
+
+            if (isTeacher) {
+                // Education Details
+                let eduHtml = `
+                    <div class="pt-6 border-t border-gray-100">
+                        <h4 class="text-md font-bold text-gray-800 mb-3">Education Details</h4>
+                `;
+                if (data.education && data.education.length > 0) {
+                    eduHtml += `
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Qualification</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Institution</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Year</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                    `;
+                    data.education.forEach(edu => {
+                        eduHtml += `
+                            <tr>
+                                <td class="px-4 py-2 text-gray-900 font-medium">${edu.qualification}</td>
+                                <td class="px-4 py-2 text-gray-500">${edu.institution || 'N/A'}</td>
+                                <td class="px-4 py-2 text-gray-500">${edu.year_obtained || 'N/A'}</td>
+                            </tr>
+                        `;
+                    });
+                    eduHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    eduHtml += `<p class="text-xs text-gray-500 italic">No education details recorded.</p>`;
+                }
+                eduHtml += `</div>`;
+                modalHtml += eduHtml;
+
+                // Assigned Classes
+                let assignHtml = `
+                    <div class="pt-6 border-t border-gray-100">
+                        <h4 class="text-md font-bold text-gray-800 mb-3">Assigned Classes</h4>
+                `;
+                if (data.assignments && data.assignments.length > 0) {
+                    assignHtml += `
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200 text-xs">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Academic Year</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Stream</th>
+                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Subject</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                    `;
+                    data.assignments.forEach(asg => {
+                        assignHtml += `
+                            <tr>
+                                <td class="px-4 py-2 text-gray-900 font-medium">${asg.academic_year}</td>
+                                <td class="px-4 py-2 text-gray-500">${asg.stream_name}</td>
+                                <td class="px-4 py-2 text-gray-500">${asg.subject_name}</td>
+                            </tr>
+                        `;
+                    });
+                    assignHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    assignHtml += `<p class="text-xs text-gray-500 italic">No classes assigned.</p>`;
+                }
+                assignHtml += `</div>`;
+                modalHtml += assignHtml;
+            }
+
+            modalHtml += `</div>`;
+            document.getElementById('modalContent').innerHTML = modalHtml;
+
+            const footerActions = document.getElementById('modalFooterActions');
+            if (user.approved == 0) {
+                footerActions.innerHTML = `
+                    <form method="POST" action="" class="inline" onsubmit="return confirm('Are you sure you want to approve this user?');">
+                        <input type="hidden" name="user_id" value="${user.user_id}">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors flex items-center space-x-1 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>Approve User</span>
+                        </button>
+                    </form>
+                `;
+            } else {
+                footerActions.innerHTML = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('userDetailsModal').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>

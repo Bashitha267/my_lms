@@ -27,13 +27,13 @@ $_SESSION['otp_mobile'] = $mobile_number;
 $_SESSION['otp_expires'] = time() + 300; // OTP expires in 5 minutes
 
 // Prepare WhatsApp message (Bilingual)
-$message = "🔐 *LearnerX Verification Code / සත්‍යාපන කේතය*\n\n" .
+$message = "🔐 *Lernerr.LK Verification Code / සත්‍යාපන කේතය*\n\n" .
            "Your verification code is: *{$otp}*\n" .
            "This code will expire in 5 minutes.\n\n" .
            "--------------------------\n\n" .
            "ඔබගේ සත්‍යාපන කේතය: *{$otp}*\n" .
            "මෙම කේතය විනාඩි 5 කින් අවලංගු වේ.\n\n" .
-           "Thank you, LearnerX Team";
+           "Thank you, Lernerr.LK Team";
 
 
 $whatsapp_sent = false;
@@ -53,16 +53,14 @@ if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && function_exists('sendWhat
 if ($whatsapp_sent) {
     echo json_encode([
         'success' => true,
-        'message' => 'OTP sent successfully via WhatsApp',
-        'otp' => $otp // Still returning for development/testing, should be removed for production
+        'message' => 'OTP sent successfully via WhatsApp'
     ]);
 } else {
-    // If WhatsApp fails, we still return the OTP for now so the user can continue (fallback)
-    // In production, you might want to fail or use SMS fallback
+    // If WhatsApp fails, still create the session OTP but tell user to check WhatsApp
+    // Do NOT expose the OTP in the response for security
     echo json_encode([
-        'success' => true, 
-        'message' => 'OTP generated (WhatsApp failed: ' . $whatsapp_error . ')',
-        'otp' => $otp,
+        'success' => true,
+        'message' => 'OTP generated. Please check your WhatsApp. (WhatsApp message may be delayed)',
         'whatsapp_error' => $whatsapp_error
     ]);
 }

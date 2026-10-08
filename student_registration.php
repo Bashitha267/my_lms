@@ -4,13 +4,13 @@
 
 
 require_once 'config.php';
+require_once 'whatsapp_config.php';
 
 $success_message = '';
 $error_message = '';
 
 // Initialize empty values for GET request
 $first_name = '';
-$second_name = '';
 $second_name = '';
 $mobile_number = '';
 $whatsapp_number = '';
@@ -301,14 +301,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                             // Send welcome message via WhatsApp
                             if (defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED && !empty($whatsapp_number)) {
                                 try {
-                                    $welcome_msg = "🎓 *Welcome to Lernerr.LK!* 🎓\n\n" .
+                                    $welcome_msg = "Welcome to Lernerr.LK!\n\n" .
                                         "Hello {$first_name}, your account has been successfully created.\n" .
                                         "🆔 *User ID:* {$user_id}\n\n" .
                                         "--------------------------\n\n" .
-                                        "Lernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\n" .
-                                        "ඔබේ ලියාපදිංචිය සාර්ථකයි.\n" .
-                                        "🆔 *පරිශීලක හැඳුනුම්පත:* {$user_id}\n\n" .
-                                        "දැන් ඔබට පන්ති සමඟ සම්බන්ධ විය හැක. ස්තුතියි!";
+                                        
+                                        
+                                        
+                                        "ආයූබෝවන්.Lernerr.LK හා එක්වූ ඔබට ස්තූතියි.ඔබට අවශ්‍ය ඕනෑම පන්තියක් සදහා දැන් ඔබට සම්බන්ධ විය හැක.\n".
+
+"ඔබගේ ඉදිරි අධ්‍යාපන කටයුතු සඳහා අපගේ ආයතනයෙන් උණුසුම් සුබ පැතුම්.\n".
+"ඔබට ඔබගේ දුරකතන අංකය හා මුරපදය භාවිතා කර ඔබගේ ගිණුම වෙත පිවිසිය හැක.\n".
+"ඔබගේ පන්තියට අදාල පාඩම් නැරඹීමට Recodings වෙත පිවිසෙන්න.\n".
+"සජීවී  පන්ති නැරඹීමට Live Classes වෙත පිවිසෙන්න.\n".
+"පන්ති මාසික ගෙවීම් සඳහා Payments වෙත පිවිසෙන්න.\n".
+
+"ඔබට නව පන්තියක් සදහා සම්බන්ධ වීමට අවශ්‍ය නම් Home වෙත පිවිස විෂය තෝරා අදාළ ගුරුවරයකු තෝරා ගන්න\n\n".
+"ඔබට කුමක් හෝ සහයක් අවශ්‍ය නම් අපගේ WhatsApp දුරකථන අංකයට පණිවිඩයක් යොමු කරන්න.";
 
                                     sendWhatsAppMessage($whatsapp_number, $welcome_msg);
                                 } catch (Exception $e) {
@@ -316,24 +325,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                                 }
                             }
 
-                            $ui_welcome_msg = "Welcome to Lernerr.LK! 🎓\n\nHello $first_name, your account has been successfully created.\nYour User ID is: $user_id.\n\nLernerr.LK වෙත ඔබව සාදරයෙන් පිළිගනිමු! 👋\nඔබේ ලියාපදිංචිය සාර්ථකයි.\nපරිශීලක හැඳුනුම්පත: $user_id";
-
-                            if ($approved == 1) {
-                                // Show welcome screen then redirect to index
-                                $registration_success = true;
-                                $welcome_first_name = $first_name;
-                                $welcome_user_id = $user_id;
-                                $welcome_redirect = 'index.php';
-                            } else {
-                                $registration_success = true;
-                                $welcome_first_name = $first_name;
-                                $welcome_user_id = $user_id;
-                                $welcome_redirect = 'login.php';
-                                $welcome_pending = true;
+                            // Auto-login student into session and immediately redirect to dashboard/profile.php
+                            $new_session_token = bin2hex(random_bytes(32));
+                            $update_tok = $conn->prepare("UPDATE users SET session_token = ?, session_created_at = NOW() WHERE user_id = ?");
+                            if ($update_tok) {
+                                $update_tok->bind_param("ss", $new_session_token, $user_id);
+                                $update_tok->execute();
+                                $update_tok->close();
                             }
-                            // Clear form data
-                            $_POST = array();
 
+                            if (session_status() === PHP_SESSION_NONE) {
+                                session_start();
+                            }
+                            session_regenerate_id(true);
+                            $_SESSION['user_id'] = $user_id;
+                            $_SESSION['username'] = $user_id;
+                            $_SESSION['role'] = 'student';
+                            $_SESSION['first_name'] = $first_name;
+                            $_SESSION['second_name'] = $second_name;
+                            $_SESSION['session_token'] = $new_session_token;
+
+                            header("Location: dashboard/profile.php");
+                            exit();
                         }
                     } else {
                         if ($conn->errno == 1062) {
@@ -358,8 +371,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 }
 
 
-// Get streams for dropdown
-$streams_query = "SELECT id, name FROM streams WHERE status = 1 ORDER BY name";
+// Get streams for dropdown — only where teachers are available
+$streams_query = "SELECT DISTINCT st.id, st.name
+                  FROM streams st
+                  INNER JOIN stream_subjects ss ON ss.stream_id = st.id AND ss.status = 1
+                  INNER JOIN teacher_assignments ta ON ta.stream_subject_id = ss.id AND ta.status = 'active'
+                  WHERE st.status = 1
+                  ORDER BY st.name";
 $streams_result = $conn->query($streams_query);
 $streams = ($streams_result && $streams_result->num_rows > 0) ? $streams_result->fetch_all(MYSQLI_ASSOC) : [];
 
@@ -460,8 +478,9 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <link rel="icon" type="image/png" sizes="32x32" href="assests/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assests/favicon-16x16.png">
     <link rel="manifest" href="assests/site.webmanifest">
-    <link rel="shortcut icon" href="assests/favicon.ico">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Abhaya+Libre:wght@400;500;600;700;800&family=Gemunu+Libre:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { box-sizing: border-box; }
@@ -469,7 +488,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         body {
             background: #ffffff;
             min-height: 100vh;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Inter', 'Abhaya Libre', 'Gemunu Libre', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -508,6 +527,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
             width: 100%;
             height: 100%;
             object-fit: contain;
+            object-position: center top;
             position: absolute;
             top: 0;
             left: 0;
@@ -960,8 +980,8 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
 
     <div class="bg-design">
         <picture>
-            <source media="(max-width: 640px)" srcset="https://res.cloudinary.com/dnfbik3if/image/upload/v1784129659/Untitled_design_18_woorfv.jpg">
-            <img src="https://res.cloudinary.com/dnfbik3if/image/upload/v1784122268/Untitled_design_12_owzcby.jpg" class="bg-img" alt="Background">
+            <source media="(max-width: 640px)" srcset="https://res.cloudinary.com/dnfbik3if/image/upload/v1784356289/Untitled_design_23_izivai.jpg">
+            <img src="https://res.cloudinary.com/dnfbik3if/image/upload/v1784354374/Untitled_design_19_rsoxss.jpg" class="bg-img" alt="Background">
         </picture>
 
         <div class="registration-container grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-12 md:items-center">
@@ -1072,13 +1092,27 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                      STEP 2: Password
                 ═══════════════════════════════════════════ -->
                 <div class="step-content" id="step2">
-                    <div class="google-input-group">
-                        <input type="password" id="password" name="password" class="google-input" placeholder=" " required>
+                    <div class="google-input-group" style="position:relative;">
+                        <input type="password" id="password" name="password" class="google-input" placeholder=" " required style="padding-right:42px;">
                         <label for="password" class="google-label">Password (මුරපදය)</label>
+                        <button type="button" onclick="togglePassword('password','eyeIcon_password')"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#5f6368;padding:4px;"
+                            tabindex="-1" aria-label="Show/hide password">
+                            <svg id="eyeIcon_password" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="google-input-group">
-                        <input type="password" id="confirm_password" name="confirm_password" class="google-input" placeholder=" " required>
+                    <div class="google-input-group" style="position:relative;">
+                        <input type="password" id="confirm_password" name="confirm_password" class="google-input" placeholder=" " required style="padding-right:42px;">
                         <label for="confirm_password" class="google-label">Confirm Password (තහවුරු කරන්න)</label>
+                        <button type="button" onclick="togglePassword('confirm_password','eyeIcon_confirm')"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#5f6368;padding:4px;"
+                            tabindex="-1" aria-label="Show/hide confirm password">
+                            <svg id="eyeIcon_confirm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                            </svg>
+                        </button>
                     </div>
                     <p class="text-xs text-gray-500 px-1 -mt-2">Use 8 or more characters with a mix of letters, numbers &amp; symbols</p>
                     <div class="step-nav">
@@ -1096,7 +1130,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                             <svg class="w-8 h-8 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2.004C6.476 2.004 2.004 6.476 2.004 12c0 1.776.464 3.443 1.274 4.893L2 22l5.234-1.273A9.943 9.943 0 0012 21.996c5.523 0 9.996-4.472 9.996-9.996 0-5.523-4.473-9.996-9.997-9.996z"/></svg>
                             <div>
                                 <p class="text-sm font-bold text-green-800">Contact Numbers</p>
-                                <p class="text-xs text-green-600">We'll use these to keep in touch with you / අපි ඔබව සම්බන්ධ කර ගැනීමට මෙය භාවිතා කරමු</p>
+                                <p class="text-xs text-green-600">We'll use these to keep in touch with you / අප විසින් ඔබ හා සම්බන්ද වීමට මෙම දුරකතන අංක භාවිතා කරනු ලබන බව කරුණාවෙන් සලකන්න.</p>
                             </div>
                         </div>
                     </div>
@@ -1149,29 +1183,29 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
                      STEP 5: Enrollment Type ONLY
                 ═══════════════════════════════════════════ -->
                 <div class="step-content" id="step5">
-                    <p class="section-label mb-4">Choose Your Path <span class="normal-case text-slate-400 font-normal">(ඔබේ ඉගෙනුම් මාර්ගය තෝරන්න)</span></p>
+                    <p class="section-label mb-4" style="color:#374151;font-size:11px;">Choose Your Path <span class="normal-case font-normal" style="color:#6b7280;">(ඔබේ ඉගෙනුම් මාර්ගය තෝරන්න)</span></p>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <!-- Class Enrollment -->
                         <div class="enroll-card" id="enrollCard_subject" onclick="selectEnrollType('subject')">
                             <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                                 <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>
                             </div>
-                            <h3 class="font-bold text-sm text-slate-800">Class Enrollment</h3>
-                            <p class="text-xs font-semibold text-blue-400 mt-0.5">පන්ති ලියාපදිංචිය</p>
-                            <p class="text-[10px] text-slate-400 mt-2">Join weekly sessions with a teacher</p>
+                            <h3 class="font-bold text-sm text-slate-800">Enrollment for  classes</h3>
+                            <p class="text-xs font-semibold text-blue-400 mt-0.5">පන්ති සදහා ලියාපදිංචි වීම සදහා</p>
+                            <p class="text-[11px] text-slate-600 mt-2">Join weekly sessions with a teacher</p>
                         </div>
                         <!-- Online Course -->
                         <div class="enroll-card" id="enrollCard_course" onclick="selectEnrollType('course')">
                             <div class="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
                                 <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2"/></svg>
                             </div>
-                            <h3 class="font-bold text-sm text-slate-800">Online Course</h3>
-                            <p class="text-xs font-semibold text-blue-400 mt-0.5">පාඨමාලා ලියාපදිංචිය</p>
-                            <p class="text-[10px] text-slate-400 mt-2">Self-paced digital learning</p>
+                            <h3 class="font-bold text-sm text-slate-800">Join for courese</h3>
+                            <p class="text-xs font-semibold text-blue-400 mt-0.5">බාහිර පාඨමාලාවක් හැදැරීම සදහා</p>
+                            <p class="text-[11px] text-slate-600 mt-2">Self-paced digital learning</p>
                         </div>
                     </div>
                     <input type="hidden" id="enrollment_type" name="enrollment_type" value="">
-                    <p class="text-center text-xs text-slate-400 mt-2">Select one to continue <span class="text-slate-300">→</span></p>
+                    <p class="text-center text-xs mt-2" style="color:#4b5563;">Select one to continue <span style="color:#6b7280;">→</span></p>
                     <div class="step-nav">
                         <button type="button" onclick="prevStep(5)" class="btn-google-outline">Back</button>
                         <button type="button" onclick="nextStep(5)" class="btn-google px-8">Next</button>
@@ -1385,6 +1419,15 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
     <div id="toastContainer" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
 
     <script>
+    function togglePassword(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon  = document.getElementById(iconId);
+        const show  = input.type === 'password';
+        input.type  = show ? 'text' : 'password';
+        icon.innerHTML = show
+            ? '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+            : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
     // ═══════════════════════════════════════════════════
     //  State
     // ═══════════════════════════════════════════════════
@@ -1409,7 +1452,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         'step1':         { en:'Create your Account',          si:'(ගිණුමක් සාදාගන්න)',               sub:'Be a part of the Lernerr.LK family',                    subSi:'' },
         'step2':         { en:'Secure your Account',          si:'(මුරපදයක් යොදන්න)',                sub:'Keep your account safe with a strong password',          subSi:'(ශක්තිමත් මුරපදයක් භාවිතා කරන්න)' },
         'step3':         { en:'Contact Numbers',              si:'(ජංගම අංක)',                        sub:'How can we reach you?',                                  subSi:'(ඔබව සම්බන්ධ කර ගැනීමට)' },
-        'step4':         { en:'Location & School',            si:'(ස්ථානය සහ පාසල)',                  sub:'Where are you studying?',                                subSi:'(ඔබ ඉගෙන ගන්නේ කොහේද?)' },
+        'step4':         { en:'Location & School',            si:'(ස්ථානය සහ පාසල)',                  sub:'Where are you studying?',                                subSi:'(ඔබගේ ලිපිනය)' },
         'step5':         { en:'Choose Your Path',             si:'(ඉගෙනුම් මාර්ගය)',                 sub:'Select how you want to learn',                           subSi:'(ඉගෙනීමේ ක්‍රමය තෝරන්න)' },
         'step6_class':   { en:'Stream & Subject',             si:'(අංශය සහ විෂය)',                   sub:'Select your grade stream and subject',                   subSi:'(ශ්‍රේණිය සහ විෂය තෝරන්න)' },
         'step6_course':  { en:'Select a Course',              si:'(පාඨමාලාව)',                        sub:'Pick an online course to enroll in',                     subSi:'(ඇතුළත් වීමට පාඨමාලාවක් තෝරන්න)' },
@@ -1569,14 +1612,17 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
         if (stepId === 'step2') {
             const pass = document.getElementById('password').value;
             const conf = document.getElementById('confirm_password').value;
-            if (pass.length < 8) { showToast('Password must be at least 8 characters', 'error'); return false; }
+            if (pass.length < 8) { showToast('Must use 8 characters or more', 'error'); return false; }
             if (pass !== conf) { showToast('Passwords do not match!', 'error'); return false; }
         }
         if (stepId === 'step3') {
-            const wa = document.getElementById('whatsapp_number').value.trim();
+            const wa  = document.getElementById('whatsapp_number').value.trim();
             const mob = document.getElementById('mobile_number').value.trim();
-            if (!wa) { showToast('Please enter your WhatsApp number', 'error'); return false; }
+            const phoneRegex = /^(?:\d{10}|[1-9]\d{8})$/; // 10 digits (with 0) OR 9 digits (without 0)
+            if (!wa)  { showToast('Please enter your WhatsApp number', 'error'); return false; }
+            if (!phoneRegex.test(wa))  { showToast('WhatsApp number must be 10 digits (e.g. 0771234567) or 9 digits without 0 (e.g. 771234567)', 'error'); return false; }
             if (!mob) { showToast('Please enter your mobile number', 'error'); return false; }
+            if (!phoneRegex.test(mob)) { showToast('Mobile number must be 10 digits (e.g. 0771234567) or 9 digits without 0 (e.g. 771234567)', 'error'); return false; }
         }
         if (stepId === 'step4') {
             const addr = document.getElementById('address').value.trim();
@@ -1985,7 +2031,7 @@ $display_user_id = $role_prefix_display . '_' . str_pad($next_num_display, 4, '0
             .then(data => {
                 if (data.success) {
                     document.getElementById('otpInputContainer').classList.remove('hidden');
-                    showToast('OTP sent! Code: ' + data.otp, 'success');
+                    showToast('OTP sent to your WhatsApp! Check your messages.', 'success');
                 } else {
                     showToast('Error: ' + (data.message || 'Failed to send OTP'), 'error');
                 }

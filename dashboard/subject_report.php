@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../config.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'teacher') {
@@ -61,27 +61,6 @@ while ($row = $res->fetch_assoc()) {
 }
 $stmt->close();
 
-// 2. Physical Classes
-$physical_query = "SELECT id, title, CONCAT(class_date, ' ', start_time) as start_time, 'Physical' as type, status 
-                   FROM physical_classes 
-                   WHERE teacher_assignment_id = ? 
-                   AND MONTH(class_date) = ? 
-                   AND YEAR(class_date) = ?
-                   ORDER BY class_date DESC, start_time DESC";
-$stmt = $conn->prepare($physical_query);
-$stmt->bind_param("iii", $assignment_id, $selected_month, $selected_year);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($row = $res->fetch_assoc()) {
-    // Count attendees
-    $count_stmt = $conn->prepare("SELECT COUNT(*) as total FROM attendance WHERE physical_class_id = ?");
-    $count_stmt->bind_param("i", $row['id']);
-    $count_stmt->execute();
-    $row['attendees_count'] = $count_stmt->get_result()->fetch_assoc()['total'];
-    $count_stmt->close();
-    $classes[] = $row;
-}
-$stmt->close();
 
 // 3. Live Classes (Recordings where is_live=1)
 // Use COALESCE to handle cases where scheduled_start_time may be NULL
@@ -253,8 +232,8 @@ $months = [
         <!-- Summary section -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <?php
-            $stats = ['Zoom' => 0, 'Physical' => 0, 'Live' => 0, 'Recording' => 0];
-            foreach ($classes as $c) $stats[$c['type']]++;
+            $stats = ['Zoom' => 0, 'Live' => 0, 'Recording' => 0];
+            foreach ($classes as $c) if (isset($stats[$c['type']])) $stats[$c['type']]++;
             ?>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
                 <div class="w-11 h-11 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
@@ -263,15 +242,6 @@ $months = [
                 <div>
                     <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Zoom']; ?></span>
                     <span class="text-xs text-gray-500 font-medium">Zoom Classes</span>
-                </div>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
-                <div class="w-11 h-11 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mr-3 flex-shrink-0">
-                    <i class="fas fa-building"></i>
-                </div>
-                <div>
-                    <span class="block text-2xl font-bold text-gray-900"><?php echo $stats['Physical']; ?></span>
-                    <span class="text-xs text-gray-500 font-medium">Physical Classes</span>
                 </div>
             </div>
             <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center">
@@ -345,13 +315,11 @@ $months = [
                                         <?php
                                         $type_styles = [
                                             'Zoom'      => 'bg-blue-100 text-blue-700',
-                                            'Physical'  => 'bg-orange-100 text-orange-700',
                                             'Live'      => 'bg-red-100 text-red-700',
                                             'Recording' => 'bg-purple-100 text-purple-700',
                                         ];
                                         $type_icons = [
                                             'Zoom'      => 'fa-video',
-                                            'Physical'  => 'fa-building',
                                             'Live'      => 'fa-broadcast-tower',
                                             'Recording' => 'fa-play-circle',
                                         ];

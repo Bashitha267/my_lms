@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['enroll'])) {
 
 $stream_subject_id = isset($_POST['stream_subject_id']) ? intval($_POST['stream_subject_id']) : 0;
 $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
+$teacher_id = isset($_POST['teacher_id']) ? trim($_POST['teacher_id']) : '';
 
 if ($stream_subject_id <= 0) {
     echo json_encode(['success' => false, 'message' => 'Invalid stream subject ID']);
@@ -26,10 +27,17 @@ if ($stream_subject_id <= 0) {
 }
 
 // Check if already enrolled
-$check_query = "SELECT id FROM student_enrollment 
-                WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active'";
-$check_stmt = $conn->prepare($check_query);
-$check_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+if (!empty($teacher_id)) {
+    $check_query = "SELECT id FROM student_enrollment 
+                    WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND (teacher_id = ? OR teacher_id IS NULL) AND status = 'active'";
+    $check_stmt = $conn->prepare($check_query);
+    $check_stmt->bind_param("siis", $user_id, $stream_subject_id, $academic_year, $teacher_id);
+} else {
+    $check_query = "SELECT id FROM student_enrollment 
+                    WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active'";
+    $check_stmt = $conn->prepare($check_query);
+    $check_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+}
 $check_stmt->execute();
 $check_result = $check_stmt->get_result();
 
@@ -55,10 +63,17 @@ if ($verify_result->num_rows === 0) {
 $verify_stmt->close();
 
 // Insert enrollment
-$insert_query = "INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, status, payment_status, enrolled_date) 
-                 VALUES (?, ?, ?, 'active', 'pending', CURDATE())";
-$insert_stmt = $conn->prepare($insert_query);
-$insert_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+if (!empty($teacher_id)) {
+    $insert_query = "INSERT INTO student_enrollment (student_id, teacher_id, stream_subject_id, academic_year, status, payment_status, enrolled_date) 
+                     VALUES (?, ?, ?, ?, 'active', 'pending', CURDATE())";
+    $insert_stmt = $conn->prepare($insert_query);
+    $insert_stmt->bind_param("ssii", $user_id, $teacher_id, $stream_subject_id, $academic_year);
+} else {
+    $insert_query = "INSERT INTO student_enrollment (student_id, stream_subject_id, academic_year, status, payment_status, enrolled_date) 
+                     VALUES (?, ?, ?, 'active', 'pending', CURDATE())";
+    $insert_stmt = $conn->prepare($insert_query);
+    $insert_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+}
 
 if ($insert_stmt->execute()) {
     $insert_stmt->close();
@@ -96,7 +111,7 @@ if ($insert_stmt->execute()) {
                                 "--------------------------\n\n" .
                                 "Hello {$first_name},\n" .
                                 "You have successfully enrolled in the subject: *{$subject_name}*.\n\n" .
-                                "Thank you for choosing Learner.LK!";
+                                "Thank you for choosing Lernerr.LK!";
 
                     sendWhatsAppMessage($whatsapp_number, $enroll_msg);
                 }

@@ -30,11 +30,11 @@ $result = $stmt->get_result();
 
 $enrollments = [];
 while ($row = $result->fetch_assoc()) {
-    // Check if student is already enrolled
+    // Check if student is already enrolled with this specific teacher
     $check_query = "SELECT id FROM student_enrollment 
-                    WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND status = 'active'";
+                    WHERE student_id = ? AND stream_subject_id = ? AND academic_year = ? AND (teacher_id = ? OR teacher_id IS NULL) AND status = 'active'";
     $check_stmt = $conn->prepare($check_query);
-    $check_stmt->bind_param("sii", $user_id, $row['stream_subject_id'], $row['academic_year']);
+    $check_stmt->bind_param("siis", $user_id, $row['stream_subject_id'], $row['academic_year'], $teacher_id);
     $check_stmt->execute();
     $check_result = $check_stmt->get_result();
     $is_enrolled = $check_result->num_rows > 0;

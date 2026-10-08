@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enroll_students'])) {
                                        "Teacher: *{$teacher_name}*\n\n" .
                                        "--------------------------\n\n" .
                                        "ඔබව සාර්ථකව *{$target_year}* වසරේ *{$teacher_name}* විසින් මෙහෙයවනු ලබන *{$subject_name}* පන්තිය සඳහා ලියාපදිංචි කරන ලදී.\n\n" .
-                                       "Best of luck! - LearnerX Team";
+                                       "Best of luck! - Lernerr.LK Team";
                                 sendWhatsAppMessage($to_num, $msg);
                             }
                         }

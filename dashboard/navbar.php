@@ -1,6 +1,10 @@
 <?php
 $current_page = basename($_SERVER['PHP_SELF']);
-require_once __DIR__ . '/../config.php';
+if (file_exists(__DIR__ . '/config.php')) {
+    require_once __DIR__ . '/config.php';
+} elseif (file_exists(__DIR__ . '/../config.php')) {
+    require_once __DIR__ . '/../config.php';
+}
 
 // Profile data for logged-in users
 $profile_picture = $_SESSION['profile_picture'] ?? '';
@@ -90,11 +94,11 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <!-- Navigation Links - Moved to Right -->
             <div class="hidden lg:flex items-stretch h-14 sm:h-16">
                 <a href="<?php echo $root_url; ?>" class="flex items-center px-5 text-[11px] font-black tracking-widest text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">Home</a>
-                <a href="<?php echo $base_url; ?>live_classes" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
-                <a href="<?php echo $base_url; ?>publications" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
+                <a href="<?php echo $root_url; ?>live_classes" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-red-600 hover:bg-red-700 transition-all uppercase">Live Classes</a>
+                <a href="<?php echo $root_url; ?>publications" class="flex items-center px-5 text-[11px] font-black tracking-widest text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase">Publications</a>
                 <!-- Desktop Dropdown Menu -->
                 <div class="relative group/dropdown h-full">
-                    <button class="flex items-center h-full px-5 text-[11px] font-black tracking-widest text-white bg-black group-hover/dropdown:bg-zinc-900 transition-all gap-3 uppercase">
+                    <button class="flex items-center h-full px-5 text-[11px] font-black tracking-widest text-white bg-green-600 group-hover/dropdown:bg-green-700 transition-all gap-3 uppercase">
                         <span>Menu</span>
                         <div class="space-y-1">
                             <div class="w-4 h-0.5 bg-white"></div>
@@ -102,7 +106,7 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                         </div>
                     </button>
                     
-                    <div class="absolute top-full right-0 w-64 bg-black border-t border-white/10 shadow-2xl invisible group-hover/dropdown:visible opacity-0 group-hover/dropdown:opacity-100 transition-all duration-300 translate-y-2 group-hover/dropdown:translate-y-0 z-[100]">
+                    <div class="absolute top-full right-0 w-64 bg-black border-t border-white/10 shadow-2xl invisible group-hover/dropdown:visible opacity-0 group-hover/dropdown:opacity-100 transition-all duration-300 translate-y-2 group-hover/dropdown:translate-y-0 z-[100] max-h-[85vh] overflow-y-auto">
                         <!-- Dropdown Links -->
                         <?php 
                         $dropdown_items = [
@@ -111,24 +115,44 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
                             ['INSTRUCTORS', 'instructors', 'fa-chalkboard-teacher', 'ගුරුවරුන්'],
                             ['PAYMENTS', 'payments', 'fa-credit-card', 'ගෙවීම්'],
                             ['EXAM CENTER', 'exam_center', 'fa-file-alt', 'විභාග'],
-                            ['ONLINE COURSES', 'online_courses', 'fa-graduation-cap', 'පාඨමාලා'],
-                            ['A/L RESULTS', 'ALDetails', 'fa-trophy', 'ප්‍රතිඵල'],
-                            ['ABOUT US', 'about_us', 'fa-info-circle', 'අප ගැන'],
+                            ['ONLINE CLASSES AND COURSES', 'online_courses', 'fa-graduation-cap', 'පාඨමාලා'],
+                            ['OUR RESULTS', '../results', 'fa-trophy', 'ප්‍රතිඵල'],
+                            ['ABOUT US', '../aboutus', 'fa-info-circle', 'අප ගැන'],
                             ['REGISTER AS A TEACHER', '../teacher_registration', 'fa-user-plus', 'ගුරු ලියාපදිංචිය']
                         ];
-                        foreach ($dropdown_items as $item): ?>
-                            <a href="<?php echo $base_url . $item[1]; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] font-black tracking-widest text-white/90 group-hover/item:text-white uppercase"><?php echo $item[0]; ?></span>
-                                    <span class="text-[9px] text-white/40 font-medium group-hover/item:text-white/60"><?php echo $item[3]; ?></span>
-                                </div>
-                                <i class="fas <?php echo $item[2]; ?> text-[12px] text-white/30 group-hover/item:text-red-600 transition-colors"></i>
-                            </a>
+                        // Items freely accessible without login
+                        $guest_allowed_keys = ['../results', '../aboutus', '../teacher_registration', 'online_courses'];
+                        foreach ($dropdown_items as $item): 
+                            $item_url = (strpos($item[1], '../') === 0) ? str_replace('../', $root_url, $item[1]) : $base_url . $item[1];
+                            $is_locked = !isset($_SESSION['role']) && !in_array($item[1], $guest_allowed_keys);
+                        ?>
+                            <?php if ($is_locked): ?>
+                                <button type="button" onclick="showGuestAuthModal()" class="w-full flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item cursor-pointer opacity-50">
+                                    <div class="flex flex-col text-left">
+                                        <span class="text-[10px] font-black tracking-widest text-white/70 uppercase flex items-center gap-1.5">
+                                            <i class="fas fa-lock text-[8px] text-white/40"></i>
+                                            <?php echo $item[0]; ?>
+                                        </span>
+                                        <span class="text-[9px] text-white/30 font-medium"><?php echo $item[3]; ?></span>
+                                    </div>
+                                    <i class="fas fa-lock text-[10px] text-white/20"></i>
+                                </button>
+                            <?php else: ?>
+                                <a href="<?php echo $item_url; ?>" class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-all border-b border-white/5 group/item">
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] font-black tracking-widest text-white/90 group-hover/item:text-white uppercase"><?php echo $item[0]; ?></span>
+                                        <span class="text-[9px] text-white/40 font-medium group-hover/item:text-white/60"><?php echo $item[3]; ?></span>
+                                    </div>
+                                    <i class="fas <?php echo $item[2]; ?> text-[12px] text-white/30 group-hover/item:text-red-600 transition-colors"></i>
+                                </a>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                         
+                        <?php if (isset($_SESSION['role'])): ?>
                         <div class="p-4 bg-white/5">
                              <a href="../auth.php?logout=1" class="flex items-center justify-center w-full py-3 bg-red-600 text-white text-[9px] font-black tracking-[0.2em] uppercase hover:bg-red-700 transition-all">Logout Account</a>
                         </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -138,9 +162,9 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <!-- Mobile/Tablet block buttons (shown on screens smaller than lg) -->
             <div class="flex lg:hidden items-stretch h-14 sm:h-16">
                 <a href="<?php echo $root_url; ?>" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-slate-800 hover:bg-slate-50 transition-all border-l border-slate-100 uppercase">HOME</a>
-                <a href="<?php echo $base_url; ?>live_classes" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
-                <a href="<?php echo $base_url; ?>publications" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
-                <button onclick="toggleMobileMenu()" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-black hover:bg-zinc-900 transition-all gap-1 uppercase">
+                <a href="<?php echo $root_url; ?>live_classes" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-red-600 hover:bg-red-700 transition-all uppercase text-center">LIVE CLASSES</a>
+                <a href="<?php echo $root_url; ?>publications" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-orange-500 hover:bg-orange-600 transition-all uppercase text-center">PUBLICATIONS</a>
+                <button onclick="toggleMobileMenu()" class="flex items-center px-2 text-[8px] sm:text-[9px] font-black tracking-wider text-white bg-green-600 hover:bg-green-700 transition-all gap-1 uppercase">
                     <span>MENU</span>
                     <div class="space-y-0.5">
                         <div class="w-3 h-0.5 bg-white"></div>
@@ -175,47 +199,50 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
             <div class="space-y-1">
                 <?php 
                 $all_nav_items = [
-                    ['HOME', 'dashboard', 'මුල් පිටුව'],
-                    ['PROFILE', 'profile', 'ගිණුම'],
-                    ['EDIT PROFILE', 'edit', 'ගිණුම් සංස්කරණය'],
-                    ['RECORDINGS', 'recordings', 'පටිගත කිරීම්'],
-                    ['LIVE CLASSES', 'live_classes', 'සජීවී පන්ති'],
-                    ['INSTRUCTORS', 'instructors', 'ගුරුවරුන්'],
-                    ['PAYMENTS', 'payments', 'ගෙවීම්'],
-                    ['EXAM CENTER', 'exam_center', 'විභාග'],
-                    ['ONLINE COURSES', 'online_courses', 'පාඨමාලා'],
-                    ['PUBLICATIONS', 'publications', 'ප්‍රකාශන'],
-                    ['A/L RESULTS', 'ALDetails', 'ප්‍රතිඵල'],
-                    ['ABOUT US', 'about_us', 'අප ගැන'],
-                    ['REGISTER AS A TEACHER', '../teacher_registration', 'ගුරු ලියාපදිංචිය']
+                    ['PROFILE', 'profile', 'fa-user-circle', 'ගිණුම'],
+                    ['RECORDINGS', 'recordings', 'fa-video', 'පටිගත කිරීම්'],
+                    ['INSTRUCTORS', 'instructors', 'fa-chalkboard-teacher', 'ගුරුවරුන්'],
+                    ['PAYMENTS', 'payments', 'fa-credit-card', 'ගෙවීම්'],
+                    ['EXAM CENTER', 'exam_center', 'fa-file-alt', 'විභාග'],
+                    ['ONLINE CLASSES AND COURSES', 'online_courses', 'fa-graduation-cap', 'පාඨමාලා'],
+                    ['OUR RESULTS', '../results', 'fa-trophy', 'ප්‍රතිඵල'],
+                    ['ABOUT US', '../aboutus', 'fa-info-circle', 'අප ගැන'],
+                    ['REGISTER AS A TEACHER', '../teacher_registration', 'fa-user-plus', 'ගුරු ලියාපදිංචිය']
                 ];
+                // Mobile menu: items allowed without login
+                $mobile_guest_allowed = ['../aboutus', '../teacher_registration', '../results', 'online_courses'];
                 foreach ($all_nav_items as $item):
-                    $is_active = (basename($current_page, '.php') === basename($item[1], '.php'));
-                    ?>
-                    <a href="<?php echo $item[1] === 'dashboard' ? $root_url : $base_url . $item[1]; ?>"
-                        class="flex items-center justify-between px-4 py-4 rounded-2xl transition-all <?php echo $is_active ? 'bg-red-50 text-red-600 font-black' : 'text-slate-600 hover:bg-slate-50 font-bold'; ?>">
-                        <div class="flex flex-col">
-                            <span class="text-sm"><?php echo $item[0]; ?></span>
-                            <span class="text-[10px] font-normal opacity-60"><?php echo $item[2]; ?></span>
-                        </div>
-                        <?php if ($is_active): ?>
-                            <div class="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-                        <?php endif; ?>
-                    </a>
-                <?php endforeach; ?>
+                    $item_url = (strpos($item[1], '../') === 0) ? str_replace('../', $root_url, $item[1]) : $base_url . $item[1];
+                    $is_active = (basename($current_page, '.php') === basename($item[1], '.php') 
+                        || ($item[1] === '../results' && basename($current_page, '.php') === 'ALDetails')
+                        || ($item[1] === '../aboutus' && basename($current_page, '.php') === 'about_us'));
+                    $mobile_locked = !isset($_SESSION['role']) && !in_array($item[1], $mobile_guest_allowed);
+                    if ($mobile_locked): ?>
+                        <button type="button" onclick="showGuestAuthModal(); toggleMobileMenu();"
+                            class="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all text-slate-300 font-bold opacity-50 cursor-pointer">
+                            <div class="flex flex-col text-left">
+                                <span class="text-xs sm:text-sm flex items-center gap-2 font-black tracking-wider uppercase">
+                                    <i class="fas fa-lock text-[10px] text-slate-400"></i>
+                                    <?php echo $item[0]; ?>
+                                </span>
+                                <span class="text-[10px] font-normal text-slate-400"><?php echo $item[3]; ?></span>
+                            </div>
+                            <i class="fas fa-lock text-[10px] text-slate-300"></i>
+                        </button>
+                    <?php else: ?>
+                        <a href="<?php echo $item_url; ?>"
+                            class="flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all <?php echo $is_active ? 'bg-red-50 text-red-600 font-black shadow-xs' : 'text-slate-700 hover:bg-slate-50 font-bold'; ?>">
+                            <div class="flex flex-col">
+                                <span class="text-xs sm:text-sm font-black tracking-wider uppercase"><?php echo $item[0]; ?></span>
+                                <span class="text-[10px] font-normal <?php echo $is_active ? 'text-red-500/80' : 'text-slate-400'; ?>"><?php echo $item[3]; ?></span>
+                            </div>
+                            <i class="fas <?php echo $item[2]; ?> text-xs <?php echo $is_active ? 'text-red-600' : 'text-slate-400'; ?>"></i>
+                        </a>
+                    <?php endif;
+                endforeach; ?>
             </div>
 
-            <?php if (!isset($_SESSION['role'])): ?>
-                <div class="mt-8 pt-8 border-t border-slate-100">
-                    <a href="<?php echo $root_url; ?>student_registration.php"
-                        class="flex items-center justify-between bg-red-600 text-white p-5 rounded-2xl shadow-xl shadow-red-600/20 group hover:scale-[1.02] transition-all">
-                        <span class="font-black tracking-widest text-sm">REGISTER NOW</span>
-                        <div class="bg-white/20 p-2 rounded-full group-hover:bg-white/40 transition-colors">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                </div>
-            <?php else: ?>
+            <?php if (isset($_SESSION['role'])): ?>
                 <div class="mt-8 pt-8 border-t border-slate-100">
                     <a href="<?php echo $root_url; ?>auth.php?logout=1"
                         class="flex items-center justify-between bg-slate-100 text-red-600 p-5 rounded-2xl font-black text-sm">
@@ -399,21 +426,48 @@ if (isset($_SESSION['whatsapp_debug'])): ?>
         document.body.style.overflow = 'auto';
     }
 
-    // Intercept restricted links for guests
+    // Intercept restricted links for guests (safety net for any plain <a> tags not handled by PHP)
     document.addEventListener('DOMContentLoaded', function () {
         <?php if (!isset($_SESSION['role'])): ?>
+            const allowedSegments = [
+                'online_courses', 'live_classes', 'publications', 'aboutus', 'about_us',
+                'teacher_registration', 'student_registration', 'student_register',
+                'results', 'ALDetails', 'index.php'
+            ];
+            const rootUrl = '<?php echo $root_url; ?>';
+
             const links = document.querySelectorAll('nav a, #mobile-menu a');
             links.forEach(link => {
                 link.addEventListener('click', function (e) {
                     const href = this.getAttribute('href');
                     if (!href || href.includes('#')) return;
-                    const allowed = ['dashboard.php', 'dashboard', 'live_classes.php', 'live_classes', 'publications.php', 'publications', 'about_us.php', 'about_us', 'index.php', 'ALDetails.php', 'ALDetails', 'student_registration.php', 'student_registration', 'student_register.php', 'student_register', 'teacher_registration.php', 'teacher_registration', '<?php echo parse_url($root_url, PHP_URL_PATH); ?>'];
-                    const isAllowed = allowed.some(p => href.includes(p)) || href === '<?php echo $root_url; ?>' || href === '/' || href === '';
+                    // Always allow root/home
+                    if (href === rootUrl || href === '/' || href === '' || href === rootUrl.replace(/\/$/, '')) return;
+                    const isAllowed = allowedSegments.some(p => href.includes(p));
                     if (!isAllowed) {
                         e.preventDefault();
                         showGuestAuthModal();
                     }
                 });
+            });
+        <?php else: ?>
+            // Automatic live session checker: polls every 4 seconds to kick out previous session immediately
+            const checkSessionUrl = '<?php echo $root_url; ?>check_active_session.php';
+            function verifyLiveSession() {
+                fetch(checkSessionUrl, { cache: 'no-store' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data && data.logged_in === false && data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                        }
+                    })
+                    .catch(() => {});
+            }
+            setInterval(verifyLiveSession, 4000);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    verifyLiveSession();
+                }
             });
         <?php endif; ?>
     });

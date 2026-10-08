@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['receipt']) && !$exis
     <link rel="manifest" href="../assests/site.webmanifest">
     <link rel="shortcut icon" href="../assests/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Session Payment | LearnerX</title>
+    <title>Session Payment | Lernerr.LK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

@@ -128,7 +128,7 @@ function sendZoomJoinNotifications($conn, $zoom_class_id, $student_id) {
                    "You have successfully joined the Zoom class of *{$subj}* by *{$t_name}*.\n\n" .
                    "--------------------------\n\n" .
                    "ඔබ මේ වන විට *{$t_name}* විසින් පවත්වනු ලබන *{$subj}* Zoom සජීවී පන්තිය සමඟ සාර්ථකව සම්බන්ධ වී ඇත.\n\n" .
-                   "Best of luck! - LearnerX Team";
+                   "Best of luck! - Lernerr.LK Team";
             sendWhatsAppMessage($s_wa, $s_msg);
         }
     }

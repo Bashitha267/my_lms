@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 require_once '../config.php';
 
@@ -24,13 +24,13 @@ $error_message = '';
 
 // Handle exam creation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_exam']) && $role === 'teacher') {
-    $subject_id = intval($_POST['subject_id'] ?? 0);
+    $teacher_assignment_id = intval($_POST['teacher_assignment_id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
     $deadline = $_POST['deadline'] ?? '';
     $duration_minutes = intval($_POST['duration_minutes'] ?? 60);
     
-    if ($subject_id <= 0) {
-        $error_message = 'Please select a subject.';
+    if ($teacher_assignment_id <= 0) {
+        $error_message = 'Please select a class / enrollment.';
     } elseif (empty($title)) {
         $error_message = 'Please enter an exam title.';
     } elseif (empty($deadline)) {
@@ -38,16 +38,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_exam']) && $ro
     } elseif ($duration_minutes <= 0) {
         $error_message = 'Please enter a valid duration.';
     } else {
-        $create_exam = $conn->prepare("INSERT INTO exams (teacher_id, subject_id, title, duration_minutes, deadline, is_published, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
-        $create_exam->bind_param("sisis", $user_id, $subject_id, $title, $duration_minutes, $deadline);
+        // Validate teacher owns this assignment and find subject_id
+        $assign_query = "SELECT ta.id, ss.subject_id 
+                         FROM teacher_assignments ta
+                         INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                         WHERE ta.id = ? AND ta.teacher_id = ? AND ta.status = 'active'
+                         LIMIT 1";
+        $assign_stmt = $conn->prepare($assign_query);
+        $assign_stmt->bind_param("is", $teacher_assignment_id, $user_id);
+        $assign_stmt->execute();
+        $assign_res = $assign_stmt->get_result();
         
-        if ($create_exam->execute()) {
-            header('Location: exam_center.php?success=' . urlencode('Exam created successfully!'));
-            exit;
+        if ($assign_res->num_rows === 0) {
+            $error_message = 'Invalid class / enrollment selected.';
         } else {
-            $error_message = 'Error creating exam: ' . $conn->error;
+            $assign_row = $assign_res->fetch_assoc();
+            $subject_id = intval($assign_row['subject_id']);
+            
+            // Check if exams table has teacher_assignment_id column
+            $col_check = $conn->query("SHOW COLUMNS FROM exams LIKE 'teacher_assignment_id'");
+            $has_ta_col = ($col_check && $col_check->num_rows > 0);
+            
+            if ($has_ta_col) {
+                $create_exam = $conn->prepare("INSERT INTO exams (teacher_id, teacher_assignment_id, subject_id, title, duration_minutes, deadline, is_published, status) VALUES (?, ?, ?, ?, ?, ?, 0, 'active')");
+                $create_exam->bind_param("siisis", $user_id, $teacher_assignment_id, $subject_id, $title, $duration_minutes, $deadline);
+            } else {
+                $create_exam = $conn->prepare("INSERT INTO exams (teacher_id, subject_id, title, duration_minutes, deadline, is_published, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
+                $create_exam->bind_param("sisis", $user_id, $subject_id, $title, $duration_minutes, $deadline);
+            }
+            
+            if ($create_exam->execute()) {
+                header('Location: exam_center.php?success=' . urlencode('Exam created successfully!'));
+                exit;
+            } else {
+                $error_message = 'Error creating exam: ' . $conn->error;
+            }
+            $create_exam->close();
         }
-        $create_exam->close();
+        $assign_stmt->close();
     }
 }
 
@@ -69,12 +97,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_publish']) && 
             }
             
             if (function_exists('sendWhatsAppMessage') && defined('WHATSAPP_ENABLED') && WHATSAPP_ENABLED) {
-                // 1. Get Exam Details
-                $exam_query = "SELECT e.title, e.duration_minutes, e.deadline, s.name as subject_name, u.first_name, u.second_name, e.subject_id
-                               FROM exams e
-                               INNER JOIN subjects s ON e.subject_id = s.id
-                               INNER JOIN users u ON e.teacher_id = u.user_id
-                               WHERE e.id = ?";
+                // 1. Get Exam Details including teacher_assignment_id if available
+                $exam_query = "SELECT e.title, e.duration_minutes, e.deadline, s.name as subject_name, u.first_name, u.second_name, e.subject_id";
+                $col_check = $conn->query("SHOW COLUMNS FROM exams LIKE 'teacher_assignment_id'");
+                $has_ta_col = ($col_check && $col_check->num_rows > 0);
+                if ($has_ta_col) {
+                    $exam_query .= ", e.teacher_assignment_id";
+                }
+                $exam_query .= " FROM exams e
+                                 INNER JOIN subjects s ON e.subject_id = s.id
+                                 INNER JOIN users u ON e.teacher_id = u.user_id
+                                 WHERE e.id = ?";
                 $estmt = $conn->prepare($exam_query);
                 $estmt->bind_param("i", $exam_id);
                 $estmt->execute();
@@ -83,21 +116,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_publish']) && 
                 
                 if ($exam_details) {
                     $subject_name = $exam_details['subject_name'];
-                    $teacher_name = trim($exam_details['first_name'] . ' ' . $exam_details['second_name']);
+                    $teacher_name = trim(($exam_details['first_name'] ?? '') . ' ' . ($exam_details['second_name'] ?? ''));
                     $exam_title = $exam_details['title'];
                     $duration = $exam_details['duration_minutes'] . " Minutes";
                     $deadline = date('Y-m-d h:i A', strtotime($exam_details['deadline']));
+                    $ta_id = !empty($exam_details['teacher_assignment_id']) ? intval($exam_details['teacher_assignment_id']) : 0;
                     
-                    // 2. Get Enrolled Students
-                    // Find students enrolled in any stream that has this subject
-                    $std_query = "SELECT DISTINCT u.whatsapp_number, u.first_name 
-                                  FROM users u
-                                  INNER JOIN student_enrollment se ON u.user_id = se.student_id
-                                  INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
-                                  WHERE ss.subject_id = ? AND se.status = 'active' AND u.status = 1";
+                    // 2. Get Enrolled Students for this specific teacher enrollment
+                    if ($ta_id > 0) {
+                        $std_query = "SELECT DISTINCT u.whatsapp_number, u.first_name 
+                                      FROM users u
+                                      INNER JOIN student_enrollment se ON u.user_id = se.student_id
+                                      INNER JOIN teacher_assignments ta ON se.stream_subject_id = ta.stream_subject_id 
+                                                                       AND se.academic_year = ta.academic_year
+                                                                       AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL)
+                                      WHERE ta.id = ? AND se.status = 'active' AND u.status = 1";
+                        $sstmt = $conn->prepare($std_query);
+                        $sstmt->bind_param("i", $ta_id);
+                    } else {
+                        // Fallback for exams without teacher_assignment_id
+                        $std_query = "SELECT DISTINCT u.whatsapp_number, u.first_name 
+                                      FROM users u
+                                      INNER JOIN student_enrollment se ON u.user_id = se.student_id
+                                      INNER JOIN stream_subjects ss ON se.stream_subject_id = ss.id
+                                      WHERE ss.subject_id = ? AND (se.teacher_id = ? OR se.teacher_id IS NULL) AND se.status = 'active' AND u.status = 1";
+                        $sstmt = $conn->prepare($std_query);
+                        $sstmt->bind_param("is", $exam_details['subject_id'], $user_id);
+                    }
                     
-                    $sstmt = $conn->prepare($std_query);
-                    $sstmt->bind_param("i", $exam_details['subject_id']);
                     $sstmt->execute();
                     $students_result = $sstmt->get_result();
                     
@@ -147,74 +193,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_exam']) && $ro
 
 // Handle fetch exam results via AJAX
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['get_exam_results']) && $role === 'teacher') {
-    $exam_id = intval($_POST['exam_id'] ?? 0);
+    while (ob_get_level()) { ob_end_clean(); }
+    header('Content-Type: application/json; charset=utf-8');
     
-    // Check if teacher owns this exam
-    $check_stmt = $conn->prepare("SELECT id, title FROM exams WHERE id = ? AND teacher_id = ?");
-    $check_stmt->bind_param("is", $exam_id, $user_id);
-    $check_stmt->execute();
-    if ($check_stmt->get_result()->num_rows === 0) {
-        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+    try {
+        $exam_id = intval($_POST['exam_id'] ?? 0);
+        if ($exam_id <= 0) {
+            echo json_encode(['success' => false, 'error' => 'Invalid exam ID']);
+            exit;
+        }
+        
+        // Check if teacher owns this exam
+        $check_stmt = $conn->prepare("SELECT id, title FROM exams WHERE id = ? AND teacher_id = ?");
+        if (!$check_stmt) {
+            throw new Exception("Database prepare error: " . $conn->error);
+        }
+        $check_stmt->bind_param("is", $exam_id, $user_id);
+        $check_stmt->execute();
+        if ($check_stmt->get_result()->num_rows === 0) {
+            echo json_encode(['success' => false, 'error' => 'Unauthorized or exam not found']);
+            exit;
+        }
+        $check_stmt->close();
+
+        // Get attempts with student info
+        $results_query = "SELECT ea.*, u.first_name, u.second_name, u.user_id as student_id
+                          FROM exam_attempts ea
+                          INNER JOIN users u ON ea.student_id = u.user_id
+                          WHERE ea.exam_id = ? AND ea.status = 'completed'
+                          ORDER BY ea.score DESC";
+        $stmt = $conn->prepare($results_query);
+        if (!$stmt) {
+            throw new Exception("Database prepare error: " . $conn->error);
+        }
+        $stmt->bind_param("i", $exam_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $attempts = [];
+        $total_score = 0;
+        $max_score = 0;
+        $min_score = 100;
+        $has_valid_score = false;
+        
+        while ($row = $result->fetch_assoc()) {
+            $fname = $row['first_name'] ?? '';
+            $sname = $row['second_name'] ?? '';
+            $student_name = trim($fname . ' ' . $sname);
+            $row['student_name'] = !empty($student_name) ? $student_name : ('Student ' . ($row['student_id'] ?? ''));
+            
+            // Calculate duration safely without null deprecation
+            $start = !empty($row['start_time']) ? strtotime($row['start_time']) : 0;
+            $end = !empty($row['end_time']) ? strtotime($row['end_time']) : 0;
+            $duration_seconds = ($start > 0 && $end > 0) ? max(0, $end - $start) : 0;
+            
+            $h = floor($duration_seconds / 3600);
+            $m = floor(($duration_seconds % 3600) / 60);
+            $s = $duration_seconds % 60;
+            
+            $duration_text = "";
+            if ($h > 0) $duration_text .= $h . "h ";
+            if ($m > 0 || $h > 0) $duration_text .= $m . "m ";
+            $duration_text .= $s . "s";
+            if (empty($duration_text)) {
+                $duration_text = "0s";
+            }
+            
+            $row['duration_text'] = $duration_text;
+            
+            $score = isset($row['score']) ? floatval($row['score']) : 0.0;
+            $total_score += $score;
+            if (!$has_valid_score || $score > $max_score) $max_score = $score;
+            if (!$has_valid_score || $score < $min_score) $min_score = $score;
+            $has_valid_score = true;
+            
+            $attempts[] = $row;
+        }
+        $stmt->close();
+        
+        $count = count($attempts);
+        echo json_encode([
+            'success' => true,
+            'attempts' => $attempts,
+            'overview' => [
+                'count' => $count,
+                'highest' => $count > 0 ? number_format($max_score, 1) : "0",
+                'lowest' => $count > 0 ? number_format($min_score, 1) : "0",
+                'average' => $count > 0 ? number_format($total_score / $count, 1) : "0"
+            ]
+        ]);
+        exit;
+    } catch (Throwable $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         exit;
     }
-    $check_stmt->close();
-
-    // Get attempts with student info
-    $results_query = "SELECT ea.*, u.first_name, u.second_name, u.user_id as student_id
-                      FROM exam_attempts ea
-                      INNER JOIN users u ON ea.student_id = u.user_id
-                      WHERE ea.exam_id = ? AND ea.status = 'completed'
-                      ORDER BY ea.score DESC";
-    $stmt = $conn->prepare($results_query);
-    $stmt->bind_param("i", $exam_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    $attempts = [];
-    $total_score = 0;
-    $max_score = -1;
-    $min_score = 101;
-    
-    while ($row = $result->fetch_assoc()) {
-        $row['student_name'] = trim($row['first_name'] . ' ' . $row['second_name']);
-        
-        // Calculate duration
-        $start = strtotime($row['start_time']);
-        $end = strtotime($row['end_time']);
-        $duration_seconds = max(0, $end - $start);
-        
-        $h = floor($duration_seconds / 3600);
-        $m = floor(($duration_seconds % 3600) / 60);
-        $s = $duration_seconds % 60;
-        
-        $duration_text = "";
-        if ($h > 0) $duration_text .= $h . "h ";
-        if ($m > 0 || $h > 0) $duration_text .= $m . "m ";
-        $duration_text .= $s . "s";
-        
-        $row['duration_text'] = $duration_text;
-        
-        $score = floatval($row['score']);
-        $total_score += $score;
-        if ($score > $max_score) $max_score = $score;
-        if ($score < $min_score) $min_score = $score;
-        
-        $attempts[] = $row;
-    }
-    $stmt->close();
-    
-    $count = count($attempts);
-    echo json_encode([
-        'success' => true,
-        'attempts' => $attempts,
-        'overview' => [
-            'count' => $count,
-            'highest' => $count > 0 ? number_format($max_score, 1) : 0,
-            'lowest' => $count > 0 ? number_format($min_score, 1) : 0,
-            'average' => $count > 0 ? number_format($total_score / $count, 1) : 0
-        ]
-    ]);
-    exit;
 }
 
 // Get success message from URL
@@ -222,21 +294,27 @@ if (isset($_GET['success'])) {
     $success_message = $_GET['success'];
 }
 
-// Get teacher's subjects for dropdown
-$teacher_subjects = [];
+// Check if exams table has teacher_assignment_id column
+$col_check = $conn->query("SHOW COLUMNS FROM exams LIKE 'teacher_assignment_id'");
+$has_ta_col = ($col_check && $col_check->num_rows > 0);
+
+// Get teacher's active enrollments/assignments for dropdown
+$teacher_assignments_list = [];
 if ($role === 'teacher') {
-    $subjects_query = "SELECT DISTINCT sub.id, sub.name, sub.code 
-                       FROM subjects sub
-                       INNER JOIN stream_subjects ss ON sub.id = ss.subject_id
-                       INNER JOIN teacher_assignments ta ON ss.id = ta.stream_subject_id
-                       WHERE ta.teacher_id = ? AND ta.status = 'active' AND sub.status = 1
-                       ORDER BY sub.name";
-    $stmt = $conn->prepare($subjects_query);
+    $assignments_query = "SELECT ta.id, ta.stream_subject_id, ta.academic_year, ta.batch_name,
+                                 s.name as stream_name, sub.id as subject_id, sub.name as subject_name, sub.code as subject_code
+                          FROM teacher_assignments ta
+                          INNER JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                          INNER JOIN streams s ON ss.stream_id = s.id
+                          INNER JOIN subjects sub ON ss.subject_id = sub.id
+                          WHERE ta.teacher_id = ? AND ta.status = 'active'
+                          ORDER BY ta.academic_year DESC, s.name, sub.name";
+    $stmt = $conn->prepare($assignments_query);
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        $teacher_subjects[] = $row;
+        $teacher_assignments_list[] = $row;
     }
     $stmt->close();
 }
@@ -244,13 +322,28 @@ if ($role === 'teacher') {
 // Get ongoing exams
 $exams = [];
 if ($role === 'teacher') {
-    $exams_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
-                           u.first_name, u.second_name
-                    FROM exams e
-                    INNER JOIN subjects sub ON e.subject_id = sub.id
-                    INNER JOIN users u ON e.teacher_id = u.user_id
-                    WHERE e.teacher_id = ? AND e.status = 'active'
-                    ORDER BY e.created_at DESC";
+    if ($has_ta_col) {
+        $exams_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+                               u.first_name, u.second_name,
+                               s.name as stream_name, ta.academic_year, ta.batch_name
+                        FROM exams e
+                        INNER JOIN subjects sub ON e.subject_id = sub.id
+                        INNER JOIN users u ON e.teacher_id = u.user_id
+                        LEFT JOIN teacher_assignments ta ON e.teacher_assignment_id = ta.id
+                        LEFT JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                        LEFT JOIN streams s ON ss.stream_id = s.id
+                        WHERE e.teacher_id = ? AND e.status = 'active'
+                        ORDER BY e.created_at DESC";
+    } else {
+        $exams_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+                               u.first_name, u.second_name,
+                               NULL as stream_name, NULL as academic_year, NULL as batch_name
+                        FROM exams e
+                        INNER JOIN subjects sub ON e.subject_id = sub.id
+                        INNER JOIN users u ON e.teacher_id = u.user_id
+                        WHERE e.teacher_id = ? AND e.status = 'active'
+                        ORDER BY e.created_at DESC";
+    }
     $stmt = $conn->prepare($exams_query);
     $stmt->bind_param("s", $user_id);
     $stmt->execute();
@@ -260,20 +353,45 @@ if ($role === 'teacher') {
     }
     $stmt->close();
 } elseif ($role === 'student') {
-    // Get published exams for student based on their enrollment
-    $exams_query = "SELECT DISTINCT e.*, sub.name as subject_name, sub.code as subject_code,
-                           u.first_name, u.second_name,
-                           ea.id as attempt_id, ea.status as attempt_status, ea.score, ea.correct_count, ea.total_questions
-                    FROM exams e
-                    INNER JOIN subjects sub ON e.subject_id = sub.id
-                    INNER JOIN users u ON e.teacher_id = u.user_id
-                    INNER JOIN stream_subjects ss ON sub.id = ss.subject_id
-                    INNER JOIN student_enrollment se ON ss.id = se.stream_subject_id 
-                                                     AND se.student_id = ? 
-                                                     AND se.status = 'active'
-                    LEFT JOIN exam_attempts ea ON e.id = ea.exam_id AND ea.student_id = ?
-                    WHERE e.is_published = 1 AND e.status = 'active'
-                    ORDER BY e.deadline DESC";
+    // Get published exams for student based on their active enrollment with this teacher
+    if ($has_ta_col) {
+        $exams_query = "SELECT DISTINCT e.*, sub.name as subject_name, sub.code as subject_code,
+                               u.first_name, u.second_name,
+                               s.name as stream_name, ta.academic_year, ta.batch_name,
+                               ea.id as attempt_id, ea.status as attempt_status, ea.score, ea.correct_count, ea.total_questions
+                        FROM exams e
+                        INNER JOIN subjects sub ON e.subject_id = sub.id
+                        INNER JOIN users u ON e.teacher_id = u.user_id
+                        LEFT JOIN teacher_assignments ta ON e.teacher_assignment_id = ta.id
+                        LEFT JOIN stream_subjects ss_ta ON ta.stream_subject_id = ss_ta.id
+                        LEFT JOIN streams s ON ss_ta.stream_id = s.id
+                        INNER JOIN student_enrollment se ON (
+                            (e.teacher_assignment_id IS NOT NULL AND se.stream_subject_id = ta.stream_subject_id AND se.academic_year = ta.academic_year AND (se.teacher_id = ta.teacher_id OR se.teacher_id IS NULL))
+                            OR
+                            (e.teacher_assignment_id IS NULL AND se.stream_subject_id IN (SELECT id FROM stream_subjects WHERE subject_id = e.subject_id) AND (se.teacher_id = e.teacher_id OR se.teacher_id IS NULL))
+                        )
+                        AND se.student_id = ? 
+                        AND se.status = 'active'
+                        LEFT JOIN exam_attempts ea ON e.id = ea.exam_id AND ea.student_id = ?
+                        WHERE e.is_published = 1 AND e.status = 'active'
+                        ORDER BY e.deadline DESC";
+    } else {
+        $exams_query = "SELECT DISTINCT e.*, sub.name as subject_name, sub.code as subject_code,
+                               u.first_name, u.second_name,
+                               NULL as stream_name, NULL as academic_year, NULL as batch_name,
+                               ea.id as attempt_id, ea.status as attempt_status, ea.score, ea.correct_count, ea.total_questions
+                        FROM exams e
+                        INNER JOIN subjects sub ON e.subject_id = sub.id
+                        INNER JOIN users u ON e.teacher_id = u.user_id
+                        INNER JOIN stream_subjects ss ON sub.id = ss.subject_id
+                        INNER JOIN student_enrollment se ON ss.id = se.stream_subject_id 
+                                                         AND se.student_id = ? 
+                                                         AND (se.teacher_id = e.teacher_id OR se.teacher_id IS NULL)
+                                                         AND se.status = 'active'
+                        LEFT JOIN exam_attempts ea ON e.id = ea.exam_id AND ea.student_id = ?
+                        WHERE e.is_published = 1 AND e.status = 'active'
+                        ORDER BY e.deadline DESC";
+    }
     $stmt = $conn->prepare($exams_query);
     $stmt->bind_param("ss", $user_id, $user_id);
     $stmt->execute();
@@ -401,7 +519,14 @@ if ($role === 'teacher') {
                                 <!-- Card Header -->
                                 <div class="bg-gradient-to-r from-red-500 to-red-600 p-4">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-white text-xs font-semibold uppercase tracking-wider"><?php echo htmlspecialchars($exam['subject_name']); ?></span>
+                                        <div class="pr-2">
+                                            <span class="text-white text-xs font-semibold uppercase tracking-wider block"><?php echo htmlspecialchars($exam['subject_name']); ?></span>
+                                            <?php if (!empty($exam['stream_name'])): ?>
+                                                <span class="text-red-100 text-[11px] font-medium block">
+                                                    <?php echo htmlspecialchars($exam['stream_name'] . ' (' . $exam['academic_year'] . (!empty($exam['batch_name']) ? ' - ' . $exam['batch_name'] : '') . ')'); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
                                         <?php if ($role === 'teacher'): ?>
                                             <!-- Publish Toggle for Teachers -->
                                             <div class="flex items-center">
@@ -522,19 +647,19 @@ if ($role === 'teacher') {
             <form method="POST" action="" class="space-y-5">
                 <input type="hidden" name="create_exam" value="1">
                 
-                <!-- Subject Selection -->
+                <!-- Class / Enrollment Selection -->
                 <div>
-                    <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-2">Subject *</label>
-                    <select id="subject_id" name="subject_id" required
+                    <label for="teacher_assignment_id" class="block text-sm font-medium text-gray-700 mb-2">Class / Course Enrollment *</label>
+                    <select id="teacher_assignment_id" name="teacher_assignment_id" required
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                        <option value="">Select Subject</option>
-                        <?php foreach ($teacher_subjects as $subject): ?>
-                            <option value="<?php echo $subject['id']; ?>">
-                                <?php echo htmlspecialchars($subject['name']); ?>
-                                <?php echo $subject['code'] ? ' (' . htmlspecialchars($subject['code']) . ')' : ''; ?>
+                        <option value="">Select Class / Enrollment</option>
+                        <?php foreach ($teacher_assignments_list as $assignment): ?>
+                            <option value="<?php echo $assignment['id']; ?>">
+                                <?php echo htmlspecialchars($assignment['stream_name'] . ' - ' . $assignment['subject_name'] . ' (' . $assignment['academic_year'] . (!empty($assignment['batch_name']) ? ' - ' . $assignment['batch_name'] : '') . ')'); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <p class="text-xs text-gray-500 mt-1">This exam will be conducted specifically for students enrolled in this class.</p>
                 </div>
                 
                 <!-- Title -->
@@ -661,7 +786,15 @@ if ($role === 'teacher') {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(async response => {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Server returned invalid response:', text);
+                    throw new Error('Server returned non-JSON response. Check console for details.');
+                }
+            })
             .then(data => {
                 if (data.success) {
                     renderResults(data);
@@ -672,7 +805,7 @@ if ($role === 'teacher') {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred while fetching results');
+                alert('An error occurred while fetching results: ' + error.message);
                 closeResultsModal();
             });
         }

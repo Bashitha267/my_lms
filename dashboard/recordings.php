@@ -1,6 +1,6 @@
 <?php
-require_once '../check_session.php';
-require_once '../config.php';
+require_once __DIR__ . '/../check_session.php';
+require_once __DIR__ . '/../config.php';
 
 $user_id = $_SESSION['user_id'] ?? '';
 $role = $_SESSION['role'] ?? '';
@@ -20,97 +20,52 @@ $error_message = '';
 
 // Handle new teacher assignment creation
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']) && $role === 'teacher') {
-    $stream_id_input = $_POST['stream_id'] ?? '';
-    $subject_id_input = $_POST['subject_id'] ?? '';
-    $stream_id = ($stream_id_input === 'new' || empty($stream_id_input)) ? 0 : intval($stream_id_input);
-    $subject_id = ($subject_id_input === 'new' || empty($subject_id_input)) ? 0 : intval($subject_id_input);
-    $new_stream_name = trim($_POST['new_stream_name'] ?? '');
-    $new_subject_name = trim($_POST['new_subject_name'] ?? '');
-    $new_subject_code = trim($_POST['new_subject_code'] ?? '');
+    // Check if teacher is approved in database
+    $appr_check = $conn->prepare("SELECT approved FROM users WHERE user_id = ? LIMIT 1");
+    $appr_check->bind_param("s", $user_id);
+    $appr_check->execute();
+    $appr_res = $appr_check->get_result();
+    $is_approved_teacher = ($appr_row = $appr_res->fetch_assoc()) ? (int)$appr_row['approved'] : 0;
+    $appr_check->close();
+
+    if ($is_approved_teacher !== 1) {
+        $error_message = 'Only approved teachers can create new class enrollments. Please wait for administrator approval.';
+    } else {
+    $stream_id = intval($_POST['stream_id'] ?? 0);
+    $subject_id = intval($_POST['subject_id'] ?? 0);
     $academic_year = isset($_POST['academic_year']) ? intval($_POST['academic_year']) : date('Y');
     $batch_name = trim($_POST['batch_name'] ?? '');
     
     // Validate
-    if ($stream_id_input === 'new' && empty($new_stream_name)) {
-        $error_message = 'Please enter a stream name.';
-    } elseif ($stream_id_input !== 'new' && $stream_id <= 0) {
-        $error_message = 'Please select a stream or create a new one.';
-    } elseif ($subject_id_input === 'new' && empty($new_subject_name)) {
-        $error_message = 'Please enter a subject name.';
-    } elseif ($subject_id_input !== 'new' && $subject_id <= 0) {
-        $error_message = 'Please select a subject or create a new one.';
+    if ($stream_id <= 0) {
+        $error_message = 'Please select a stream.';
+    } elseif ($subject_id <= 0) {
+        $error_message = 'Please select a subject.';
     } else {
-        // Create new stream if needed
-        if ($stream_id_input === 'new' && !empty($new_stream_name)) {
-            $check_stream = $conn->prepare("SELECT id FROM streams WHERE name = ?");
-            $check_stream->bind_param("s", $new_stream_name);
-            $check_stream->execute();
-            $stream_result = $check_stream->get_result();
-            
-            if ($stream_result->num_rows > 0) {
-                $stream_row = $stream_result->fetch_assoc();
-                $stream_id = $stream_row['id'];
-            } else {
-                $create_stream = $conn->prepare("INSERT INTO streams (name, status) VALUES (?, 1)");
-                $create_stream->bind_param("s", $new_stream_name);
-                if ($create_stream->execute()) {
-                    $stream_id = $conn->insert_id;
-                } else {
-                    $error_message = 'Error creating stream: ' . $conn->error;
-                }
-                $create_stream->close();
-            }
-            $check_stream->close();
-        }
+        // Find or link stream_subject
+        $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
+        $check_ss->bind_param("ii", $stream_id, $subject_id);
+        $check_ss->execute();
+        $ss_result = $check_ss->get_result();
         
-        // Create new subject if needed
-        if (empty($error_message) && $subject_id_input === 'new' && !empty($new_subject_name)) {
-            $check_subject = $conn->prepare("SELECT id FROM subjects WHERE name = ?");
-            $check_subject->bind_param("s", $new_subject_name);
-            $check_subject->execute();
-            $subject_result = $check_subject->get_result();
-            
-            if ($subject_result->num_rows > 0) {
-                $subject_row = $subject_result->fetch_assoc();
-                $subject_id = $subject_row['id'];
+        $stream_subject_id = null;
+        if ($ss_result->num_rows > 0) {
+            $ss_row = $ss_result->fetch_assoc();
+            $stream_subject_id = $ss_row['id'];
+        } else {
+            $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
+            $create_ss->bind_param("ii", $stream_id, $subject_id);
+            if ($create_ss->execute()) {
+                $stream_subject_id = $conn->insert_id;
             } else {
-                $create_subject = $conn->prepare("INSERT INTO subjects (name, code, status) VALUES (?, ?, 1)");
-                $create_subject->bind_param("ss", $new_subject_name, $new_subject_code);
-                if ($create_subject->execute()) {
-                    $subject_id = $conn->insert_id;
-                } else {
-                    $error_message = 'Error creating subject: ' . $conn->error;
-                }
-                $create_subject->close();
+                $error_message = 'Error creating stream-subject combination: ' . $conn->error;
             }
-            $check_subject->close();
+            $create_ss->close();
         }
+        $check_ss->close();
         
-        // Create stream_subject if it doesn't exist
-        if (empty($error_message) && $stream_id > 0 && $subject_id > 0) {
-            $check_ss = $conn->prepare("SELECT id FROM stream_subjects WHERE stream_id = ? AND subject_id = ?");
-            $check_ss->bind_param("ii", $stream_id, $subject_id);
-            $check_ss->execute();
-            $ss_result = $check_ss->get_result();
-            
-            $stream_subject_id = null;
-            if ($ss_result->num_rows > 0) {
-                $ss_row = $ss_result->fetch_assoc();
-                $stream_subject_id = $ss_row['id'];
-            } else {
-                $create_ss = $conn->prepare("INSERT INTO stream_subjects (stream_id, subject_id, status) VALUES (?, ?, 1)");
-                $create_ss->bind_param("ii", $stream_id, $subject_id);
-                if ($create_ss->execute()) {
-                    $stream_subject_id = $conn->insert_id;
-                } else {
-                    $error_message = 'Error creating stream-subject combination: ' . $conn->error;
-                }
-                $create_ss->close();
-            }
-            $check_ss->close();
-            
-            // Create teacher assignment
-            if (empty($error_message) && $stream_subject_id) {
+        // Create teacher assignment
+        if (empty($error_message) && $stream_subject_id) {
                 // Check if assignment already exists
                 $check_assign = $conn->prepare("SELECT id FROM teacher_assignments WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ?");
                 $check_assign->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
@@ -374,20 +329,44 @@ if ($role === 'teacher') {
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            <?php if (!empty($recordings_background)): ?>
-            background-image: url('../<?php echo htmlspecialchars($recordings_background); ?>');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-repeat: no-repeat;
-            <?php endif; ?>
+            overflow-y: auto;
+            overflow-x: hidden;
         }
+
+        /* ── Fixed background (desktop only, 1280×720) ── */
+        .bg-design {
+            display: none;
+        }
+        @media (min-width: 641px) {
+            body {
+                background-color: transparent;
+            }
+            .bg-design {
+                display: block;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 0;
+                pointer-events: none;
+                width: 100vw;
+                height: 56.25vw;
+                max-width: 1280px;
+                max-height: 720px;
+            }
+            .bg-design .bg-img {
+                width: 100%;
+                height: 100%;
+                object-fit: fill;
+                display: block;
+            }
+        }
+
         .content-overlay {
-          
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
             min-height: 100vh;
             padding-top: 5rem;
+            position: relative;
+            z-index: 1;
         }
         @media (min-width: 640px) {
             .content-overlay {
@@ -410,6 +389,10 @@ if ($role === 'teacher') {
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
+    <!-- Fixed background image (desktop only, 1280×720) -->
+    <div class="bg-design">
+        <img src="<?php echo $root_url; ?>assests/recbg.jpeg" class="bg-img" alt="Recordings Background">
+    </div>
     
     <div class="content-overlay">
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
@@ -418,9 +401,25 @@ if ($role === 'teacher') {
           
             <?php if ($role === 'teacher'): ?>
                 <!-- Teacher Assignments -->
-                <div class="mb-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                        <h2 class="text-2xl font-bold text-white mb-4 sm:mb-0 bg-red-700 p-3">My Subjects</h2>
+                <div class="mb-6" style="margin-top:120px;">
+
+                    <!-- Peeking-students title bar (full width, outside flex row) -->
+                    <div class="-mb-10 sm:-mb-12 md:-mb-14 relative z-0">
+                        <picture>
+                            <source media="(max-width: 640px)"
+                                    srcset="https://res.cloudinary.com/dnfbik3if/image/upload/v1789102608/169ce9a2-424c-498b-849c-7d7785a0c959_vyxhfj.png">
+                            <img src="https://res.cloudinary.com/dnfbik3if/image/upload/v1789102606/aa5ebd45-4d6c-444e-9721-384b7dd29de8_bughbh.png"
+                                 alt=""
+                                 fetchpriority="high"
+                                 class="block mx-auto h-24 sm:h-28 md:h-32
+                                        w-auto max-w-full object-contain
+                                        pointer-events-none select-none">
+                        </picture>
+                    </div>
+                    <h2 class="relative z-10 text-2xl font-bold text-white mb-4 bg-red-700 p-3">My Subjects</h2>
+
+                    <!-- Filter controls row -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-4">
                         <?php if (!empty($teacher_assignments)): ?>
                             <div class="flex flex-col sm:flex-row gap-3">
                                 <!-- Subject Filter -->
@@ -476,93 +475,74 @@ if ($role === 'teacher') {
                             <p class="text-gray-500 text-lg">No active teaching Subjects found.</p>
                         </div>
                     <?php else: ?>
-                        <div id="teacherCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div id="teacherCardsContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             <?php foreach ($teacher_assignments as $assignment): ?>
                                 <a href="content.php?stream_subject_id=<?php echo $assignment['stream_subject_id']; ?>&academic_year=<?php echo $assignment['academic_year']; ?>" 
-                                   class="teacher-card bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden block cursor-pointer" 
+                                   class="teacher-card bg-white rounded-xl shadow hover:shadow-lg transition-shadow overflow-hidden block cursor-pointer" 
                                    data-subject="<?php echo htmlspecialchars($assignment['subject_name']); ?>"
                                    data-year="<?php echo htmlspecialchars($assignment['academic_year']); ?>">
-                                    
-                                    <!-- Cover Image or Gradient -->
-                                    <?php if (!empty($assignment['cover_image'])): ?>
-                                        <div class="h-32 w-full bg-cover bg-center" style="background-image: url('../<?php echo htmlspecialchars($assignment['cover_image']); ?>');"></div>
-                                    <?php else: ?>
-                                        <div class="h-32 w-full bg-gradient-to-br from-red-100 to-white flex items-center justify-center">
-                                            <svg class="w-12 h-12 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                            </svg>
-                                        </div>
-                                    <?php endif; ?>
 
-                                    <div class="p-6">
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="flex-1">
-                                            <h3 class="text-xl font-bold text-gray-900 mb-1"><?php echo htmlspecialchars($assignment['subject_name']); ?></h3>
-                                            <?php if ($assignment['subject_code']): ?>
-                                                <p class="text-sm text-gray-500"><?php echo htmlspecialchars($assignment['subject_code']); ?></p>
+                                    <!-- Cover Image -->
+                                    <div class="aspect-[1.91/1] w-full overflow-hidden relative border-b border-gray-100">
+                                        <?php if (!empty($assignment['cover_image'])): ?>
+                                            <img src="../<?php echo htmlspecialchars($assignment['cover_image']); ?>" 
+                                                 alt="<?php echo htmlspecialchars($assignment['subject_name']); ?>"
+                                                 class="w-full h-full object-cover">
+                                        <?php else: ?>
+                                            <div class="w-full h-full bg-gradient-to-br from-red-100 to-white flex items-center justify-center border-b border-gray-100">
+                                                <svg class="w-8 h-8 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                                </svg>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <div class="p-3">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <div class="flex-1 min-w-0">
+                                                <h3 class="text-sm font-bold text-gray-900 truncate"><?php echo htmlspecialchars($assignment['batch_name'] ?: $assignment['subject_name']); ?></h3>
+                                                <p class="text-xs font-semibold text-blue-600 truncate">
+                                                    <?php echo htmlspecialchars($assignment['subject_name']); ?>
+                                                    <?php if ($assignment['subject_code']): ?>
+                                                        <span class="text-gray-400 font-normal">(<?php echo htmlspecialchars($assignment['subject_code']); ?>)</span>
+                                                    <?php endif; ?>
+                                                </p>
+                                            </div>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800 ml-1 flex-shrink-0">Active</span>
+                                        </div>
+
+                                        <div class="space-y-1 text-xs text-gray-600">
+                                            <div class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                                                <span class="font-medium">Stream:</span>
+                                                <span class="truncate"><?php echo htmlspecialchars($assignment['stream_name']); ?></span>
+                                            </div>
+                                            <div class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                <span class="font-medium">Year:</span>
+                                                <span><?php echo htmlspecialchars($assignment['academic_year']); ?></span>
+                                            </div>
+                                            <?php if ($assignment['batch_name']): ?>
+                                            <div class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zm-7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                                <span class="font-medium">Batch:</span>
+                                                <span class="truncate"><?php echo htmlspecialchars($assignment['batch_name']); ?></span>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if ($assignment['assigned_date']): ?>
+                                            <div class="flex items-center gap-1">
+                                                <svg class="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                <span class="font-medium">Assigned:</span>
+                                                <span><?php echo date('M d, Y', strtotime($assignment['assigned_date'])); ?></span>
+                                            </div>
                                             <?php endif; ?>
                                         </div>
-                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                                            Active
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="space-y-2 mb-4">
-                                        <div class="flex items-center text-gray-600">
-                                            <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                            </svg>
-                                            <span class="font-medium">Stream:</span>
-                                            <span class="ml-2"><?php echo htmlspecialchars($assignment['stream_name']); ?></span>
+
+                                        <div class="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1 text-xs text-gray-500">
+                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zm-7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                            <span class="font-medium">Enrolled:</span>
+                                            <span class="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-800"><?php echo $assignment['student_count']; ?></span>
                                         </div>
-                                        
-                                        <div class="flex items-center text-gray-600">
-                                            <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                            </svg>
-                                            <span class="font-medium">Academic Year:</span>
-                                            <span class="ml-2"><?php echo htmlspecialchars($assignment['academic_year']); ?></span>
-                                        </div>
-                                        
-                                        <?php if ($assignment['batch_name']): ?>
-                                            <div class="flex items-center text-gray-600">
-                                                <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zm-7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                                </svg>
-                                                <span class="font-medium">Batch:</span>
-                                                <span class="ml-2"><?php echo htmlspecialchars($assignment['batch_name']); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <?php if ($assignment['assigned_date']): ?>
-                                            <div class="flex items-center text-gray-600">
-                                                <svg class="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                                </svg>
-                                                <span class="font-medium">Assigned:</span>
-                                                <span class="ml-2"><?php echo date('M d, Y', strtotime($assignment['assigned_date'])); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <?php if ($assignment['notes']): ?>
-                                        <div class="mt-4 pt-4 border-t border-gray-200">
-                                            <p class="text-sm text-gray-600">
-                                                <span class="font-medium">Notes:</span>
-                                                <?php echo htmlspecialchars($assignment['notes']); ?>
-                                            </p>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="mt-4 pt-4 border-t border-gray-100 flex items-center text-gray-600">
-                                        <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zm-7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                                        </svg>
-                                        <span class="font-medium mr-2">Enrolled Students:</span>
-                                        <span class="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                                            <?php echo $assignment['student_count']; ?>
-                                        </span>
-                                    </div>
                                     </div>
                                 </a>
                             <?php endforeach; ?>
@@ -572,9 +552,25 @@ if ($role === 'teacher') {
 
             <?php elseif ($role === 'student'): ?>
                 <!-- Student Enrollments -->
-                <div class="mb-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                        <h2 class="text-2xl font-bold text-white mb-4 sm:mb-0 bg-red-700 p-3">My Enrollments</h2>
+                <div class="mb-6" style="margin-top:120px;">
+
+                    <!-- Peeking-students title bar (full width, outside flex row) -->
+                    <div class="-mb-10 sm:-mb-12 md:-mb-14 relative z-0">
+                        <picture>
+                            <source media="(max-width: 640px)"
+                                    srcset="https://res.cloudinary.com/dnfbik3if/image/upload/v1789102608/169ce9a2-424c-498b-849c-7d7785a0c959_vyxhfj.png">
+                            <img src="https://res.cloudinary.com/dnfbik3if/image/upload/v1789102606/aa5ebd45-4d6c-444e-9721-384b7dd29de8_bughbh.png"
+                                 alt=""
+                                 fetchpriority="high"
+                                 class="block mx-auto h-24 sm:h-28 md:h-32
+                                        w-auto max-w-full object-contain
+                                        pointer-events-none select-none">
+                        </picture>
+                    </div>
+                    <h2 class="relative z-10 text-2xl font-bold text-white mb-4 bg-red-700 p-3">My Enrollments</h2>
+
+                    <!-- Filter controls row -->
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end mb-4">
                         <?php if (!empty($student_enrollments)): ?>
                             <div class="flex flex-col sm:flex-row gap-3">
                                 <!-- Subject Filter -->
@@ -615,11 +611,15 @@ if ($role === 'teacher') {
                                    data-subject="<?php echo htmlspecialchars($enrollment['subject_name']); ?>"
                                    data-year="<?php echo htmlspecialchars($enrollment['academic_year']); ?>">
                                     
-                                    <!-- Cover Image or Gradient -->
+                                    <!-- Cover Image or Gradient with Facebook Post Aspect Ratio (1.91:1) -->
                                     <?php if (!empty($enrollment['cover_image'])): ?>
-                                        <div class="h-40 w-full bg-cover bg-center" style="background-image: url('../<?php echo htmlspecialchars($enrollment['cover_image']); ?>');"></div>
+                                        <div class="aspect-[1.91/1] w-full overflow-hidden relative border-b border-gray-100">
+                                            <img src="../<?php echo htmlspecialchars($enrollment['cover_image']); ?>" 
+                                                 alt="<?php echo htmlspecialchars($enrollment['subject_name']); ?>"
+                                                 class="w-full h-full object-cover">
+                                        </div>
                                     <?php else: ?>
-                                        <div class="h-40 w-full bg-gradient-to-br from-red-100 to-white flex items-center justify-center">
+                                        <div class="aspect-[1.91/1] w-full bg-gradient-to-br from-red-100 to-white flex items-center justify-center border-b border-gray-100">
                                             <svg class="w-12 h-12 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
                                             </svg>
@@ -730,40 +730,25 @@ if ($role === 'teacher') {
                     <!-- Stream Selection -->
                     <div>
                         <label for="stream_id" class="block text-sm font-medium text-gray-700 mb-1">Stream *</label>
-                        <select id="stream_id" name="stream_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                onchange="toggleStreamInput()">
+                        <select id="stream_id" name="stream_id" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             <option value="">Select Stream</option>
-                            <option value="new">+ Create New Stream</option>
                             <?php foreach ($all_streams as $stream): ?>
                                 <option value="<?php echo $stream['id']; ?>"><?php echo htmlspecialchars($stream['name']); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <input type="text" id="new_stream_name" name="new_stream_name" 
-                               placeholder="Enter new stream name"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 mt-2 hidden">
                     </div>
                     
                     <!-- Subject Selection -->
                     <div>
                         <label for="subject_id" class="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
-                        <select id="subject_id" name="subject_id" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                                onchange="toggleSubjectInput()">
+                        <select id="subject_id" name="subject_id" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                             <option value="">Select Subject</option>
-                            <option value="new">+ Create New Subject</option>
                             <?php foreach ($all_subjects as $subject): ?>
                                 <option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?><?php echo $subject['code'] ? ' (' . htmlspecialchars($subject['code']) . ')' : ''; ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div id="new_subject_fields" class="hidden mt-2 space-y-2">
-                            <input type="text" id="new_subject_name" name="new_subject_name" 
-                                   placeholder="Enter new subject name"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                            <input type="text" id="new_subject_code" name="new_subject_code" 
-                                   placeholder="Enter subject code (optional)"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                        </div>
                     </div>
                     
                     <!-- Academic Year (Hidden, defaults to current year) -->
@@ -785,11 +770,11 @@ if ($role === 'teacher') {
                         </div>
                     </div>
                     
-                    <!-- Batch Name (Optional) -->
+                    <!-- Name of the Class (Required) -->
                     <div>
-                        <label for="batch_name" class="block text-sm font-medium text-gray-700 mb-1">Batch Name (Optional)</label>
-                        <input type="text" id="batch_name" name="batch_name" 
-                               placeholder="e.g., Batch A, Morning Batch"
+                        <label for="batch_name" class="block text-sm font-medium text-gray-700 mb-1">Name of the Class *</label>
+                        <input type="text" id="batch_name" name="batch_name" required
+                               placeholder="e.g., 2027 Chemistry Paper Class"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
                     </div>
                     

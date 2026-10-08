@@ -11,11 +11,12 @@ try {
         exit;
     }
     
-    // Get subjects for the selected stream
-    $query = "SELECT s.id, s.name, s.code 
+    // Get subjects for the selected stream — only where teachers are available
+    $query = "SELECT DISTINCT s.id, s.name, s.code
               FROM subjects s
-              INNER JOIN stream_subjects ss ON s.id = ss.subject_id
-              WHERE ss.stream_id = ? AND ss.status = 1 AND s.status = 1
+              INNER JOIN stream_subjects ss ON s.id = ss.subject_id AND ss.status = 1
+              INNER JOIN teacher_assignments ta ON ta.stream_subject_id = ss.id AND ta.status = 'active'
+              WHERE ss.stream_id = ? AND s.status = 1
               ORDER BY s.name";
     
     $stmt = $conn->prepare($query);

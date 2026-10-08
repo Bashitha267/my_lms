@@ -128,7 +128,7 @@ function sendPhysicalJoinNotifications($conn, $class_id, $student_id) {
                    "Your attendance for *{$subj}* by *{$t_name}* at *{$loc}* has been marked successfully.\n\n" .
                    "--------------------------\n\n" .
                    "ඔබේ *{$subj}* ({$t_name}) භෞතික පන්තිය සඳහා පැමිණීම සාර්ථකව සටහන් කර ගන්නා ලදී.\n\n" .
-                   "Thank you! - LearnerX Team";
+                   "Thank you! - Lernerr.LK Team";
             sendWhatsAppMessage($s_wa, $s_msg);
         }
     }

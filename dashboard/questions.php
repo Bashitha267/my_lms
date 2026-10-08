@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../check_session.php';
 require_once '../config.php';
 
@@ -15,12 +15,30 @@ if ($exam_id <= 0) {
 
 // Get exam details
 $exam = null;
-$exam_stmt = $conn->prepare("SELECT e.*, sub.name as subject_name, sub.code as subject_code,
-                                    u.first_name, u.second_name
-                             FROM exams e
-                             INNER JOIN subjects sub ON e.subject_id = sub.id
-                             INNER JOIN users u ON e.teacher_id = u.user_id
-                             WHERE e.id = ? AND e.teacher_id = ?");
+$col_check = $conn->query("SHOW COLUMNS FROM exams LIKE 'teacher_assignment_id'");
+$has_ta_col = ($col_check && $col_check->num_rows > 0);
+
+if ($has_ta_col) {
+    $exam_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+                          u.first_name, u.second_name,
+                          s.name as stream_name, ta.academic_year, ta.batch_name
+                   FROM exams e
+                   INNER JOIN subjects sub ON e.subject_id = sub.id
+                   INNER JOIN users u ON e.teacher_id = u.user_id
+                   LEFT JOIN teacher_assignments ta ON e.teacher_assignment_id = ta.id
+                   LEFT JOIN stream_subjects ss ON ta.stream_subject_id = ss.id
+                   LEFT JOIN streams s ON ss.stream_id = s.id
+                   WHERE e.id = ? AND e.teacher_id = ?";
+} else {
+    $exam_query = "SELECT e.*, sub.name as subject_name, sub.code as subject_code,
+                          u.first_name, u.second_name,
+                          NULL as stream_name, NULL as academic_year, NULL as batch_name
+                   FROM exams e
+                   INNER JOIN subjects sub ON e.subject_id = sub.id
+                   INNER JOIN users u ON e.teacher_id = u.user_id
+                   WHERE e.id = ? AND e.teacher_id = ?";
+}
+$exam_stmt = $conn->prepare($exam_query);
 $exam_stmt->bind_param("is", $exam_id, $user_id);
 $exam_stmt->execute();
 $exam_result = $exam_stmt->get_result();
@@ -398,6 +416,9 @@ $questions_stmt->close();
                             <h1 class="text-2xl font-bold text-gray-900"><?php echo htmlspecialchars($exam['title']); ?></h1>
                             <p class="text-gray-500 text-sm mt-1">
                                 <span class="text-red-600 font-medium"><?php echo htmlspecialchars($exam['subject_name']); ?></span>
+                                <?php if (!empty($exam['stream_name'])): ?>
+                                    <span class="text-gray-500 font-medium">(<?php echo htmlspecialchars($exam['stream_name'] . ' ' . $exam['academic_year'] . (!empty($exam['batch_name']) ? ' - ' . $exam['batch_name'] : '')); ?>)</span>
+                                <?php endif; ?>
                                 • <?php echo $exam['duration_minutes']; ?> min 
                                 • Due: <?php echo date('M d, Y', strtotime($exam['deadline'])); ?>
                             </p>

@@ -23,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("UPDATE users SET approved = 1 WHERE user_id = ?");
                 $stmt->bind_param("s", $user_id);
                 if ($stmt->execute()) {
+                    // Update teacher_assignments to active for this teacher
+                    $conn->query("UPDATE teacher_assignments SET status = 'active' WHERE teacher_id = '$user_id'");
                     $success_message = "User approved successfully.";
                     
                     // WhatsApp Notification
@@ -36,12 +38,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             
                             if ($u_info && !empty($u_info['whatsapp_number'])) {
                                 $role_name = ucfirst($u_info['role']);
-                                $msg = "✅ *Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
-                                       "Hello {$u_info['first_name']},\n" .
-                                       "Your Learner.LK {$role_name} account has been approved by the administrator. You can now log in to the system.\n\n" .
-                                       "--------------------------\n\n" .
-                                       "ඔබේ Learner.LK {$role_name} ගිණුම පරිපාලක විසින් තහවුරු කර ඇත. ඔබට දැන් පද්ධතියට පිවිසිය හැක.\n\n" .
-                                       "Thank you,\nLearner.LK Team";
+                                if ($u_info['role'] === 'teacher') {
+                                    $admin_wa = defined('ADMIN_WHATSAPP') ? ADMIN_WHATSAPP : '0768368202';
+                                    $msg = "✅ *Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
+                                           "Hello *{$u_info['first_name']}*,\n\n" .
+                                           "Congratulations! Your teacher account on Lernerr.LK has been approved.\n\n" .
+                                           "--------------------------\n\n" .
+                                           "අප හා ගුරුවරයෙකු ලෙස එකතු වූ ඔබට Lernerr.LK වෙතින් සුබ පැතුම්!\n\n" .
+                                           "ඔබගේ අයදුම්පත අප විසින් තහවුරු කර ඇත. දැන් ඔබට ඔබගේ ගිණුම වෙත සාර්ථකව පිවිස ඔබගේ පන්ති ආරම්භ කළ හැක.\n\n" .
+                                           "*නව පන්තියක් ආරම්භ කිරීමට:*\n" .
+                                           "Profile වෙත පිවිස *Create New Enroll* දී අදාල විෂය ධාරාව හා විෂය තෝරා අදාළ වර්ෂය ඇතුළත් කරන්න.\n\n" .
+                                           "*පසුගිය රෙකෝඩින් එකතු කිරීමට:*\n" .
+                                           "*Recordings* වෙත පිවිස අදාල පන්තිය තෝරා *Add New Recording* ක්ලික් කර ඇතුළත් කළ හැක.\n\n" .
+                                           "*සජීවී පන්තියක් පැවත්වීමට:*\n" .
+                                           "*Live Class* වෙත පිවිස ආරම්භ කළ හැක.\n\n" .
+                                           "*සහාය අවශ්‍ය නම්:*\n" .
+                                           "අපගේ WhatsApp අංකයට පණිවිඩයක් යොමු කරන්න: *{$admin_wa}*";
+                                } else {
+                                    $msg = "*Account Approved / ගිණුම තහවුරු කරන ලදී*\n\n" .
+                                           "Hello {$u_info['first_name']},\n" .
+                                           "Your Lernerr.LK {$role_name} account has been approved. You can now log in to the system.\n\n" .
+                                           "--------------------------\n\n" .
+                                           "ඔබේ Lernerr.LK {$role_name}  වෙත සාර්ථකව පිවිස ඔබගේ පන්ති ආරම්භ කල හැක.";
+                                }
                                 sendWhatsAppMessage($u_info['whatsapp_number'], $msg);
                             }
                         }
@@ -156,7 +175,7 @@ if ($active_tab === 'pending') {
 }
 
 // Build query
-$query = "SELECT user_id, email, role, first_name, second_name, mobile_number, whatsapp_number, status, approved, registering_date FROM users WHERE 1=1";
+$query = "SELECT user_id, email, role, first_name, second_name, mobile_number, whatsapp_number, district, status, approved, registering_date FROM users WHERE 1=1";
 $params = [];
 $types = '';
 
@@ -184,8 +203,34 @@ if (!empty($search)) {
     $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param]);
     $types .= 'ssss';
 }
+// Count total matching records for pagination
+$count_query = "SELECT COUNT(*) as total FROM users WHERE 1=1";
+if ($filter_role !== 'all') { $count_query .= " AND role = ?"; }
+if ($filter_status !== 'all') { $count_query .= " AND status = ?"; }
+if ($filter_approved !== 'all') { $count_query .= " AND approved = ?"; }
+if (!empty($search)) { $count_query .= " AND (email LIKE ? OR first_name LIKE ? OR second_name LIKE ? OR user_id LIKE ?)"; }
 
-$query .= " ORDER BY registering_date DESC, user_id ASC";
+$count_stmt = $conn->prepare($count_query);
+if (!empty($params)) {
+    $count_stmt->bind_param($types, ...$params);
+}
+$count_stmt->execute();
+$total_records = (int)$count_stmt->get_result()->fetch_assoc()['total'];
+$count_stmt->close();
+
+// 10 per page pagination
+$per_page = 10;
+$page = isset($_GET['page']) && is_numeric($_GET['page']) && (int)$_GET['page'] > 0 ? (int)$_GET['page'] : 1;
+$total_pages = max(1, (int)ceil($total_records / $per_page));
+if ($page > $total_pages) {
+    $page = $total_pages;
+}
+$offset = ($page - 1) * $per_page;
+
+$query .= " ORDER BY registering_date DESC, user_id ASC LIMIT ? OFFSET ?";
+$params[] = $per_page;
+$params[] = $offset;
+$types .= 'ii';
 
 $stmt = $conn->prepare($query);
 if (!empty($params)) {
@@ -388,6 +433,7 @@ $stats = $stats_result->fetch_assoc();
                             <option value="teacher" <?php echo $filter_role === 'teacher' ? 'selected' : ''; ?>>Teacher</option>
                             <option value="instructor" <?php echo $filter_role === 'instructor' ? 'selected' : ''; ?>>Instructor</option>
                             <option value="admin" <?php echo $filter_role === 'admin' ? 'selected' : ''; ?>>Admin</option>
+                            <option value="super_admin" <?php echo $filter_role === 'super_admin' ? 'selected' : ''; ?>>Super Admin</option>
                         </select>
                     </div>
 
@@ -446,7 +492,8 @@ $stats = $stats_result->fetch_assoc();
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">User ID</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Contact Number</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">District</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Role</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Approved</th>
@@ -456,7 +503,7 @@ $stats = $stats_result->fetch_assoc();
                         <tbody class="bg-white divide-y divide-gray-200">
                             <?php if (empty($users)): ?>
                                 <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                                    <td colspan="8" class="px-4 py-8 text-center text-gray-500">
                                         No users found matching your criteria.
                                     </td>
                                 </tr>
@@ -469,8 +516,14 @@ $stats = $stats_result->fetch_assoc();
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
                                             <?php echo htmlspecialchars(trim(($user['first_name'] ?? '') . ' ' . ($user['second_name'] ?? '')) ?: 'N/A'); ?>
                                         </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-mono">
+                                            <?php 
+                                                $contact = !empty($user['mobile_number']) ? $user['mobile_number'] : (!empty($user['whatsapp_number']) ? $user['whatsapp_number'] : '');
+                                                echo !empty($contact) ? htmlspecialchars($contact) : '-'; 
+                                            ?>
+                                        </td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                             <?php echo !empty($user['email']) ? htmlspecialchars($user['email']) : ''; ?>
+                                            <?php echo !empty($user['district']) ? htmlspecialchars($user['district']) : '-'; ?>
                                         </td>
                                         <td class="px-4 py-3 whitespace-nowrap">
                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
@@ -576,9 +629,61 @@ $stats = $stats_result->fetch_assoc();
                 </div>
             </div>
 
-            <!-- Results Count -->
-            <div class="mt-4 text-sm text-gray-600">
-                Showing <strong><?php echo count($users); ?></strong> user(s)
+            <!-- Pagination & Results Count -->
+            <div class="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div>
+                    Showing <strong class="text-gray-900"><?php echo $total_records > 0 ? ($offset + 1) : 0; ?></strong> to <strong class="text-gray-900"><?php echo min($offset + count($users), $total_records); ?></strong> of <strong class="text-gray-900"><?php echo $total_records; ?></strong> total users
+                </div>
+                
+                <?php if ($total_pages > 1): ?>
+                    <div class="flex items-center space-x-1">
+                        <?php 
+                        $query_args = $_GET;
+                        
+                        // Prev Button
+                        if ($page > 1): 
+                            $query_args['page'] = $page - 1;
+                        ?>
+                            <a href="?<?php echo http_build_query($query_args); ?>" class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-medium transition-colors">Prev</a>
+                        <?php else: ?>
+                            <span class="px-3 py-1.5 rounded-md border border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed">Prev</span>
+                        <?php endif; ?>
+
+                        <?php 
+                        $start_p = max(1, $page - 2);
+                        $end_p = min($total_pages, $page + 2);
+                        if ($start_p > 1):
+                            $query_args['page'] = 1;
+                        ?>
+                            <a href="?<?php echo http_build_query($query_args); ?>" class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-medium">1</a>
+                            <?php if ($start_p > 2): ?><span class="px-1 text-gray-400">...</span><?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php for ($p = $start_p; $p <= $end_p; $p++): 
+                            $query_args['page'] = $p;
+                        ?>
+                            <a href="?<?php echo http_build_query($query_args); ?>" class="px-3 py-1.5 rounded-md font-medium border <?php echo $p === $page ? 'bg-red-600 border-red-600 text-white font-bold' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'; ?>">
+                                <?php echo $p; ?>
+                            </a>
+                        <?php endfor; ?>
+
+                        <?php if ($end_p < $total_pages): 
+                            $query_args['page'] = $total_pages;
+                        ?>
+                            <?php if ($end_p < $total_pages - 1): ?><span class="px-1 text-gray-400">...</span><?php endif; ?>
+                            <a href="?<?php echo http_build_query($query_args); ?>" class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-medium"><?php echo $total_pages; ?></a>
+                        <?php endif; ?>
+
+                        <?php // Next Button ?>
+                        <?php if ($page < $total_pages): 
+                            $query_args['page'] = $page + 1;
+                        ?>
+                            <a href="?<?php echo http_build_query($query_args); ?>" class="px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 font-medium transition-colors">Next</a>
+                        <?php else: ?>
+                            <span class="px-3 py-1.5 rounded-md border border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed">Next</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -720,7 +825,6 @@ $stats = $stats_result->fetch_assoc();
                                         <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Qualification</th>
                                         <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Institution</th>
                                         <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Year</th>
-                                        <th class="px-4 py-2 text-left font-medium text-gray-500 uppercase">Grade/Class</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -731,7 +835,6 @@ $stats = $stats_result->fetch_assoc();
                                 <td class="px-4 py-2 text-gray-900 font-medium">${edu.qualification}</td>
                                 <td class="px-4 py-2 text-gray-500">${edu.institution || 'N/A'}</td>
                                 <td class="px-4 py-2 text-gray-500">${edu.year_obtained || 'N/A'}</td>
-                                <td class="px-4 py-2 text-gray-500">${edu.grade_or_class || 'N/A'}</td>
                             </tr>
                         `;
                     });

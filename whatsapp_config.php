@@ -89,11 +89,18 @@ if (!function_exists('_wa_curl_post')) {
  *               on some VPS setups, may bypass iptables OUTPUT rules.
  *   Method 3 — HTTPS (port 443): original attempt, works when port is open.
  */
+// Global WhatsApp Message Footer
+if (!defined('WHATSAPP_FOOTER')) {
+    define('WHATSAPP_FOOTER', "\n\n-------------------------------------\nThank you,\n| Lernerr.LK 🇱🇰\n| Best Place to Your Online Learning");
+}
+
 if (!function_exists('sendWhatsAppMessage')) {
     function sendWhatsAppMessage($mobile, $message)
     {
-        // Append global footer
-        $message .= "\n\n| Learner.LK 🇱🇰\n| Best Place to Your Online Learning";
+        // Append global footer if not already present
+        if (strpos($message, '| Lernerr.LK') === false) {
+            $message .= WHATSAPP_FOOTER;
+        }
 
         if (!WHATSAPP_ENABLED) {
             return ['success' => false, 'message' => 'WhatsApp API is disabled'];
@@ -105,9 +112,7 @@ if (!function_exists('sendWhatsAppMessage')) {
         $email       = WHATSAPP_API_EMAIL;
         $api_key     = WHATSAPP_API_KEY;
         $chatId      = formatWhatsAppNumber($mobile);
-        $https_url   = WHATSAPP_API_URL;  // https://wa-api.hostgrap.com/api/send-message.php
-        // Port 80 version — web servers always allow outbound 80
-        $http_url    = str_replace('https://', 'http://', $https_url);
+        $https_url   = WHATSAPP_API_URL;
 
         $data = [
             'email'   => $email,
@@ -117,74 +122,55 @@ if (!function_exists('sendWhatsAppMessage')) {
         ];
         $post_fields = http_build_query($data);
 
-        // ── Method 1: HTTP (port 80) ──────────────────────────────────────
-        // Port 80 is definitely open — your Nginx serves on it.
-        // CURLOPT_FOLLOWLOCATION handles any redirect to HTTPS transparently.
-        [$response, $http_code, $curl_err] = _wa_curl_post($http_url, $post_fields, false);
+        // ── Method 1: Direct HTTPS cURL ───────────────────────────────────
+        $ch = curl_init($https_url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 
-        if (!$curl_err && $http_code === 200) {
+        $response  = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curl_err  = curl_error($ch);
+        curl_close($ch);
+
+        if (!$curl_err && $http_code === 200 && !empty($response)) {
             $result = _wa_parse_response($response);
-            if ($result['success']) {
-                error_log("WhatsApp sent via HTTP (port 80) to $chatId");
+            error_log("WhatsApp sent via HTTPS cURL to $chatId: " . $response);
+            return $result;
+        }
+
+        // ── Method 2: System curl CLI with -k (bypasses local SSL issues) ──
+        if (function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))))) {
+            $curl_bin = (stripos(PHP_OS, 'WIN') === 0) ? 'curl.exe' : 'curl';
+            $tmp_post_file = str_replace('\\', '/', sys_get_temp_dir()) . '/wa_post_' . time() . '_' . rand(1000, 9999) . '.txt';
+            file_put_contents($tmp_post_file, $post_fields);
+
+            $cmd = $curl_bin . ' -k -s --max-time 15 --connect-timeout 6 -X POST "' . $https_url . '" --data @"' . $tmp_post_file . '"';
+
+            $output = [];
+            $ret_code = 0;
+            @exec($cmd, $output, $ret_code);
+            @unlink($tmp_post_file);
+            $shell_response = implode("\n", $output);
+
+            if (!empty($shell_response)) {
+                $result = _wa_parse_response($shell_response);
+                error_log("WhatsApp sent via system curl to $chatId: " . $shell_response);
                 return $result;
             }
-        } else {
-            error_log("WhatsApp Method 1 (HTTP) failed: [$curl_err] HTTP $http_code");
         }
-
-        // ── Method 2: exec() shell curl ───────────────────────────────────
-        // Shell-level curl can bypass PHP-FPM iptables OUTPUT restrictions
-        // on some VPS configurations. Runs fully in background (&).
-        if (function_exists('exec') && !in_array('exec', array_map('trim', explode(',', ini_get('disable_functions'))))) {
-            $safe_phone   = escapeshellarg($chatId);
-            $safe_email   = escapeshellarg($email);
-            $safe_key     = escapeshellarg($api_key);
-            $safe_msg     = escapeshellarg($message);
-            $safe_url     = escapeshellarg($https_url);
-            $log_file     = sys_get_temp_dir() . '/wa_curl_' . time() . '.log';
-
-            // Try HTTPS via shell curl — shell may not share PHP-FPM firewall rules
-            $cmd = "curl -s --max-time 8 --connect-timeout 4 "
-                 . "-X POST $safe_url "
-                 . "--data-urlencode email=$safe_email "
-                 . "--data-urlencode api_key=$safe_key "
-                 . "--data-urlencode phone=$safe_phone "
-                 . "--data-urlencode message=$safe_msg "
-                 . "> " . escapeshellarg($log_file) . " 2>&1 &";
-
-            exec($cmd);
-
-            // Give it 1 second to write output then check
-            sleep(1);
-            if (file_exists($log_file)) {
-                $shell_response = file_get_contents($log_file);
-                @unlink($log_file);
-                $result = _wa_parse_response($shell_response);
-                if ($result['success']) {
-                    error_log("WhatsApp sent via shell curl to $chatId");
-                    return $result;
-                } else {
-                    error_log("WhatsApp Method 2 (shell curl) response: " . $shell_response);
-                }
-            }
-        }
-
-        // ── Method 3: HTTPS (port 443) ────────────────────────────────────
-        // Original method — works once the VPS firewall rule is fixed.
-        [$response, $http_code, $curl_err] = _wa_curl_post($https_url, $post_fields, true);
 
         if ($curl_err) {
-            error_log("WhatsApp ALL methods failed. Last error: [$curl_err]. "
-                    . "Fix: run 'ufw allow out 443/tcp && ufw reload' on your VPS.");
-            return ['success' => false, 'message' => 'All delivery methods failed: ' . $curl_err];
+            error_log("WhatsApp cURL error: " . $curl_err);
+            return ['success' => false, 'message' => 'Delivery failed: ' . $curl_err];
         }
 
-        if ($http_code !== 200) {
-            error_log("WhatsApp HTTPS HTTP error: $http_code | Response: $response");
-            return ['success' => false, 'message' => "API returned HTTP $http_code"];
-        }
-
-        return _wa_parse_response($response);
+        return _wa_parse_response($response ?? '');
     }
 }
 
@@ -227,6 +213,11 @@ if (!function_exists('sendWhatsAppMedia')) {
         // Based on documentation: send-image.php
         // Parameters: email, api_key, phone, image_url, caption
         $media_api_url = str_replace('send-message.php', 'send-image.php', WHATSAPP_API_URL);
+
+        // Append global footer to caption if not already present
+        if (!empty($caption) && strpos($caption, '| Lernerr.LK') === false) {
+            $caption .= WHATSAPP_FOOTER;
+        }
 
         $data = [
             'email' => $email,
@@ -306,9 +297,6 @@ function notifyStudentWatching($conn, $user_id, $recording_title, $remaining_wat
             $views_text_si = ($remaining_watches === -1) ? "සීමාවක් නැත" : $remaining_watches;
             $msg .= "ඉතිරිව ඇති වාර ගණන: *{$views_text_si}*\n";
         }
-
-        $msg .= "\nThank you for learning with us!\n" .
-            "*Team Learner.LK*";
 
         return sendWhatsAppMessage($phone, $msg);
     }

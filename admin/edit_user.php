@@ -79,7 +79,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $stmt->close();
 }
 
-// Handle Assignment Removal (Teacher Only)
+// Handle Assignment Addition / Removal (Teacher Only)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_assignment'])) {
+    $stream_subject_id = intval($_POST['stream_subject_id'] ?? 0);
+    $academic_year = intval($_POST['academic_year'] ?? date('Y'));
+    
+    if ($stream_subject_id > 0 && $academic_year > 2000) {
+        $chk_stmt = $conn->prepare("SELECT id FROM teacher_assignments WHERE teacher_id = ? AND stream_subject_id = ? AND academic_year = ?");
+        $chk_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+        $chk_stmt->execute();
+        if ($chk_stmt->get_result()->num_rows > 0) {
+            $error_msg = "This class is already assigned to this teacher for academic year $academic_year.";
+        } else {
+            $ins_stmt = $conn->prepare("INSERT INTO teacher_assignments (teacher_id, stream_subject_id, academic_year, status, assigned_date) VALUES (?, ?, ?, 'active', CURDATE())");
+            $ins_stmt->bind_param("sii", $user_id, $stream_subject_id, $academic_year);
+            if ($ins_stmt->execute()) {
+                $success_msg = "New class assignment added successfully!";
+            } else {
+                $error_msg = "Error assigning class: " . $conn->error;
+            }
+            $ins_stmt->close();
+        }
+        $chk_stmt->close();
+    } else {
+        $error_msg = "Please select a valid subject and academic year.";
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_assignment'])) {
     $assignment_id = intval($_POST['assignment_id']);
     $stmt = $conn->prepare("DELETE FROM teacher_assignments WHERE id = ? AND teacher_id = ?");
@@ -99,10 +125,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inst = trim($_POST['institution']);
         $year = intval($_POST['year_obtained']);
         $field = '';
-        $grade = trim($_POST['grade_or_class']);
         
-        $stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study, grade_or_class) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssiiss", $user_id, $qual, $inst, $year, $field, $grade);
+        $stmt = $conn->prepare("INSERT INTO teacher_education (teacher_id, qualification, institution, year_obtained, field_of_study) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssis", $user_id, $qual, $inst, $year, $field);
         if ($stmt->execute()) {
             $success_msg = "Education added successfully.";
         } else {
@@ -116,10 +141,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inst = trim($_POST['institution']);
         $year = intval($_POST['year_obtained']);
         $field = '';
-        $grade = trim($_POST['grade_or_class']);
         
-        $stmt = $conn->prepare("UPDATE teacher_education SET qualification=?, institution=?, year_obtained=?, field_of_study=?, grade_or_class=? WHERE id=? AND teacher_id=?");
-        $stmt->bind_param("ssissis", $qual, $inst, $year, $field, $grade, $edu_id, $user_id);
+        $stmt = $conn->prepare("UPDATE teacher_education SET qualification=?, institution=?, year_obtained=?, field_of_study=? WHERE id=? AND teacher_id=?");
+        $stmt->bind_param("ssisis", $qual, $inst, $year, $field, $edu_id, $user_id);
         if ($stmt->execute()) {
             $success_msg = "Education updated successfully.";
         } else {
@@ -178,6 +202,30 @@ if ($user['role'] === 'teacher') {
     $res = $stmt->get_result();
     while($row = $res->fetch_assoc()) $education[] = $row;
     $stmt->close();
+
+    // Fetch all available streams
+    $all_streams = [];
+    $s_res = $conn->query("SELECT * FROM streams ORDER BY name ASC");
+    if ($s_res) {
+        while ($row = $s_res->fetch_assoc()) {
+            $all_streams[] = $row;
+        }
+    }
+
+    // Fetch all available stream subjects with stream_id & subject_name
+    $all_stream_subjects = [];
+    $ss_res = $conn->query("
+        SELECT ss.id as stream_subject_id, ss.stream_id, sub.name as subject_name 
+        FROM stream_subjects ss
+        JOIN subjects sub ON ss.subject_id = sub.id
+        WHERE ss.status = 1 AND sub.status = 1
+        ORDER BY sub.name ASC
+    ");
+    if ($ss_res) {
+        while ($row = $ss_res->fetch_assoc()) {
+            $all_stream_subjects[] = $row;
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -330,31 +378,12 @@ if ($user['role'] === 'teacher') {
                                             <label class="text-xs text-gray-500">Year</label>
                                             <input type="number" name="year_obtained" value="<?php echo htmlspecialchars($edu['year_obtained']); ?>" class="w-full text-sm border-gray-300 rounded p-1">
                                         </div>
-                                        <div>
-                                            <label class="text-xs text-gray-500">Grade/Class</label>
-                                            <input type="text" name="grade_or_class" value="<?php echo htmlspecialchars($edu['grade_or_class']); ?>" class="w-full text-sm border-gray-300 rounded p-1">
-                                        </div>
                                         
                                         <div class="md:col-span-2 flex justify-end space-x-2 mt-2">
                                             <button type="submit" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Update</button>
                                             <button type="submit" formaction="" name="delete_education" value="1" onclick="return confirm('Delete this qualification?');" class="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Delete</button>
-                                            <!-- Note: formaction override required if button inside same form, but here name/value differentiates enough if handled top-level. 
-                                                 However, HTML forms submit the clicked button's name/value. So separate inputs are fine. 
-                                                 Actually, name="delete_education" on the button will be sent. 
-                                                 BUT the hidden input "update_education" is also sent. 
-                                                 I need to ensure the PHP logic checks DELETE first or handles the button name priority. 
-                                                 Better: Remove hidden input "update_education" and use button name="update_education".
-                                            -->
                                         </div>
                                     </form>
-                                    <!-- Re-fixing form structure for proper submission -->
-                                    <script>
-                                        // Quick inline fix to remove the hidden update_education and use button instead
-                                        // Logic handled in PHP: checks isset($_POST['update_education']) OR isset($_POST['delete_education'])
-                                        // My PHP checks: if(isset(add)) ... elseif(isset(update))...
-                                        // If I have <input hidden name="update_education">, it's ALWAYS set.
-                                        // I should change the form above in the next write to use button names only.
-                                    </script>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -371,11 +400,8 @@ if ($user['role'] === 'teacher') {
                             <div>
                                 <input type="text" name="institution" placeholder="Institution" class="w-full text-sm border-gray-300 rounded p-2">
                             </div>
-                            <div>
+                            <div class="md:col-span-2">
                                 <input type="number" name="year_obtained" placeholder="Year" class="w-full text-sm border-gray-300 rounded p-2">
-                            </div>
-                            <div>
-                                <input type="text" name="grade_or_class" placeholder="Grade/Class" class="w-full text-sm border-gray-300 rounded p-2">
                             </div>
                             <div class="md:col-span-2">
                                 <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700">Add Qualification</button>
@@ -393,9 +419,9 @@ if ($user['role'] === 'teacher') {
                         <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Assigned Classes</h2>
                         
                         <?php if(empty($assignments)): ?>
-                            <p class="text-gray-500 text-sm">No classes assigned.</p>
+                            <p class="text-gray-500 text-sm mb-4">No classes assigned.</p>
                         <?php else: ?>
-                            <div class="space-y-3">
+                            <div class="space-y-3 mb-6">
                                 <?php foreach($assignments as $a): ?>
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                                         <div>
@@ -413,6 +439,71 @@ if ($user['role'] === 'teacher') {
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
+
+                        <!-- Add New Class Enrollment -->
+                        <div class="border-t pt-4">
+                            <h3 class="font-bold text-gray-800 text-sm mb-3">+ Assign New Class / Subject</h3>
+                            <form method="POST" class="space-y-3">
+                                <input type="hidden" name="add_assignment" value="1">
+                                <div>
+                                    <label class="block text-xs text-gray-500 font-semibold mb-1">1. Select Stream</label>
+                                    <select id="stream_select" onchange="filterSubjectsByStream(this.value)" class="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <option value="">-- Choose Stream --</option>
+                                        <?php foreach($all_streams as $st): ?>
+                                            <option value="<?php echo $st['id']; ?>"><?php echo htmlspecialchars($st['name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 font-semibold mb-1">2. Select Subject</label>
+                                    <select name="stream_subject_id" id="subject_select" required class="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <option value="">-- Choose Stream First --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-500 font-semibold mb-1">3. Academic Year</label>
+                                    <select name="academic_year" required class="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white font-medium focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <?php 
+                                        $curr_y = (int)date('Y');
+                                        for ($y = $curr_y + 2; $y >= $curr_y - 2; $y--): 
+                                        ?>
+                                            <option value="<?php echo $y; ?>" <?php echo $y === $curr_y ? 'selected' : ''; ?>><?php echo $y; ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-2.5 px-4 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 mt-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                    <span>Assign Class Enrollment</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <script>
+                            const allStreamSubjects = <?php echo json_encode($all_stream_subjects); ?>;
+
+                            function filterSubjectsByStream(streamId) {
+                                const subjectSelect = document.getElementById('subject_select');
+                                subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+                                
+                                if (!streamId) {
+                                    subjectSelect.innerHTML = '<option value="">-- Choose Stream First --</option>';
+                                    return;
+                                }
+                                
+                                const filtered = allStreamSubjects.filter(item => item.stream_id == streamId);
+                                if (filtered.length === 0) {
+                                    subjectSelect.innerHTML = '<option value="">No subjects found in stream</option>';
+                                    return;
+                                }
+                                
+                                filtered.forEach(item => {
+                                    const opt = document.createElement('option');
+                                    opt.value = item.stream_subject_id;
+                                    opt.textContent = item.subject_name;
+                                    subjectSelect.appendChild(opt);
+                                });
+                            }
+                        </script>
                     </div>
                 </div>
             <?php endif; ?>

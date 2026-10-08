@@ -14,7 +14,7 @@ header('Content-Type: application/json');
 $role = $_GET['role'] ?? '';
 
 // Validate role
-$valid_roles = ['student', 'teacher', 'instructor', 'admin'];
+$valid_roles = ['student', 'teacher', 'instructor', 'admin', 'super_admin'];
 if (!in_array($role, $valid_roles)) {
     echo json_encode(['success' => false, 'message' => 'Invalid role']);
     exit;
@@ -23,25 +23,28 @@ if (!in_array($role, $valid_roles)) {
 // Role prefixes
 $role_prefix = [
     'student' => 'stu',
-    'teacher' => 'tea',
+    'teacher' => 'T',
     'instructor' => 'ins',
-    'admin' => 'adm'
+    'admin' => 'adm',
+    'super_admin' => 'sad'
 ];
 
 $prefix = $role_prefix[$role];
+$start_num = ($role === 'teacher') ? 1 : 1000;
+$substring_offset = strlen($prefix) + 2;
 
 // Get next number for this role
-$stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY user_id DESC LIMIT 1");
+$stmt = $conn->prepare("SELECT user_id FROM users WHERE user_id LIKE ? ORDER BY CAST(SUBSTRING(user_id, {$substring_offset}) AS UNSIGNED) DESC LIMIT 1");
 $pattern = $prefix . '_%';
 $stmt->bind_param("s", $pattern);
 $stmt->execute();
 $result = $stmt->get_result();
 
-$next_num = 1000; // Start from 1000
+$next_num = $start_num;
 if ($result->num_rows > 0) {
     $last_user = $result->fetch_assoc();
     $last_num = intval(substr($last_user['user_id'], strlen($prefix) + 1));
-    $next_num = max($last_num + 1, 1000);
+    $next_num = max($last_num + 1, $start_num);
 }
 $stmt->close();
 
